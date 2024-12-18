@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
@@ -37,16 +38,34 @@ export default function BreathAnimation({ pattern }) {
     outputRange: [0.3, 0.8],
   });
 
+  const triggerHaptic = async (type) => {
+    switch (type) {
+      case 'inhale':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        break;
+      case 'hold':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        break;
+      case 'exhale':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        break;
+      case 'countdown':
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        break;
+    }
+  };
+
   useEffect(() => {
-    // Start with countdown
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(countdownInterval);
           setIsCountingDown(false);
+          triggerHaptic('countdown');
           startBreathingAnimation();
           return 0;
         }
+        triggerHaptic('hold');
         return prev - 1;
       });
     }, 1000);
@@ -64,6 +83,7 @@ export default function BreathAnimation({ pattern }) {
 
       // Inhale
       setCurrentPhase('Inhale');
+      triggerHaptic('inhale');
       Animated.parallel([
         Animated.timing(scale, {
           toValue: 1,
@@ -83,6 +103,7 @@ export default function BreathAnimation({ pattern }) {
       ]).start(() => {
         // Hold after inhale
         setCurrentPhase('Hold');
+        triggerHaptic('hold');
         Animated.timing(colorAnim, {
           toValue: 1,
           duration: 300,
@@ -92,6 +113,7 @@ export default function BreathAnimation({ pattern }) {
         setTimeout(() => {
           // Exhale
           setCurrentPhase('Exhale');
+          triggerHaptic('exhale');
           Animated.parallel([
             Animated.timing(scale, {
               toValue: 0.2,
@@ -111,6 +133,7 @@ export default function BreathAnimation({ pattern }) {
           ]).start(() => {
             // Hold after exhale
             setCurrentPhase('Hold');
+            triggerHaptic('hold');
             setTimeout(() => {
               currentRound++;
               if (currentRound < pattern.rounds) {
