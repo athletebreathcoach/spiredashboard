@@ -40,20 +40,43 @@ export default function BreathAnimation({ pattern }) {
 
   const triggerHaptic = async (type) => {
     switch (type) {
-      case 'inhale':
+      case 'tick':
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         break;
-      case 'hold':
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        break;
-      case 'exhale':
+      case 'transition':
+        // Double tap effect
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        setTimeout(async () => {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        }, 150);
         break;
       case 'countdown':
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         break;
+      case 'countdownTick':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        break;
     }
   };
+
+  // Add interval ref to clean up properly
+  const tickInterval = useRef(null);
+
+  const startTickingHaptics = () => {
+    tickInterval.current = setInterval(() => {
+      triggerHaptic('tick');
+    }, 1000);
+  };
+
+  const stopTickingHaptics = () => {
+    if (tickInterval.current) {
+      clearInterval(tickInterval.current);
+    }
+  };
+
+  useEffect(() => {
+    return () => stopTickingHaptics(); // Cleanup on unmount
+  }, []);
 
   useEffect(() => {
     const countdownInterval = setInterval(() => {
@@ -65,7 +88,7 @@ export default function BreathAnimation({ pattern }) {
           startBreathingAnimation();
           return 0;
         }
-        triggerHaptic('hold');
+        triggerHaptic('countdownTick');
         return prev - 1;
       });
     }, 1000);
@@ -78,12 +101,14 @@ export default function BreathAnimation({ pattern }) {
 
     const animate = () => {
       if (currentRound >= pattern.rounds) {
+        stopTickingHaptics();
         return;
       }
 
+      startTickingHaptics(); // Start ticking for the round
+
       // Inhale
       setCurrentPhase('Inhale');
-      triggerHaptic('inhale');
       Animated.parallel([
         Animated.timing(scale, {
           toValue: 1,
@@ -100,20 +125,22 @@ export default function BreathAnimation({ pattern }) {
           duration: pattern.inhaleTime * 1000,
           useNativeDriver: false,
         }),
-      ]).start(() => {
+      ]).start(async () => {
+        await triggerHaptic('transition');
+        
         // Hold after inhale
         setCurrentPhase('Hold');
-        triggerHaptic('hold');
         Animated.timing(colorAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: false,
         }).start();
         
-        setTimeout(() => {
+        setTimeout(async () => {
+          await triggerHaptic('transition');
+          
           // Exhale
           setCurrentPhase('Exhale');
-          triggerHaptic('exhale');
           Animated.parallel([
             Animated.timing(scale, {
               toValue: 0.2,
@@ -130,14 +157,18 @@ export default function BreathAnimation({ pattern }) {
               duration: pattern.exhaleTime * 1000,
               useNativeDriver: false,
             }),
-          ]).start(() => {
+          ]).start(async () => {
+            await triggerHaptic('transition');
+            
             // Hold after exhale
             setCurrentPhase('Hold');
-            triggerHaptic('hold');
-            setTimeout(() => {
+            setTimeout(async () => {
+              await triggerHaptic('transition');
               currentRound++;
               if (currentRound < pattern.rounds) {
                 animate();
+              } else {
+                stopTickingHaptics();
               }
             }, pattern.exhaleHoldTime * 1000);
           });
