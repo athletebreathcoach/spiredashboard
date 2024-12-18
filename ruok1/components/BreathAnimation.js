@@ -7,20 +7,15 @@ import {
   Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
 
-// Enhanced color scheme
-const COLORS = {
-  inhale: '#50C878',    // Emerald green
-  hold: '#00B5E0',      // Your brand blue
-  exhale: '#FF3B30',    // Softer red
-  countdown: '#FFA500',  // Orange for countdown
-  glow: '#00B5E0',      // Glow color
-};
-
 export default function BreathAnimation({ pattern }) {
+  const { theme } = useTheme();
+  const COLORS = theme.colors.breathing;
+  
   const scale = useRef(new Animated.Value(0.2)).current;
   const opacity = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
@@ -179,63 +174,72 @@ export default function BreathAnimation({ pattern }) {
     animate();
   };
 
-  if (isCountingDown) {
-    return (
-      <View style={styles.container}>
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {isCountingDown ? (
         <View style={styles.countdownContainer}>
-          <Text style={styles.roundText}>Round 1 of {pattern.rounds}</Text>
-          <View style={styles.countdownCircle}>
-            <Text style={styles.countdownText}>{countdown}</Text>
-            <Text style={styles.startingText}>Starting in...</Text>
+          <Text style={[styles.roundText, { color: theme.colors.text }]}>
+            Round 1 of {pattern.rounds}
+          </Text>
+          <View style={[styles.countdownCircle, { 
+            borderColor: theme.colors.primary,
+            shadowColor: theme.colors.primary 
+          }]}>
+            <Text style={[styles.countdownText, { color: theme.colors.primary }]}>
+              {countdown}
+            </Text>
+            <Text style={[styles.startingText, { color: theme.colors.text }]}>
+              Starting in...
+            </Text>
           </View>
         </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.roundText}>Round 1 of {pattern.rounds}</Text>
-      <View style={styles.circleContainer}>
-        <Animated.View
-          style={[
-            styles.circleBackground,
-            {
-              backgroundColor: animatedColor,
-              opacity: 0.1,
-            },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.circleBreathing,
-            {
-              transform: [{ scale }],
-              opacity: glowOpacity,
-              backgroundColor: animatedColor,
-              shadowColor: animatedColor,
-              shadowOffset: {
-                width: 0,
-                height: 0,
-              },
-              shadowOpacity: glowOpacity,
-              shadowRadius: 30,
-            },
-          ]}
-        />
-        <Animated.View style={styles.textContainer}>
-          <Animated.Text
-            style={[
-              styles.phaseText,
-              {
-                color: animatedColor,
-              },
-            ]}
-          >
-            {currentPhase}
-          </Animated.Text>
-        </Animated.View>
-      </View>
+      ) : (
+        <>
+          <Text style={[styles.roundText, { color: theme.colors.text }]}>
+            Round 1 of {pattern.rounds}
+          </Text>
+          <View style={styles.circleContainer}>
+            <Animated.View
+              style={[
+                styles.circleBackground,
+                {
+                  backgroundColor: animatedColor,
+                  opacity: 0.1,
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.circleBreathing,
+                {
+                  transform: [{ scale }],
+                  opacity: glowOpacity,
+                  backgroundColor: animatedColor,
+                  shadowColor: animatedColor,
+                  shadowOffset: {
+                    width: 0,
+                    height: 0,
+                  },
+                  shadowOpacity: glowOpacity,
+                  shadowRadius: 30,
+                },
+              ]}
+            />
+            <Animated.View style={styles.textContainer}>
+              <Animated.Text
+                style={[
+                  styles.phaseText,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                {currentPhase}
+              </Animated.Text>
+            </Animated.View>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -261,10 +265,8 @@ const styles = StyleSheet.create({
     height: CIRCLE_SIZE * 0.8,
     borderRadius: (CIRCLE_SIZE * 0.8) / 2,
     borderWidth: 4,
-    borderColor: COLORS.countdown,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.countdown,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -272,7 +274,6 @@ const styles = StyleSheet.create({
   countdownText: {
     fontSize: 72,
     fontWeight: 'bold',
-    color: COLORS.countdown,
   },
   startingText: {
     fontSize: 20,

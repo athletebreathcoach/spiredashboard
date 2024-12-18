@@ -12,11 +12,13 @@ import {
 import { auth, db } from '../config/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme();
 
   const handleLogin = async () => {
     if (email === '' || password === '') {
@@ -69,13 +71,19 @@ export default function Login() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.loginContainer}>
-        <Text style={styles.title}>Welcome to BreathWork</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Welcome to BreathWork
+        </Text>
         
         <TextInput
-          style={styles.input}
+          style={[styles.input, { 
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+            color: theme.colors.text
+          }]}
           placeholder="Email"
           value={email}
           onChangeText={setEmail}
@@ -85,7 +93,11 @@ export default function Login() {
         />
         
         <TextInput
-          style={styles.input}
+          style={[styles.input, { 
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+            color: theme.colors.text
+          }]}
           placeholder="Password"
           value={password}
           onChangeText={setPassword}

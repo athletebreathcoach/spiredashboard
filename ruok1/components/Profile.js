@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { auth } from '../config/firebase';
 import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -51,7 +53,7 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text style={styles.title}>Profile</Text>
       <Text style={styles.email}>{auth.currentUser?.email}</Text>
 
@@ -84,6 +86,15 @@ export default function Profile() {
         onPress={handleLogout}
       >
         <Text style={styles.buttonText}>Logout</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        onPress={toggleTheme}
+      >
+        <Text style={[styles.buttonText, { color: theme.colors.text }]}>
+          Switch to {theme.name === 'light' ? 'Dark' : 'Light'} Mode
+        </Text>
       </TouchableOpacity>
     </View>
   );

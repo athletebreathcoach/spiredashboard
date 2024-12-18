@@ -7,12 +7,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
 
 const { height } = Dimensions.get('window');
 const CONTAINER_PADDING = height * 0.03;
 const ITEM_SPACING = height * 0.02;
 
 export default function BreathSetup({ onStart }) {
+  const { theme } = useTheme();
   const [settings, setSettings] = useState({
     inhaleTime: 4,
     inhaleHoldTime: 4,
@@ -35,34 +37,36 @@ export default function BreathSetup({ onStart }) {
     }));
   };
 
-  const TimerControl = ({ label, value, settingKey }) => (
-    <View style={styles.timerContainer}>
-      <Text style={styles.timerLabel}>{label}</Text>
+  const TimerControl = ({ label, value, settingKey, style, textColor }) => (
+    <View style={[styles.timerContainer, style]}>
+      <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TouchableOpacity 
-          style={styles.controlButton}
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => decrement(settingKey)}
         >
-          <Ionicons name="remove" size={20} color="#00B5E0" />
+          <Ionicons name="remove" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
         
-        <Text style={styles.timerValue}>{value}s</Text>
+        <Text style={[styles.timerValue, { color: textColor }]}>{value}s</Text>
         
         <TouchableOpacity 
-          style={styles.controlButton}
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => increment(settingKey)}
         >
-          <Ionicons name="add" size={20} color="#00B5E0" />
+          <Ionicons name="add" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Breathing Pattern</Text>
-        <Text style={styles.subtitle}>Customize your breathing exercise</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Breathing Pattern</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          Customize your breathing exercise
+        </Text>
       </View>
 
       <View style={styles.controlsContainer}>
@@ -70,34 +74,44 @@ export default function BreathSetup({ onStart }) {
           label="Inhale" 
           value={settings.inhaleTime}
           settingKey="inhaleTime"
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.inhaleHoldTime}
           settingKey="inhaleHoldTime"
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
         />
         <TimerControl 
           label="Exhale" 
           value={settings.exhaleTime}
           settingKey="exhaleTime"
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.exhaleHoldTime}
           settingKey="exhaleHoldTime"
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
         />
         <TimerControl 
           label="Rounds" 
           value={settings.rounds}
           settingKey="rounds"
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
         />
       </View>
 
       <TouchableOpacity 
-        style={styles.beginButton}
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onStart(settings)}
       >
-        <Text style={styles.beginButtonText}>Begin Practice</Text>
+        <Text style={styles.buttonText}>Begin Practice</Text>
       </TouchableOpacity>
     </View>
   );
@@ -106,7 +120,6 @@ export default function BreathSetup({ onStart }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
     padding: CONTAINER_PADDING,
     justifyContent: 'space-between',
   },
@@ -116,12 +129,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666666',
   },
   controlsContainer: {
     flex: 1,
@@ -162,13 +173,12 @@ const styles = StyleSheet.create({
     minWidth: 40,
     textAlign: 'center',
   },
-  beginButton: {
-    backgroundColor: '#00B5E0',
+  button: {
     padding: CONTAINER_PADDING,
     borderRadius: 12,
     alignItems: 'center',
   },
-  beginButtonText: {
+  buttonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',

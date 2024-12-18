@@ -10,6 +10,7 @@ import Profile from './components/Profile';
 import { Ionicons } from '@expo/vector-icons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BreathGuide from './components/BreathGuide';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -28,6 +29,7 @@ const Tab = createBottomTabNavigator();
 
 // Update HomeScreen to use navigation
 function HomeScreen({ navigation }) {
+  const { theme } = useTheme();
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   const handleBreathGuide = () => {
@@ -35,8 +37,10 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.homeContainer}>
-      <Text style={styles.quoteText}>{randomQuote}</Text>
+    <View style={[styles.homeContainer, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.quoteText, { color: theme.colors.text }]}>
+        {randomQuote}
+      </Text>
       
       <TouchableOpacity 
         style={styles.breathButton}
@@ -49,6 +53,8 @@ function HomeScreen({ navigation }) {
 }
 
 function TabNavigator() {
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -61,6 +67,16 @@ function TabNavigator() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
+        tabBarStyle: {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        headerStyle: {
+          backgroundColor: theme.colors.background,
+        },
+        headerTintColor: theme.colors.text,
       })}
     >
       <Tab.Screen 
@@ -93,6 +109,17 @@ export default function App() {
   }
 
   return (
+    <ThemeProvider>
+      <AppContent user={user} />
+    </ThemeProvider>
+  );
+}
+
+// Separate component to use theme after provider is initialized
+function AppContent({ user }) {
+  const { theme } = useTheme();
+
+  return (
     <>
       {user ? (
         <NavigationContainer>
@@ -108,9 +135,9 @@ export default function App() {
               options={{
                 title: 'BREATH GUIDE',
                 headerStyle: {
-                  backgroundColor: '#0d2f4d',
+                  backgroundColor: theme.colors.background,
                 },
-                headerTintColor: '#00B5E0',
+                headerTintColor: theme.colors.primary,
                 headerTitleStyle: {
                   fontWeight: '800',
                   textTransform: 'uppercase',
@@ -121,9 +148,9 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
       ) : (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           <Login />
-          <StatusBar style="auto" />
+          <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
         </View>
       )}
     </>
