@@ -120,13 +120,15 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000000',
+    width: '100%',
   },
   loginContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    width: '100%',
   },
   title: {
     fontSize: 24,
@@ -143,11 +145,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 15,
     fontSize: 16,
+    backgroundColor: '#FFFFFF',
   },
   button: {
     width: '100%',
     height: 50,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#00B5E0',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',

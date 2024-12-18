@@ -35,7 +35,7 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.homeContainer}>
       <Text style={styles.quoteText}>{randomQuote}</Text>
       
       <TouchableOpacity 
@@ -134,8 +134,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+    paddingVertical: 20,
+  },
+  homeContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    paddingVertical: 20,
     alignItems: 'center',
-    padding: 20,
   },
   welcomeText: {
     fontSize: 18,
