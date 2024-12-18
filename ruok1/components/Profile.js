@@ -8,10 +8,20 @@ import {
   TextInput,
 } from 'react-native';
 import { auth } from '../config/firebase';
-import { updatePassword, sendPasswordResetEmail } from 'firebase/auth';
+import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 
 export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      console.log('Logged out successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to log out');
+      console.error(error);
+    }
+  };
 
   const handleResetPassword = async () => {
     try {
@@ -68,6 +78,13 @@ export default function Profile() {
       >
         <Text style={styles.buttonText}>Send Password Reset Email</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.button, styles.logoutButton]}
+        onPress={handleLogout}
+      >
+        <Text style={styles.buttonText}>Logout</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -119,5 +136,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    marginTop: 20,
   },
 }); 
