@@ -8,27 +8,30 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
 import Profile from './components/Profile';
 import { Ionicons } from '@expo/vector-icons';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import BreathGuide from './components/BreathGuide';
 
-// Add this array near the top of your file, after imports
+// Update the quotes to be more motivational/athletic
 const quotes = [
-  "Breathe in peace, breathe out stress",
-  "Your breath is your anchor to the present moment",
-  "Each breath is a fresh beginning",
-  "The way you breathe is the way you live",
-  "Breathing is the greatest pleasure in life",
-  "Take a deep breath, it's a new day",
-  "Your breath is your superpower",
-  "Mindful breathing, mindful living"
+  "Control your breath, control your game",
+  "Champions breathe differently",
+  "Power starts with breath",
+  "Train your lungs like you train your muscles",
+  "Breathe deep, push harder",
+  "Mental toughness begins with breath control",
+  "Master your breath, master yourself",
+  "Breathing is your secret weapon"
 ];
 
-// Placeholder for Home screen
-function HomeScreen() {
-  // Add this line to get a random quote
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Update HomeScreen to use navigation
+function HomeScreen({ navigation }) {
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   const handleBreathGuide = () => {
-    // Placeholder for future breathing exercise navigation/activation
-    console.log('Breath Guide pressed');
+    navigation.navigate('BreathGuide');
   };
 
   return (
@@ -45,7 +48,32 @@ function HomeScreen() {
   );
 }
 
-const Tab = createBottomTabNavigator();
+function TabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{
+          headerRight: () => null
+        }}
+      />
+      <Tab.Screen name="Profile" component={Profile} />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -68,22 +96,29 @@ export default function App() {
     <>
       {user ? (
         <NavigationContainer>
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              tabBarIcon: ({ focused, color, size }) => {
-                let iconName;
-                if (route.name === 'Home') {
-                  iconName = focused ? 'home' : 'home-outline';
-                } else if (route.name === 'Profile') {
-                  iconName = focused ? 'person' : 'person-outline';
-                }
-                return <Ionicons name={iconName} size={size} color={color} />;
-              },
-            })}
-          >
-            <Tab.Screen name="Home" component={HomeScreen} />
-            <Tab.Screen name="Profile" component={Profile} />
-          </Tab.Navigator>
+          <Stack.Navigator>
+            <Stack.Screen 
+              name="MainTabs" 
+              component={TabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="BreathGuide" 
+              component={BreathGuide}
+              options={{
+                title: 'BREATH GUIDE',
+                headerStyle: {
+                  backgroundColor: '#0d2f4d',
+                },
+                headerTintColor: '#00B5E0',
+                headerTitleStyle: {
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                },
+              }}
+            />
+          </Stack.Navigator>
         </NavigationContainer>
       ) : (
         <View style={styles.container}>
@@ -98,7 +133,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000000',
     alignItems: 'center',
     padding: 20,
   },
@@ -109,32 +144,35 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   breathButton: {
-    backgroundColor: '#4A90E2',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    shadowColor: '#000',
+    backgroundColor: '#00B5E0',
+    paddingVertical: 20,
+    paddingHorizontal: 50,
+    borderRadius: 12,
+    shadowColor: '#00B5E0',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.05 }],
   },
   breathButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   quoteText: {
-    fontSize: 24,
+    fontSize: 28,
     textAlign: 'center',
     marginTop: 40,
     marginBottom: 60,
-    color: '#333',
-    fontStyle: 'italic',
+    color: '#FFFFFF',
+    fontWeight: 'bold',
     paddingHorizontal: 20,
-    lineHeight: 32,
+    lineHeight: 36,
+    textTransform: 'uppercase',
   },
 });
