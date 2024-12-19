@@ -1,12 +1,35 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { auth } from '../config/firebase';
+import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 
 export default function Settings({ navigation }) {
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to log out');
+      console.error(error);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    try {
+      await sendPasswordResetEmail(auth, auth.currentUser.email);
+      Alert.alert(
+        'Success',
+        'Password reset email sent. Please check your inbox.'
+      );
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
 
   const sections = [
     {
@@ -15,17 +38,18 @@ export default function Settings({ navigation }) {
         { 
           icon: 'person-circle-outline', 
           label: 'Account',
+          value: auth.currentUser?.email,
           onPress: () => {} 
         },
         { 
-          icon: 'settings-outline', 
-          label: 'General',
-          onPress: () => {} 
+          icon: 'key-outline', 
+          label: 'Reset Password',
+          onPress: handleResetPassword
         },
         { 
-          icon: 'calendar-outline', 
-          label: 'Calendar',
-          onPress: () => {} 
+          icon: 'log-out-outline', 
+          label: 'Logout',
+          onPress: handleLogout
         },
       ]
     },
@@ -35,43 +59,54 @@ export default function Settings({ navigation }) {
         { 
           icon: 'color-palette-outline', 
           label: 'Theme',
-          value: 'Dark',
-          onPress: () => {} 
+          value: theme.name === 'dark' ? 'Dark' : 'Light',
+          onPress: toggleTheme
         },
         { 
-          icon: 'apps-outline', 
-          label: 'App Icon',
-          value: 'Default',
-          onPress: () => {} 
-        },
-        { 
-          icon: 'menu-outline', 
-          label: 'Navigation',
-          onPress: () => {} 
-        },
-        { 
-          icon: 'add-circle-outline', 
-          label: 'Quick Add',
+          icon: 'notifications-outline', 
+          label: 'Notifications',
           onPress: () => {} 
         },
       ]
     },
     {
-      title: 'PRODUCTIVITY',
+      title: 'BREATHING',
       items: [
         { 
+          icon: 'fitness-outline', 
+          label: 'Default Protocol',
+          value: 'Box Breathing',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'timer-outline', 
+          label: 'Session Reminders',
+          onPress: () => {} 
+        },
+        { 
           icon: 'trending-up-outline', 
-          label: 'Productivity',
+          label: 'Goals',
+          onPress: () => {} 
+        },
+      ]
+    },
+    {
+      title: 'ABOUT',
+      items: [
+        { 
+          icon: 'information-circle-outline', 
+          label: 'Version',
+          value: '1.0.0',
           onPress: () => {} 
         },
         { 
-          icon: 'alarm-outline', 
-          label: 'Reminders',
+          icon: 'shield-checkmark-outline', 
+          label: 'Privacy Policy',
           onPress: () => {} 
         },
         { 
-          icon: 'notifications-outline', 
-          label: 'Notifications',
+          icon: 'document-text-outline', 
+          label: 'Terms of Service',
           onPress: () => {} 
         },
       ]
