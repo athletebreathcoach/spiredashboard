@@ -21,6 +21,8 @@ import BreathHistory from './components/BreathHistory';
 import { getDoc, doc } from 'firebase/firestore';
 import CoachDashboard from './components/CoachDashboard';
 import ClientHistory from './components/ClientHistory';
+import Exercises from './components/Exercises';
+import ExerciseDetail from './components/ExerciseDetail';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -278,6 +280,28 @@ function AppContent({ user }) {
                   fontWeight: '600',
                   letterSpacing: 0.5,
                 },
+              }}
+            />
+            <Stack.Screen 
+              name="Exercises" 
+              component={Exercises}
+              options={{
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ExerciseDetail" 
+              component={ExerciseDetail}
+              options={{
+                headerShown: true,
+                headerBackTitle: 'Back',
               }}
             />
           </>
