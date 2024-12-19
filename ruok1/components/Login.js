@@ -13,6 +13,8 @@ import { auth, db } from '../config/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useTheme } from '../theme/ThemeContext';
+import Layout from '../constants/Layout';
+import Typography from '../constants/Typography';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -143,35 +145,32 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 40,
-    color: '#333',
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.xlarge,
   },
   input: {
     width: '100%',
-    height: 50,
+    height: Layout.minTouchSize,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    borderRadius: Layout.borderRadius.medium,
+    paddingHorizontal: Layout.spacing.medium,
+    marginBottom: Layout.spacing.medium,
+    fontFamily: Typography.fonts.regular,
+    fontSize: Layout.text.medium,
   },
   button: {
     width: '100%',
-    height: 50,
-    backgroundColor: '#00B5E0',
-    borderRadius: 10,
+    minHeight: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.medium,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: Layout.spacing.medium,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontFamily: Typography.fonts.medium,
+    fontSize: Layout.text.large,
+    letterSpacing: 0.35,
   },
   buttonDisabled: {
     backgroundColor: '#cccccc',

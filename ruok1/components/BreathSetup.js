@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import Layout from '../constants/Layout';
+import Typography from '../constants/Typography';
 
 const { height } = Dimensions.get('window');
 const CONTAINER_PADDING = height * 0.03;
@@ -127,12 +129,16 @@ const styles = StyleSheet.create({
     marginBottom: ITEM_SPACING,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: Layout.text.xxlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
+    letterSpacing: 0.35,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+    letterSpacing: 0.25,
+    lineHeight: Layout.text.small * 1.4,
   },
   controlsContainer: {
     flex: 1,
@@ -141,16 +147,16 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     backgroundColor: '#111111',
-    borderRadius: 12,
-    padding: CONTAINER_PADDING,
+    borderRadius: Layout.borderRadius.medium,
+    padding: Layout.spacing.large,
+    minHeight: Layout.minTouchSize,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   timerLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
     flex: 1,
   },
   controlRow: {
@@ -159,17 +165,16 @@ const styles = StyleSheet.create({
     gap: ITEM_SPACING,
   },
   controlButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: Layout.minTouchSize,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.minTouchSize / 2,
     backgroundColor: '#222222',
     justifyContent: 'center',
     alignItems: 'center',
   },
   timerValue: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
     minWidth: 40,
     textAlign: 'center',
   },
@@ -180,7 +185,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    letterSpacing: 0.5,
   },
 }); 

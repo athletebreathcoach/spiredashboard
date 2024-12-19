@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
+import Layout from '../constants/Layout';
+import Typography from '../constants/Typography';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
@@ -252,10 +254,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   roundText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    marginBottom: 40,
-    opacity: 0.8,
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.xlarge,
+    letterSpacing: 0.5,
   },
   countdownContainer: {
     alignItems: 'center',
@@ -272,13 +274,15 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
   },
   countdownText: {
-    fontSize: 72,
-    fontWeight: 'bold',
+    fontSize: Layout.text.xxlarge * 2,
+    fontFamily: Typography.fonts.heavy,
+    letterSpacing: 0.5,
   },
   startingText: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    marginTop: 10,
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.medium,
+    letterSpacing: 0.25,
   },
   circleContainer: {
     width: CIRCLE_SIZE,
@@ -305,7 +309,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phaseText: {
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: Layout.text.xxlarge,
+    fontFamily: Typography.fonts.medium,
+    letterSpacing: 1,
   },
 }); 

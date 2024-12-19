@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BreathGuide from './components/BreathGuide';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import Layout from './constants/Layout';
+import Typography from './constants/Typography';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -191,20 +193,18 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   breathButtonText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
+    fontFamily: Typography.fonts.bold,
+    fontSize: Layout.text.large,
     letterSpacing: 1,
   },
   quoteText: {
-    fontSize: 28,
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
     textAlign: 'center',
-    marginTop: 40,
-    marginBottom: 60,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    paddingHorizontal: 20,
-    lineHeight: 36,
+    marginTop: Layout.spacing.xlarge,
+    marginBottom: Layout.spacing.xxlarge,
+    paddingHorizontal: Layout.spacing.large,
+    lineHeight: Layout.text.xlarge * 1.4,
     textTransform: 'uppercase',
   },
 });

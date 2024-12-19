@@ -10,6 +10,8 @@ import {
 import { auth } from '../config/firebase';
 import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { useTheme } from '../theme/ThemeContext';
+import Layout from '../constants/Layout';
+import Typography from '../constants/Typography';
 
 export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
@@ -107,46 +109,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
   },
   email: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.xlarge,
   },
   section: {
     marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.medium,
+    letterSpacing: 0.35,
   },
   input: {
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.small,
+    paddingHorizontal: Layout.spacing.medium,
+    marginBottom: Layout.spacing.medium,
+    fontSize: Layout.text.medium,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
+    fontFamily: Typography.fonts.regular,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    minHeight: Layout.minTouchSize,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: Layout.spacing.medium,
   },
   resetButton: {
     backgroundColor: '#FF9500',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
   },
   logoutButton: {
     backgroundColor: '#FF3B30',
