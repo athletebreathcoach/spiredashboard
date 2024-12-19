@@ -215,13 +215,16 @@ function AppContent({ user }) {
             <Stack.Screen 
               name="MainTabs" 
               component={TabNavigator}
-              options={{ headerShown: false }}
+              options={{ 
+                headerShown: false 
+              }}
             />
             <Stack.Screen 
               name="BreathGuide" 
               component={BreathGuide}
               options={{
                 title: 'BREATH GUIDE',
+                headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,
                 },
@@ -243,6 +246,7 @@ function AppContent({ user }) {
               component={Settings}
               options={{
                 title: 'Settings',
+                headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,
                 },
@@ -286,6 +290,8 @@ function AppContent({ user }) {
               name="Exercises" 
               component={Exercises}
               options={{
+                title: 'Exercises',
+                headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,
                 },
