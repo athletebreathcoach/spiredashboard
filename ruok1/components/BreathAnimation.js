@@ -29,6 +29,8 @@ export default function BreathAnimation({ pattern, navigation }) {
   const [breathCount, setBreathCount] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
   const [isComplete, setIsComplete] = useState(false);
+  const completionHandled = useRef(false);
+  const roundCounter = useRef(0);
 
   const animatedColor = colorAnim.interpolate({
     inputRange: [0, 1, 2],
@@ -99,23 +101,30 @@ export default function BreathAnimation({ pattern, navigation }) {
   }, []);
 
   useEffect(() => {
-    if (isComplete) {
-      // Save the session before navigating
-      saveSession().then(() => {
-        navigation.replace('BreathingComplete', {
-          totalBreaths: breathCount,
-          streak: 1,
-          totalSessions: 1
-        });
+    if (isComplete && !completionHandled.current) {
+      completionHandled.current = true;
+      navigation.replace('BreathingComplete', {
+        totalBreaths: breathCount,
+        streak: 1,
+        totalSessions: 1,
+        sessionData: {
+          presetName: pattern.presetName || 'Custom Breath Protocol',
+          inhaleTime: pattern.inhaleTime,
+          inhaleHoldTime: pattern.inhaleHoldTime || 0,
+          exhaleTime: pattern.exhaleTime,
+          exhaleHoldTime: pattern.exhaleHoldTime || 0,
+          rounds: pattern.rounds,
+          totalTime: pattern.totalTime || 
+            ((pattern.inhaleTime + (pattern.inhaleHoldTime || 0) + 
+              pattern.exhaleTime + (pattern.exhaleHoldTime || 0)) * pattern.rounds)
+        }
       });
     }
-  }, [isComplete, breathCount, navigation]);
+  }, [isComplete, pattern, breathCount, navigation]);
 
   const startBreathingAnimation = () => {
-    let roundCounter = 0;
-
     const animate = () => {
-      if (roundCounter >= pattern.rounds) {
+      if (roundCounter.current >= pattern.rounds) {
         stopTickingHaptics();
         return;
       }
@@ -196,48 +205,24 @@ export default function BreathAnimation({ pattern, navigation }) {
       };
 
       const completeRound = () => {
-        roundCounter++;
-        setCurrentRound(roundCounter + 1);
+        roundCounter.current++;
+        setCurrentRound(roundCounter.current + 1);
         setBreathCount(prev => {
           const newCount = prev + 1;
-          if (roundCounter >= pattern.rounds) {
+          if (roundCounter.current >= pattern.rounds) {
             stopTickingHaptics();
             setIsComplete(true);
           }
           return newCount;
         });
         
-        if (roundCounter < pattern.rounds) {
+        if (roundCounter.current < pattern.rounds) {
           animate();
         }
       };
     };
 
     animate();
-  };
-
-  const saveSession = async () => {
-    try {
-      console.log('Saving session with pattern:', pattern); // Debug log
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const session = {
-        timestamp: Date.now(),
-        presetName: pattern.presetName,
-        inhaleTime: pattern.inhaleTime,
-        inhaleHoldTime: pattern.inhaleHoldTime,
-        exhaleTime: pattern.exhaleTime,
-        exhaleHoldTime: pattern.exhaleHoldTime,
-        rounds: pattern.rounds,
-        totalTime: pattern.totalTime
-      };
-      console.log('Session to save:', session); // Debug log
-
-      await updateDoc(userRef, {
-        sessions: arrayUnion(session)
-      });
-    } catch (error) {
-      console.error('Error saving session:', error);
-    }
   };
 
   return (

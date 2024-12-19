@@ -1,128 +1,72 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator
+} from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { doc, updateDoc, increment, getDoc, arrayUnion } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
-import * as firebase from 'firebase/app';
-import 'firebase/firestore';
 
 export default function BreathingComplete({ navigation, route }) {
   const { theme } = useTheme();
-  const { totalBreaths, streak = 1, totalSessions = 1 } = route.params;
+  const [isSaving, setIsSaving] = useState(false);
+  const { totalBreaths, streak, totalSessions, sessionData } = route.params;
 
-  const updateBreathMetrics = async () => {
+  const handleLogSession = async () => {
+    setIsSaving(true);
     try {
       const userRef = doc(db, 'users', auth.currentUser.uid);
-      const userDoc = await getDoc(userRef);
-      const userData = userDoc.data() || {};
-      const today = new Date().toDateString();
-      
-      // Calculate daily breaths
-      let newDailyBreaths = totalBreaths;
-      if (userData.lastBreathDate === today) {
-        newDailyBreaths = (userData.dailyBreaths || 0) + totalBreaths;
-      }
-
-      // Store session data in a coaching-friendly format
-      const sessionData = {
-        timestamp: new Date().toISOString(),
-        breathCount: totalBreaths,
-        completed: true
+      const session = {
+        timestamp: Date.now(),
+        ...sessionData
       };
 
       await updateDoc(userRef, {
-        dailyBreaths: newDailyBreaths,
-        totalBreaths: (userData.totalBreaths || 0) + totalBreaths,
-        lastBreathDate: today,
-        'sessions': arrayUnion(sessionData)  // Keep track of sessions for future coaching features
+        sessions: arrayUnion(session)
       });
+
+      // Navigate back to home after successful save
+      navigation.navigate('Home');
     } catch (error) {
-      console.error('Error updating breath metrics:', error);
+      console.error('Error saving session:', error);
+      setIsSaving(false);
     }
   };
 
-  useEffect(() => {
-    updateBreathMetrics();
-  }, []);
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Breathwrk</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Session Complete!
+      </Text>
       
-      {/* Breath count circle with decorative elements */}
-      <View style={styles.circleContainer}>
-        <Svg width={300} height={300} viewBox="0 0 300 300">
-          {/* Decorative spiral */}
-          <Circle
-            cx="150"
-            cy="150"
-            r="120"
-            stroke={theme.colors.primary}
-            strokeWidth="2"
-            fill="none"
-            opacity={0.3}
-          />
-          <Path
-            d="M150,30 A120,120 0 0,1 270,150"
-            stroke={theme.colors.primary}
-            strokeWidth="2"
-            fill="none"
-          />
-        </Svg>
-        <View style={styles.breathCountContainer}>
-          <Text style={[styles.breathCount, { color: theme.colors.text }]}>
-            {totalBreaths}
-          </Text>
-          <Text style={[styles.breathLabel, { color: theme.colors.textSecondary }]}>
-            Breaths
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[styles.congratsText, { color: theme.colors.text }]}>
-        Impressive! Level {Math.floor(totalBreaths/30)} achieved!
-      </Text>
-      <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
-        You've grown stronger!
-      </Text>
-
       <View style={styles.statsContainer}>
-        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-            Streak
-          </Text>
-          <Text style={[styles.statValue, { color: theme.colors.text }]}>
-            {streak}
-          </Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-            Total Sessions
-          </Text>
-          <Text style={[styles.statValue, { color: theme.colors.text }]}>
-            {totalSessions}
-          </Text>
-        </View>
+        {/* ... existing stats ... */}
       </View>
 
       <TouchableOpacity
-        style={[styles.continueButton, { backgroundColor: theme.colors.text }]}
-        onPress={() => navigation.navigate('MainTabs')}
+        style={[styles.logButton, { backgroundColor: theme.colors.primary }]}
+        onPress={handleLogSession}
+        disabled={isSaving}
       >
-        <Text style={[styles.continueText, { color: theme.colors.background }]}>
-          Continue
-        </Text>
+        {isSaving ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.logButtonText}>Log Session</Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.shareButton}
-        onPress={() => {/* Add share functionality */}}
+        style={[styles.skipButton]}
+        onPress={() => navigation.navigate('Home')}
+        disabled={isSaving}
       >
-        <Text style={[styles.shareText, { color: theme.colors.textSecondary }]}>
-          Share
+        <Text style={[styles.skipButtonText, { color: theme.colors.textSecondary }]}>
+          Skip Logging
         </Text>
       </TouchableOpacity>
     </View>
@@ -207,4 +151,24 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.medium,
     fontSize: Layout.text.medium,
   },
+  logButton: {
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+    marginTop: Layout.spacing.xlarge,
+    width: '80%',
+  },
+  logButtonText: {
+    color: '#FFFFFF',
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+  },
+  skipButton: {
+    padding: Layout.spacing.medium,
+    marginTop: Layout.spacing.medium,
+  },
+  skipButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+  }
 }); 

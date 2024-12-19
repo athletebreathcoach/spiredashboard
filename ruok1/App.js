@@ -180,17 +180,41 @@ function AppContent({ user }) {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+          },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.medium,
+          },
+        }}
+      >
         {userRole === 'coach' ? (
           // Coach screens
           <>
-            <Stack.Screen name="CoachDashboard" component={CoachDashboard} />
+            <Stack.Screen 
+              name="CoachDashboard" 
+              component={CoachDashboard}
+              options={{
+                title: 'Coach Dashboard',
+                headerTitleStyle: {
+                  fontFamily: Typography.fonts.bold,
+                  fontSize: Layout.text.large,
+                }
+              }}
+            />
             <Stack.Screen name="ClientHistory" component={ClientHistory} />
           </>
         ) : (
           // Client screens
           <>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen 
+              name="MainTabs" 
+              component={TabNavigator}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen 
               name="BreathGuide" 
               component={BreathGuide}
