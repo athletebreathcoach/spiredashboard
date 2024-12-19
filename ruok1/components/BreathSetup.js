@@ -218,7 +218,7 @@ export default function BreathSetup({ onStart }) {
         style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onStart(settings)}
       >
-        <Text style={styles.buttonText}>Begin Practice</Text>
+        <Text style={styles.buttonText}>Begin</Text>
       </TouchableOpacity>
     </View>
   );
@@ -228,10 +228,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: CONTAINER_PADDING,
-    justifyContent: 'space-between',
   },
   header: {
-    marginBottom: ITEM_SPACING,
+    marginTop: CONTAINER_PADDING,
+    marginBottom: CONTAINER_PADDING * 2,
   },
   title: {
     fontSize: Layout.text.xxlarge,
@@ -247,9 +247,10 @@ const styles = StyleSheet.create({
   },
   controlsContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: ITEM_SPACING,
     paddingVertical: ITEM_SPACING,
+    paddingBottom: ITEM_SPACING * 4,
   },
   timerContainer: {
     backgroundColor: '#111111',
@@ -285,14 +286,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    padding: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.medium,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
     alignItems: 'center',
-    marginTop: ITEM_SPACING,
+    position: 'absolute',
+    bottom: CONTAINER_PADDING * 4,
+    left: CONTAINER_PADDING,
+    right: CONTAINER_PADDING,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: Layout.text.large,
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
     letterSpacing: 0.5,
   },
