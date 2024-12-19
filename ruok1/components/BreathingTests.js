@@ -107,7 +107,7 @@ export default function BreathingTests({ navigation }) {
                   <Ionicons 
                     name={test.icon} 
                     size={24} 
-                    color="#FFFFFF" 
+                    color="#00B5E0" 
                     style={styles.testIcon}
                   />
                   <View style={styles.testContent}>

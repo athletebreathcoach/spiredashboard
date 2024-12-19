@@ -26,6 +26,7 @@ import ExerciseDetail from './components/ExerciseDetail';
 import BreathingTests from './components/BreathingTests';
 import GuidedSessions from './components/GuidedSessions';
 import HabitsTasks from './components/HabitsTasks';
+import Programs from './components/Programs';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -351,6 +352,22 @@ function AppContent({ user }) {
               component={HabitsTasks}
               options={{
                 title: 'Habits & Tasks',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="Programs" 
+              component={Programs}
+              options={{
+                title: 'Programs',
                 headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,

@@ -107,7 +107,7 @@ export default function HabitsTasks({ navigation }) {
                   <Ionicons 
                     name={item.icon} 
                     size={24} 
-                    color="#FFFFFF" 
+                    color="#00B5E0" 
                     style={styles.itemIcon}
                   />
                   <View style={styles.itemContent}>

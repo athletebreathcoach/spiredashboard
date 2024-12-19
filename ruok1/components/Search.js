@@ -154,7 +154,9 @@ export default function Search({ navigation }) {
   };
 
   const handleCategoryPress = (category) => {
-    if (category.title === 'Breathing Tests') {
+    if (category.title === 'Programs') {
+      navigation.navigate('Programs');
+    } else if (category.title === 'Breathing Tests') {
       navigation.navigate('BreathingTests');
     } else if (category.title === 'Guided Sessions') {
       navigation.navigate('GuidedSessions');

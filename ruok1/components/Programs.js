@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -18,57 +17,57 @@ const COLUMN_WIDTH = width;
 
 const categories = [
   {
-    id: 'relaxation',
-    title: 'Relaxation',
-    sessions: [
+    id: 'programs',
+    title: 'Programs',
+    items: [
       {
         id: 1,
-        title: 'Box Breathing',
-        category: 'Relaxation',
+        title: 'Beginner Breath',
+        category: 'Program',
         date: 'Dec 9',
-        icon: 'square-outline',
+        icon: 'fitness-outline',
         color: '#2C2C2E',
       },
       {
         id: 2,
-        title: 'Deep Calm',
-        category: 'Relaxation',
+        title: 'Athletic Performance',
+        category: 'Program',
         date: 'Dec 9',
-        icon: 'water-outline',
+        icon: 'trophy-outline',
         color: '#2C2C2E',
       }
     ]
   },
   {
-    id: 'performance',
-    title: 'Performance',
-    sessions: [
+    id: 'sections',
+    title: 'Sections',
+    items: [
       {
         id: 3,
-        title: 'Pre-Workout',
-        category: 'Performance',
+        title: 'Recovery',
+        category: 'Section',
         date: 'Dec 9',
-        icon: 'flame-outline',
-        color: '#FF3B30',
+        icon: 'refresh-outline',
+        color: '#2C2C2E',
       },
       {
         id: 4,
-        title: 'Recovery',
-        category: 'Performance',
+        title: 'Pre-Workout',
+        category: 'Section',
         date: 'Dec 9',
-        icon: 'refresh-outline',
-        color: '#5856D6',
+        icon: 'flame-outline',
+        color: '#2C2C2E',
       }
     ]
   }
-]; 
+];
 
-export default function GuidedSessions({ navigation }) {
+export default function Programs({ navigation }) {
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
-  const handleSessionPress = (session) => {
-    navigation.navigate('SessionDetail', { session });
+  const handleItemPress = (item) => {
+    navigation.navigate('ProgramDetail', { item });
   };
 
   const handleScroll = (event) => {
@@ -94,27 +93,27 @@ export default function GuidedSessions({ navigation }) {
             <Text style={styles.columnTitle}>{category.title}</Text>
             
             <ScrollView 
-              style={styles.sessionList}
+              style={styles.itemList}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.sessionListContent}
+              contentContainerStyle={styles.itemListContent}
             >
-              {category.sessions.map((session) => (
+              {category.items.map((item) => (
                 <TouchableOpacity
-                  key={session.id}
-                  style={[styles.sessionItem, { backgroundColor: session.color }]}
-                  onPress={() => handleSessionPress(session)}
+                  key={item.id}
+                  style={[styles.itemCard, { backgroundColor: item.color }]}
+                  onPress={() => handleItemPress(item)}
                 >
                   <Ionicons 
-                    name={session.icon} 
+                    name={item.icon} 
                     size={24} 
                     color="#00B5E0" 
-                    style={styles.sessionIcon}
+                    style={styles.itemIcon}
                   />
-                  <View style={styles.sessionContent}>
-                    <Text style={styles.sessionTitle}>{session.title}</Text>
-                    <View style={styles.sessionDetails}>
-                      <Text style={styles.date}>{session.date}</Text>
-                      <Text style={styles.category}>#{session.category}</Text>
+                  <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{item.title}</Text>
+                    <View style={styles.itemDetails}>
+                      <Text style={[styles.date, { color: '#00B5E0' }]}>{item.date}</Text>
+                      <Text style={styles.category}>#{item.category}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -123,7 +122,7 @@ export default function GuidedSessions({ navigation }) {
               <TouchableOpacity style={styles.addButton}>
                 <Ionicons name="add" size={24} color="#00B5E0" />
                 <Text style={[styles.addButtonText, { color: '#00B5E0' }]}>
-                  Add {category.title} Session
+                  Add {category.title}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -166,13 +165,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginVertical: 20,
   },
-  sessionList: {
+  itemList: {
     flex: 1,
   },
-  sessionListContent: {
+  itemListContent: {
     paddingBottom: Layout.spacing.large,
   },
-  sessionItem: {
+  itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
@@ -180,33 +179,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  sessionIcon: {
+  itemIcon: {
     marginRight: 12,
     width: 24,
   },
-  sessionContent: {
+  itemContent: {
     flex: 1,
   },
-  sessionTitle: {
+  itemTitle: {
     fontSize: 17,
     color: '#FFFFFF',
     fontFamily: Typography.fonts.regular,
     marginBottom: 4,
   },
-  sessionDetails: {
+  itemDetails: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   date: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: '#00B5E0',  // Using the blue accent color
     marginRight: 8,
     fontFamily: Typography.fonts.regular,
   },
   category: {
     fontSize: 15,
-    color: '#FFFFFF',
-    opacity: 0.8,
+    color: '#8E8E93',
     fontFamily: Typography.fonts.regular,
   },
   addButton: {
