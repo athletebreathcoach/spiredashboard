@@ -1,148 +1,188 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from 'react-native';
-import { auth } from '../config/firebase';
-import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 export default function Settings({ navigation }) {
-  const [newPassword, setNewPassword] = useState('');
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to log out');
-      console.error(error);
+  const sections = [
+    {
+      title: '',
+      items: [
+        { 
+          icon: 'person-circle-outline', 
+          label: 'Account',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'settings-outline', 
+          label: 'General',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'calendar-outline', 
+          label: 'Calendar',
+          onPress: () => {} 
+        },
+      ]
+    },
+    {
+      title: 'PERSONALIZATION',
+      items: [
+        { 
+          icon: 'color-palette-outline', 
+          label: 'Theme',
+          value: 'Dark',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'apps-outline', 
+          label: 'App Icon',
+          value: 'Default',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'menu-outline', 
+          label: 'Navigation',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'add-circle-outline', 
+          label: 'Quick Add',
+          onPress: () => {} 
+        },
+      ]
+    },
+    {
+      title: 'PRODUCTIVITY',
+      items: [
+        { 
+          icon: 'trending-up-outline', 
+          label: 'Productivity',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'alarm-outline', 
+          label: 'Reminders',
+          onPress: () => {} 
+        },
+        { 
+          icon: 'notifications-outline', 
+          label: 'Notifications',
+          onPress: () => {} 
+        },
+      ]
     }
-  };
-
-  const handleResetPassword = async () => {
-    try {
-      await sendPasswordResetEmail(auth, auth.currentUser.email);
-      Alert.alert(
-        'Success',
-        'Password reset email sent. Please check your inbox.'
-      );
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
-    try {
-      await updatePassword(auth.currentUser, newPassword);
-      Alert.alert('Success', 'Password updated successfully');
-      setNewPassword('');
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
-  };
+  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Account Settings
-        </Text>
-        <TextInput
-          style={[styles.input, { 
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-            color: theme.colors.text 
-          }]}
-          placeholder="New Password"
-          value={newPassword}
-          onChangeText={setNewPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: theme.colors.primary }]}
-          onPress={handleUpdatePassword}
-        >
-          <Text style={styles.buttonText}>Update Password</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.button, styles.resetButton]}
-        onPress={handleResetPassword}
-      >
-        <Text style={styles.buttonText}>Send Password Reset Email</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, { backgroundColor: theme.colors.primary }]}
-        onPress={toggleTheme}
-      >
-        <Text style={styles.buttonText}>
-          Switch to {theme.name === 'light' ? 'Dark' : 'Light'} Mode
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.button, styles.logoutButton]}
-        onPress={handleLogout}
-      >
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
-    </View>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      contentInsetAdjustmentBehavior="automatic"
+    >
+      {sections.map((section, sectionIndex) => (
+        <View key={sectionIndex} style={styles.section}>
+          {section.title && (
+            <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
+              {section.title}
+            </Text>
+          )}
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            {section.items.map((item, itemIndex) => (
+              <TouchableOpacity
+                key={itemIndex}
+                style={[
+                  styles.item,
+                  itemIndex < section.items.length - 1 && styles.itemBorder,
+                  { borderBottomColor: 'rgba(255,255,255,0.1)' }
+                ]}
+                onPress={item.onPress}
+              >
+                <View style={styles.itemLeft}>
+                  <Ionicons 
+                    name={item.icon} 
+                    size={22} 
+                    color={theme.colors.primary}
+                    style={styles.itemIcon} 
+                  />
+                  <Text style={[styles.itemLabel, { color: theme.colors.text }]}>
+                    {item.label}
+                  </Text>
+                </View>
+                <View style={styles.itemRight}>
+                  {item.value && (
+                    <Text style={[styles.itemValue, { color: theme.colors.textSecondary }]}>
+                      {item.value}
+                    </Text>
+                  )}
+                  <Ionicons 
+                    name="chevron-forward" 
+                    size={20} 
+                    color={theme.colors.textSecondary}
+                    style={styles.chevron}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.large,
   },
   section: {
-    marginBottom: Layout.spacing.xlarge,
+    marginTop: Layout.spacing.medium,
+    paddingHorizontal: Layout.spacing.medium,
   },
   sectionTitle: {
-    fontSize: Layout.text.large,
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.medium,
-    marginBottom: Layout.spacing.medium,
-    letterSpacing: 0.35,
+    marginBottom: Layout.spacing.small,
+    marginLeft: Layout.spacing.small,
   },
-  input: {
-    height: Layout.minTouchSize,
-    borderRadius: Layout.borderRadius.small,
-    paddingHorizontal: Layout.spacing.medium,
-    marginBottom: Layout.spacing.medium,
-    fontSize: Layout.text.medium,
-    borderWidth: 1,
+  card: {
+    borderRadius: Layout.borderRadius.large,
+    overflow: 'hidden',
   },
-  button: {
-    minHeight: Layout.minTouchSize,
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
+  item: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Layout.spacing.medium,
+    justifyContent: 'space-between',
+    paddingVertical: Layout.spacing.medium,
+    paddingHorizontal: Layout.spacing.large,
   },
-  buttonText: {
-    color: '#FFFFFF',
+  itemBorder: {
+    borderBottomWidth: 0.5,
+  },
+  itemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemIcon: {
+    marginRight: Layout.spacing.medium,
+  },
+  itemLabel: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.regular,
+  },
+  itemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemValue: {
     fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
+    fontFamily: Typography.fonts.regular,
+    marginRight: Layout.spacing.small,
   },
-  resetButton: {
-    backgroundColor: '#FF9500',
-  },
-  logoutButton: {
-    backgroundColor: '#FF3B30',
-    marginTop: Layout.spacing.large,
-  },
+  chevron: {
+    marginLeft: Layout.spacing.tiny,
+  }
 }); 
