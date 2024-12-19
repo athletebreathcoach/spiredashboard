@@ -27,6 +27,8 @@ import BreathingTests from './components/BreathingTests';
 import GuidedSessions from './components/GuidedSessions';
 import HabitsTasks from './components/HabitsTasks';
 import Programs from './components/Programs';
+import SectionDetail from './components/SectionDetail';
+import AddSectionItem from './components/AddSectionItem';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -368,6 +370,38 @@ function AppContent({ user }) {
               component={Programs}
               options={{
                 title: 'Programs',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="SectionDetail" 
+              component={SectionDetail}
+              options={{
+                title: 'Section Details',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="AddSectionItem" 
+              component={AddSectionItem}
+              options={{
+                title: 'Add Item',
                 headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,

@@ -22,17 +22,19 @@ const categories = [
     items: [
       {
         id: 1,
-        title: 'Beginner Breath',
+        title: 'Beginner Program',
         category: 'Program',
-        date: 'Dec 9',
-        icon: 'fitness-outline',
+        duration: '4 weeks',
+        description: 'Foundation breath work and exercise program',
+        icon: 'calendar-outline',
         color: '#2C2C2E',
       },
       {
         id: 2,
         title: 'Athletic Performance',
         category: 'Program',
-        date: 'Dec 9',
+        duration: '8 weeks',
+        description: 'Advanced breath work for athletes',
         icon: 'trophy-outline',
         color: '#2C2C2E',
       }
@@ -44,19 +46,23 @@ const categories = [
     items: [
       {
         id: 3,
-        title: 'Recovery',
+        title: 'Morning Routine',
         category: 'Section',
-        date: 'Dec 9',
-        icon: 'refresh-outline',
+        duration: '30 min',
+        description: 'Daily morning breath work and exercise',
+        icon: 'sunny-outline',
         color: '#2C2C2E',
+        editable: true,
       },
       {
         id: 4,
-        title: 'Pre-Workout',
+        title: 'Recovery Session',
         category: 'Section',
-        date: 'Dec 9',
-        icon: 'flame-outline',
+        duration: '45 min',
+        description: 'Post-workout recovery routine',
+        icon: 'refresh-outline',
         color: '#2C2C2E',
+        editable: false,
       }
     ]
   }
@@ -67,7 +73,11 @@ export default function Programs({ navigation }) {
   const [currentPage, setCurrentPage] = useState(0);
 
   const handleItemPress = (item) => {
-    navigation.navigate('ProgramDetail', { item });
+    if (item.category === 'Section') {
+      navigation.navigate('SectionDetail', { item });
+    } else {
+      navigation.navigate('ProgramDetail', { item });
+    }
   };
 
   const handleScroll = (event) => {
@@ -112,7 +122,7 @@ export default function Programs({ navigation }) {
                   <View style={styles.itemContent}>
                     <Text style={styles.itemTitle}>{item.title}</Text>
                     <View style={styles.itemDetails}>
-                      <Text style={[styles.date, { color: '#00B5E0' }]}>{item.date}</Text>
+                      <Text style={[styles.date, { color: '#00B5E0' }]}>{item.duration}</Text>
                       <Text style={styles.category}>#{item.category}</Text>
                     </View>
                   </View>
