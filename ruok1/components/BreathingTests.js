@@ -27,7 +27,7 @@ const categories = [
         category: 'Baseline',
         date: 'Dec 9',
         icon: 'timer-outline',
-        color: '#4A90E2',
+        color: '#2C2C2E',
       },
       {
         id: 2,
@@ -35,7 +35,7 @@ const categories = [
         category: 'Baseline',
         date: 'Dec 9',
         icon: 'pulse-outline',
-        color: '#FF9500',
+        color: '#2C2C2E',
       }
     ]
   },

@@ -27,25 +27,12 @@ import BreathingTests from './components/BreathingTests';
 import GuidedSessions from './components/GuidedSessions';
 import HabitsTasks from './components/HabitsTasks';
 
-// Update the quotes to be more motivational/athletic
-const quotes = [
-  "Control your breath, control your game",
-  "Champions breathe differently",
-  "Power starts with breath",
-  "Train your lungs like you train your muscles",
-  "Breathe deep, push harder",
-  "Mental toughness begins with breath control",
-  "Master your breath, master yourself",
-  "Breathing is your secret weapon"
-];
-
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Update HomeScreen to use navigation
 function HomeScreen({ navigation }) {
   const { theme } = useTheme();
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   const handleBreathGuide = () => {
     navigation.navigate('BreathGuide');
@@ -53,10 +40,6 @@ function HomeScreen({ navigation }) {
 
   return (
     <View style={[styles.homeContainer, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.quoteText, { color: theme.colors.text }]}>
-        {randomQuote}
-      </Text>
-      
       <TouchableOpacity 
         style={styles.breathButton}
         onPress={handleBreathGuide}
@@ -100,6 +83,12 @@ function TabNavigator() {
         name="Home" 
         component={HomeScreen} 
         options={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+            shadowColor: 'transparent',
+            elevation: 0,
+            borderBottomWidth: 0,
+          },
           headerRight: () => null
         }}
       />
@@ -107,6 +96,12 @@ function TabNavigator() {
         name="Search" 
         component={Search}
         options={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+            shadowColor: 'transparent',
+            elevation: 0,
+            borderBottomWidth: 0,
+          },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'search' : 'search-outline'} 
@@ -120,6 +115,12 @@ function TabNavigator() {
         name="Profile" 
         component={Profile}
         options={({ navigation }) => ({
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+            shadowColor: 'transparent',
+            elevation: 0,
+            borderBottomWidth: 0,
+          },
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('Settings')}
@@ -405,15 +406,5 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.bold,
     fontSize: Layout.text.large,
     letterSpacing: 1,
-  },
-  quoteText: {
-    fontSize: Layout.text.xlarge,
-    fontFamily: Typography.fonts.bold,
-    textAlign: 'center',
-    marginTop: Layout.spacing.xlarge,
-    marginBottom: Layout.spacing.xxlarge,
-    paddingHorizontal: Layout.spacing.large,
-    lineHeight: Layout.text.xlarge * 1.4,
-    textTransform: 'uppercase',
   },
 });

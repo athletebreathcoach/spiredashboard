@@ -59,10 +59,15 @@ export default function Profile({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.email, { color: theme.colors.text }]}>
-        {auth.currentUser?.email}
-      </Text>
-
+      <View style={styles.header}>
+        <View style={styles.avatarContainer}>
+          <Ionicons name="person-circle-outline" size={80} color={theme.colors.primary} />
+        </View>
+        <Text style={[styles.name, { color: theme.colors.text }]}>
+          {auth.currentUser?.displayName || 'User'}
+        </Text>
+      </View>
+      
       <View style={styles.headerContainer}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
           Breath Metrics
