@@ -23,6 +23,9 @@ import CoachDashboard from './components/CoachDashboard';
 import ClientHistory from './components/ClientHistory';
 import Exercises from './components/Exercises';
 import ExerciseDetail from './components/ExerciseDetail';
+import BreathingTests from './components/BreathingTests';
+import GuidedSessions from './components/GuidedSessions';
+import HabitsTasks from './components/HabitsTasks';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -308,6 +311,54 @@ function AppContent({ user }) {
               options={{
                 headerShown: true,
                 headerBackTitle: 'Back',
+              }}
+            />
+            <Stack.Screen 
+              name="BreathingTests" 
+              component={BreathingTests}
+              options={{
+                title: 'Breathing Tests',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="GuidedSessions" 
+              component={GuidedSessions}
+              options={{
+                title: 'Guided Sessions',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="HabitsTasks" 
+              component={HabitsTasks}
+              options={{
+                title: 'Habits & Tasks',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
               }}
             />
           </>

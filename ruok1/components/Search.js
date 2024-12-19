@@ -89,7 +89,17 @@ export default function Search({ navigation }) {
             <TouchableOpacity
               key={category.id}
               style={[styles.card, { backgroundColor: category.color }]}
-              onPress={() => navigation.navigate(category.title)}
+              onPress={() => {
+                if (category.title === 'Breathing Tests') {
+                  navigation.navigate('BreathingTests');
+                } else if (category.title === 'Guided Sessions') {
+                  navigation.navigate('GuidedSessions');
+                } else if (category.title === 'Habits & Tasks') {
+                  navigation.navigate('HabitsTasks');
+                } else {
+                  navigation.navigate(category.title);
+                }
+              }}
             >
               <View style={styles.cardContent}>
                 <View style={styles.iconContainer}>
