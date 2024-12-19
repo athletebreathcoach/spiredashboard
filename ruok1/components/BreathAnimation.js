@@ -18,7 +18,7 @@ export default function BreathAnimation({ pattern, navigation }) {
   const { theme } = useTheme();
   const COLORS = theme.colors.breathing;
   
-  const scale = useRef(new Animated.Value(0.2)).current;
+  const scale = useRef(new Animated.Value(0.4)).current;
   const opacity = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
   const [currentPhase, setCurrentPhase] = useState('');
@@ -138,60 +138,74 @@ export default function BreathAnimation({ pattern, navigation }) {
       ]).start(async () => {
         await triggerHaptic('transition');
         
-        // Hold after inhale
-        setCurrentPhase('Hold');
-        Animated.timing(colorAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: false,
-        }).start();
-        
-        setTimeout(async () => {
+        // Only do inhale hold if time > 0
+        if (pattern.inhaleHoldTime > 0) {
+          setCurrentPhase('Hold');
+          Animated.timing(colorAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+          }).start();
+          
+          setTimeout(async () => {
+            await triggerHaptic('transition');
+            startExhale();
+          }, pattern.inhaleHoldTime * 1000);
+        } else {
+          startExhale();
+        }
+      });
+
+      const startExhale = () => {
+        setCurrentPhase('Exhale');
+        Animated.parallel([
+          Animated.timing(scale, {
+            toValue: 0.4,
+            duration: pattern.exhaleTime * 1000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.3,
+            duration: pattern.exhaleTime * 1000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(colorAnim, {
+            toValue: 2,
+            duration: pattern.exhaleTime * 1000,
+            useNativeDriver: false,
+          }),
+        ]).start(async () => {
           await triggerHaptic('transition');
           
-          // Exhale
-          setCurrentPhase('Exhale');
-          Animated.parallel([
-            Animated.timing(scale, {
-              toValue: 0.2,
-              duration: pattern.exhaleTime * 1000,
-              useNativeDriver: false,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0.3,
-              duration: pattern.exhaleTime * 1000,
-              useNativeDriver: false,
-            }),
-            Animated.timing(colorAnim, {
-              toValue: 2,
-              duration: pattern.exhaleTime * 1000,
-              useNativeDriver: false,
-            }),
-          ]).start(async () => {
-            await triggerHaptic('transition');
-            
-            // Hold after exhale
+          // Only do exhale hold if time > 0
+          if (pattern.exhaleHoldTime > 0) {
             setCurrentPhase('Hold');
             setTimeout(async () => {
               await triggerHaptic('transition');
-              roundCounter++;
-              setCurrentRound(roundCounter + 1);
-              setBreathCount(prev => {
-                const newCount = prev + 1;
-                if (roundCounter >= pattern.rounds) {
-                  stopTickingHaptics();
-                  setIsComplete(true);
-                }
-                return newCount;
-              });
-              
-              if (roundCounter < pattern.rounds) {
-                animate();
-              }
+              completeRound();
             }, pattern.exhaleHoldTime * 1000);
-          });
-        }, pattern.inhaleHoldTime * 1000);
-      });
+          } else {
+            completeRound();
+          }
+        });
+      };
+
+      const completeRound = () => {
+        roundCounter++;
+        setCurrentRound(roundCounter + 1);
+        setBreathCount(prev => {
+          const newCount = prev + 1;
+          if (roundCounter >= pattern.rounds) {
+            stopTickingHaptics();
+            setIsComplete(true);
+          }
+          return newCount;
+        });
+        
+        if (roundCounter < pattern.rounds) {
+          animate();
+        }
+      };
     };
 
     animate();
@@ -323,15 +337,20 @@ const styles = StyleSheet.create({
     borderRadius: CIRCLE_SIZE / 2,
     position: 'absolute',
     elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     position: 'absolute',
+    width: CIRCLE_SIZE * 0.4,
+    height: CIRCLE_SIZE * 0.4,
     justifyContent: 'center',
     alignItems: 'center',
   },
   phaseText: {
-    fontSize: Layout.text.xxlarge,
+    fontSize: Math.min(Layout.text.xxlarge, CIRCLE_SIZE * 0.15),
     fontFamily: Typography.fonts.medium,
     letterSpacing: 1,
+    textAlign: 'center',
   },
 }); 

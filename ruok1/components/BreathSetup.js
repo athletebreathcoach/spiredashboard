@@ -12,8 +12,8 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 const { height } = Dimensions.get('window');
-const CONTAINER_PADDING = height * 0.03;
-const ITEM_SPACING = height * 0.02;
+const CONTAINER_PADDING = height * 0.02;
+const ITEM_SPACING = height * 0.012;
 
 export default function BreathSetup({ onStart }) {
   const { theme } = useTheme();
@@ -23,21 +23,111 @@ export default function BreathSetup({ onStart }) {
     exhaleTime: 4,
     exhaleHoldTime: 4,
     rounds: 3,
+    totalTime: 48,
   });
 
-  const increment = (key) => {
+  const getRoundTime = () => {
+    return settings.inhaleTime + 
+           settings.inhaleHoldTime + 
+           settings.exhaleTime + 
+           settings.exhaleHoldTime;
+  };
+
+  const updateRoundsFromTime = (totalTime) => {
+    const roundTime = getRoundTime();
+    const newRounds = Math.max(1, Math.floor(totalTime / roundTime));
     setSettings(prev => ({
       ...prev,
-      [key]: prev[key] + 1
+      rounds: newRounds,
+      totalTime: newRounds * roundTime
     }));
+  };
+
+  const updateTimeFromRounds = (rounds) => {
+    const roundTime = getRoundTime();
+    setSettings(prev => ({
+      ...prev,
+      rounds,
+      totalTime: rounds * roundTime
+    }));
+  };
+
+  const increment = (key) => {
+    setSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [key]: prev[key] + 1
+      };
+      
+      if (key !== 'rounds') {
+        const newRoundTime = 
+          (key === 'inhaleTime' ? newSettings.inhaleTime : prev.inhaleTime) +
+          (key === 'inhaleHoldTime' ? newSettings.inhaleHoldTime : prev.inhaleHoldTime) +
+          (key === 'exhaleTime' ? newSettings.exhaleTime : prev.exhaleTime) +
+          (key === 'exhaleHoldTime' ? newSettings.exhaleHoldTime : prev.exhaleHoldTime);
+        
+        newSettings.totalTime = newRoundTime * prev.rounds;
+      } else {
+        newSettings.totalTime = newSettings.rounds * getRoundTime();
+      }
+      
+      return newSettings;
+    });
   };
 
   const decrement = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: Math.max(1, prev[key] - 1)
-    }));
+    setSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [key]: key.includes('Hold') ? Math.max(0, prev[key] - 1) : Math.max(1, prev[key] - 1)
+      };
+      
+      if (key !== 'rounds') {
+        const newRoundTime = 
+          (key === 'inhaleTime' ? newSettings.inhaleTime : prev.inhaleTime) +
+          (key === 'inhaleHoldTime' ? newSettings.inhaleHoldTime : prev.inhaleHoldTime) +
+          (key === 'exhaleTime' ? newSettings.exhaleTime : prev.exhaleTime) +
+          (key === 'exhaleHoldTime' ? newSettings.exhaleHoldTime : prev.exhaleHoldTime);
+        
+        newSettings.totalTime = newRoundTime * prev.rounds;
+      } else {
+        newSettings.totalTime = newSettings.rounds * getRoundTime();
+      }
+      
+      return newSettings;
+    });
   };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const TimeControl = ({ label, value, onIncrement, onDecrement, style, textColor }) => (
+    <View style={[styles.timerContainer, style]}>
+      <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
+      <View style={styles.controlRow}>
+        <TouchableOpacity 
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          onPress={onDecrement}
+        >
+          <Ionicons name="remove" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+        
+        <Text style={[styles.timerValue, { color: textColor }]}>
+          {formatTime(value)}
+        </Text>
+        
+        <TouchableOpacity 
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          onPress={onIncrement}
+        >
+          <Ionicons name="add" size={20} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const TimerControl = ({ label, value, settingKey, style, textColor }) => (
     <View style={[styles.timerContainer, style]}>
@@ -72,6 +162,21 @@ export default function BreathSetup({ onStart }) {
       </View>
 
       <View style={styles.controlsContainer}>
+        <TimeControl 
+          label="Total Time" 
+          value={settings.totalTime}
+          onIncrement={() => {
+            const newTime = settings.totalTime + getRoundTime();
+            updateRoundsFromTime(newTime);
+          }}
+          onDecrement={() => {
+            const newTime = Math.max(getRoundTime(), settings.totalTime - getRoundTime());
+            updateRoundsFromTime(newTime);
+          }}
+          style={{ backgroundColor: theme.colors.surface }}
+          textColor={theme.colors.text}
+        />
+
         <TimerControl 
           label="Inhale" 
           value={settings.inhaleTime}
@@ -144,12 +249,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: ITEM_SPACING,
+    paddingVertical: ITEM_SPACING,
   },
   timerContainer: {
     backgroundColor: '#111111',
     borderRadius: Layout.borderRadius.medium,
-    padding: Layout.spacing.large,
-    minHeight: Layout.minTouchSize,
+    padding: Layout.spacing.medium,
+    minHeight: Layout.minTouchSize * 0.9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -165,23 +271,24 @@ const styles = StyleSheet.create({
     gap: ITEM_SPACING,
   },
   controlButton: {
-    width: Layout.minTouchSize,
-    height: Layout.minTouchSize,
-    borderRadius: Layout.minTouchSize / 2,
+    width: Layout.minTouchSize * 0.8,
+    height: Layout.minTouchSize * 0.8,
+    borderRadius: (Layout.minTouchSize * 0.8) / 2,
     backgroundColor: '#222222',
     justifyContent: 'center',
     alignItems: 'center',
   },
   timerValue: {
-    fontSize: Layout.text.large,
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
-    minWidth: 40,
+    minWidth: 35,
     textAlign: 'center',
   },
   button: {
-    padding: CONTAINER_PADDING,
-    borderRadius: 12,
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
     alignItems: 'center',
+    marginTop: ITEM_SPACING,
   },
   buttonText: {
     color: '#FFFFFF',
