@@ -5,9 +5,22 @@ import BreathAnimation from './BreathAnimation';
 
 export default function BreathGuide({ navigation, route }) {
   const [showSetup, setShowSetup] = useState(true);
-  const presetSettings = route.params?.settings;  // Get preset settings if they exist
+  const [currentSettings, setCurrentSettings] = useState(null);
+  const presetSettings = route.params?.settings;
+  const presetName = route.params?.presetName;
 
   const handleStart = (settings) => {
+    const sessionSettings = {
+      ...settings,
+      presetName: presetName || 'Custom Breath Protocol',
+      inhaleTime: settings.inhaleTime,
+      inhaleHoldTime: settings.inhaleHoldTime,
+      exhaleTime: settings.exhaleTime,
+      exhaleHoldTime: settings.exhaleHoldTime,
+      rounds: settings.rounds,
+      totalTime: settings.totalTime
+    };
+    setCurrentSettings(sessionSettings);
     setShowSetup(false);
   };
 
@@ -16,11 +29,11 @@ export default function BreathGuide({ navigation, route }) {
       {showSetup ? (
         <BreathSetup 
           onStart={handleStart} 
-          initialSettings={presetSettings}  // Pass preset settings
+          initialSettings={presetSettings}
         />
       ) : (
         <BreathAnimation 
-          pattern={presetSettings || defaultSettings} 
+          pattern={currentSettings}
           navigation={navigation}
         />
       )}

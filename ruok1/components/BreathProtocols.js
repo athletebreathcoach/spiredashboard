@@ -19,6 +19,21 @@ const CARD_WIDTH = width - (CARD_MARGIN * 2 + Layout.spacing.large * 2);
 const protocols = [
   {
     id: 1,
+    title: 'Test Breath',
+    description: 'A quick test protocol with a 1-2-3-4 pattern.',
+    color: '#9B59B6',
+    icon: 'flask-outline',
+    settings: {
+      inhaleTime: 1,
+      inhaleHoldTime: 2,
+      exhaleTime: 3,
+      exhaleHoldTime: 4,
+      rounds: 2,
+      totalTime: 20
+    }
+  },
+  {
+    id: 2,
     title: 'Box Breathing',
     description: 'Equal parts inhale, hold, exhale, and hold. A technique used by Navy SEALs for calm and focus.',
     color: '#4A90E2',
@@ -33,7 +48,7 @@ const protocols = [
     }
   },
   {
-    id: 2,
+    id: 3,
     title: 'Triangle Breathing',
     description: 'Three-part breath pattern without holds. Promotes relaxation and stress relief.',
     color: '#FF9500',
@@ -48,7 +63,7 @@ const protocols = [
     }
   },
   {
-    id: 3,
+    id: 4,
     title: '4-7-8 Breathing',
     description: 'Inhale for 4, hold for 7, exhale for 8. Dr. Weil\'s technique for deep relaxation.',
     color: '#FF3B30',
@@ -67,8 +82,11 @@ const protocols = [
 export default function BreathProtocols({ navigation }) {
   const { theme } = useTheme();
 
-  const handleProtocolSelect = (settings) => {
-    navigation.navigate('BreathGuide', { settings });
+  const handleProtocolSelect = (protocol) => {
+    navigation.navigate('BreathGuide', { 
+      settings: protocol.settings,
+      presetName: protocol.title 
+    });
   };
 
   return (
@@ -86,7 +104,7 @@ export default function BreathProtocols({ navigation }) {
           <TouchableOpacity
             key={protocol.id}
             style={[styles.card, { backgroundColor: protocol.color }]}
-            onPress={() => handleProtocolSelect(protocol.settings)}
+            onPress={() => handleProtocolSelect(protocol)}
           >
             <View style={styles.cardHeader}>
               <Ionicons name={protocol.icon} size={32} color="#FFFFFF" />

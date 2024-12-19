@@ -10,6 +10,8 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
@@ -98,10 +100,13 @@ export default function BreathAnimation({ pattern, navigation }) {
 
   useEffect(() => {
     if (isComplete) {
-      navigation.replace('BreathingComplete', {
-        totalBreaths: breathCount,
-        streak: 1,
-        totalSessions: 1
+      // Save the session before navigating
+      saveSession().then(() => {
+        navigation.replace('BreathingComplete', {
+          totalBreaths: breathCount,
+          streak: 1,
+          totalSessions: 1
+        });
       });
     }
   }, [isComplete, breathCount, navigation]);
@@ -209,6 +214,30 @@ export default function BreathAnimation({ pattern, navigation }) {
     };
 
     animate();
+  };
+
+  const saveSession = async () => {
+    try {
+      console.log('Saving session with pattern:', pattern); // Debug log
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const session = {
+        timestamp: Date.now(),
+        presetName: pattern.presetName,
+        inhaleTime: pattern.inhaleTime,
+        inhaleHoldTime: pattern.inhaleHoldTime,
+        exhaleTime: pattern.exhaleTime,
+        exhaleHoldTime: pattern.exhaleHoldTime,
+        rounds: pattern.rounds,
+        totalTime: pattern.totalTime
+      };
+      console.log('Session to save:', session); // Debug log
+
+      await updateDoc(userRef, {
+        sessions: arrayUnion(session)
+      });
+    } catch (error) {
+      console.error('Error saving session:', error);
+    }
   };
 
   return (
