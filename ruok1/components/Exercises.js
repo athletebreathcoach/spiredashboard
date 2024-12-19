@@ -26,9 +26,17 @@ const categories = [
         title: 'Running',
         category: 'Cardio',
         date: 'Dec 9',
-        icon: 'walk-outline'
+        icon: 'walk-outline',
+        tracking: {
+          type: 'cardio',
+          fields: [
+            { name: 'distance', unit: 'miles', type: 'number' },
+            { name: 'time', unit: 'minutes', type: 'time' },
+            { name: 'pace', unit: 'min/mile', type: 'calculated' }
+          ]
+        }
       },
-      // Add more cardio exercises
+      // Add more cardio exercises with similar tracking structure
     ]
   },
   {
@@ -40,14 +48,32 @@ const categories = [
         title: 'Bench Press',
         category: 'Strength',
         date: 'Dec 9',
-        icon: 'barbell-outline'
+        icon: 'barbell-outline',
+        tracking: {
+          type: 'strength',
+          fields: [
+            { name: 'weight', unit: 'lbs', type: 'number' },
+            { name: 'sets', unit: null, type: 'number' },
+            { name: 'reps', unit: null, type: 'number' },
+            { name: 'rest', unit: 'seconds', type: 'time' }
+          ]
+        }
       },
       {
         id: 6,
         title: 'Deadlift',
         category: 'Strength',
         date: 'Dec 9',
-        icon: 'barbell-outline'
+        icon: 'barbell-outline',
+        tracking: {
+          type: 'strength',
+          fields: [
+            { name: 'weight', unit: 'lbs', type: 'number' },
+            { name: 'sets', unit: null, type: 'number' },
+            { name: 'reps', unit: null, type: 'number' },
+            { name: 'rest', unit: 'seconds', type: 'time' }
+          ]
+        }
       },
     ]
   },
@@ -60,9 +86,17 @@ const categories = [
         title: 'Box Jump',
         category: 'Plyometric',
         date: 'Dec 9',
-        icon: 'trending-up-outline'
-      },
-      // Add more plyometric exercises
+        icon: 'trending-up-outline',
+        tracking: {
+          type: 'plyometric',
+          fields: [
+            { name: 'height', unit: 'inches', type: 'number' },
+            { name: 'sets', unit: null, type: 'number' },
+            { name: 'reps', unit: null, type: 'number' },
+            { name: 'rest', unit: 'seconds', type: 'time' }
+          ]
+        }
+      }
     ]
   }
 ];
