@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -13,106 +14,141 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 const { width } = Dimensions.get('window');
-const CARD_MARGIN = 10;
-const CARD_WIDTH = width - (CARD_MARGIN * 2 + Layout.spacing.large * 2);
+const COLUMN_WIDTH = width;  // Use full width for each column
 
-const exercises = [
+const categories = [
   {
-    id: 1,
-    title: 'Running',
-    description: 'Cardiovascular endurance training',
-    color: '#4A90E2',
-    icon: 'walk-outline',
-    category: 'Cardio',
-    difficulty: 'Beginner'
+    id: 'cardio',
+    title: 'Cardio',
+    exercises: [
+      {
+        id: 1,
+        title: 'Running',
+        category: 'Cardio',
+        date: 'Dec 9',
+        icon: 'walk-outline'
+      },
+      // Add more cardio exercises
+    ]
   },
   {
-    id: 2,
-    title: 'Air Squats',
-    description: 'Fundamental lower body movement',
-    color: '#FF9500',
-    icon: 'body-outline',
-    category: 'Bodyweight',
-    difficulty: 'Beginner'
+    id: 'strength',
+    title: 'Strength',
+    exercises: [
+      {
+        id: 3,
+        title: 'Bench Press',
+        category: 'Strength',
+        date: 'Dec 9',
+        icon: 'barbell-outline'
+      },
+      {
+        id: 6,
+        title: 'Deadlift',
+        category: 'Strength',
+        date: 'Dec 9',
+        icon: 'barbell-outline'
+      },
+    ]
   },
   {
-    id: 3,
-    title: 'Bench Press',
-    description: 'Upper body strength development',
-    color: '#FF3B30',
-    icon: 'barbell-outline',
-    category: 'Strength',
-    difficulty: 'Intermediate'
-  },
-  {
-    id: 4,
-    title: 'Box Jump',
-    description: 'Explosive power and coordination',
-    color: '#5856D6',
-    icon: 'trending-up-outline',
-    category: 'Plyometric',
-    difficulty: 'Intermediate'
-  },
-  {
-    id: 5,
-    title: 'Pull-ups',
-    description: 'Upper body pulling strength',
-    color: '#34C759',
-    icon: 'arrow-up-outline',
-    category: 'Bodyweight',
-    difficulty: 'Advanced'
-  },
-  {
-    id: 6,
-    title: 'Deadlift',
-    description: 'Full body strength and power',
-    color: '#FF2D55',
-    icon: 'barbell-outline',
-    category: 'Strength',
-    difficulty: 'Advanced'
+    id: 'plyometrics',
+    title: 'Plyometrics',
+    exercises: [
+      {
+        id: 4,
+        title: 'Box Jump',
+        category: 'Plyometric',
+        date: 'Dec 9',
+        icon: 'trending-up-outline'
+      },
+      // Add more plyometric exercises
+    ]
   }
 ];
 
 export default function Exercises({ navigation }) {
   const { theme } = useTheme();
+  const [currentPage, setCurrentPage] = useState(0);
 
   const handleExercisePress = (exercise) => {
     navigation.navigate('ExerciseDetail', { exercise });
   };
 
+  const handleScroll = (event) => {
+    const page = Math.round(event.nativeEvent.contentOffset.x / width);
+    setCurrentPage(page);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Exercises</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Browse exercises by category
-      </Text>
-
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        horizontal
+        pagingEnabled
+        decelerationRate="fast"
+        snapToInterval={COLUMN_WIDTH}
+        snapToAlignment="center"
+        showsHorizontalScrollIndicator={false}
+        style={styles.horizontalScroll}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
-        {exercises.map((exercise) => (
-          <TouchableOpacity
-            key={exercise.id}
-            style={[styles.card, { backgroundColor: exercise.color }]}
-            onPress={() => handleExercisePress(exercise)}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardLeft}>
-                <Ionicons name={exercise.icon} size={32} color="#FFFFFF" />
-                <View style={styles.titleContainer}>
-                  <Text style={styles.cardTitle}>{exercise.title}</Text>
-                  <Text style={styles.cardCategory}>{exercise.category}</Text>
-                </View>
-              </View>
-              <View style={styles.difficultyBadge}>
-                <Text style={styles.difficultyText}>{exercise.difficulty}</Text>
-              </View>
-            </View>
-            <Text style={styles.cardDescription}>{exercise.description}</Text>
-          </TouchableOpacity>
+        {categories.map((category) => (
+          <View key={category.id} style={styles.column}>
+            <Text style={styles.columnTitle}>{category.title}</Text>
+            
+            <ScrollView 
+              style={styles.exerciseList}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.exerciseListContent}
+            >
+              {category.exercises.map((exercise) => (
+                <TouchableOpacity
+                  key={exercise.id}
+                  style={styles.exerciseItem}
+                  onPress={() => handleExercisePress(exercise)}
+                >
+                  <Ionicons 
+                    name={exercise.icon} 
+                    size={24} 
+                    color="#00B5E0" 
+                    style={styles.exerciseIcon}
+                  />
+                  <View style={styles.exerciseContent}>
+                    <Text style={styles.exerciseTitle}>{exercise.title}</Text>
+                    <View style={styles.exerciseDetails}>
+                      <Text style={[styles.date, { color: '#00B5E0' }]}>{exercise.date}</Text>
+                      <Text style={styles.category}>#{exercise.category}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity style={styles.addButton}>
+                <Ionicons name="add" size={24} color="#00B5E0" />
+                <Text style={[styles.addButtonText, { color: '#00B5E0' }]}>
+                  Add {category.title} Exercise
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         ))}
       </ScrollView>
+
+      {/* Page Indicator */}
+      <View style={styles.pageIndicator}>
+        {categories.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              {
+                backgroundColor: currentPage === index ? '#00B5E0' : '#48484A',
+              },
+            ]}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -120,68 +156,92 @@ export default function Exercises({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.large,
   },
-  title: {
-    fontSize: Layout.text.xxlarge,
-    fontFamily: Typography.fonts.bold,
-    marginBottom: Layout.spacing.small,
-  },
-  subtitle: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-    marginBottom: Layout.spacing.large,
-  },
-  scrollContent: {
-    paddingBottom: Layout.spacing.large,
-  },
-  card: {
-    width: CARD_WIDTH,
-    borderRadius: Layout.borderRadius.medium,
-    padding: Layout.spacing.large,
-    marginBottom: Layout.spacing.medium,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Layout.spacing.medium,
-  },
-  cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  horizontalScroll: {
     flex: 1,
   },
-  titleContainer: {
-    marginLeft: Layout.spacing.medium,
-    flex: 1,
+  column: {
+    width: COLUMN_WIDTH,
+    paddingHorizontal: 20,
+    paddingTop: 20, // Add some top padding since we removed the header
   },
-  cardTitle: {
-    fontSize: Layout.text.large,
+  columnTitle: {
+    fontSize: 28,
     fontFamily: Typography.fonts.semibold,
     color: '#FFFFFF',
+    marginVertical: 20,
   },
-  cardCategory: {
-    fontSize: Layout.text.small,
+  exerciseList: {
+    flex: 1,
+  },
+  exerciseListContent: {
+    paddingBottom: Layout.spacing.large,
+  },
+  exerciseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  exerciseIcon: {
+    marginRight: 12,
+    width: 24,
+  },
+  exerciseContent: {
+    flex: 1,
+  },
+  exerciseTitle: {
+    fontSize: 17,
+    color: '#FFFFFF',
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
-    opacity: 0.8,
+    marginBottom: 4,
   },
-  cardDescription: {
-    fontSize: Layout.text.medium,
+  exerciseDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  date: {
+    fontSize: 15,
+    color: '#00B5E0',
+    marginRight: 8,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
-    opacity: 0.9,
   },
-  difficultyBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: Layout.spacing.medium,
-    paddingVertical: Layout.spacing.tiny,
-    borderRadius: Layout.borderRadius.large,
+  category: {
+    fontSize: 15,
+    color: '#8E8E93',
+    fontFamily: Typography.fonts.regular,
   },
-  difficultyText: {
-    color: '#FFFFFF',
-    fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.medium,
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: '#00B5E0',
+    fontSize: 17,
+    marginLeft: 8,
+    fontFamily: Typography.fonts.regular,
+  },
+  pageIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(28, 28, 30, 0.7)', // Slightly transparent background
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
   },
 }); 
