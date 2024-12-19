@@ -3,26 +3,28 @@ import { StyleSheet, View } from 'react-native';
 import BreathSetup from './BreathSetup';
 import BreathAnimation from './BreathAnimation';
 
-export default function BreathGuide({ navigation }) {
+export default function BreathGuide({ navigation, route }) {
   const [showSetup, setShowSetup] = useState(true);
-  const [pattern, setPattern] = useState(null);
+  const presetSettings = route.params?.settings;  // Get preset settings if they exist
 
   const handleStart = (settings) => {
-    setPattern(settings);
     setShowSetup(false);
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       {showSetup ? (
-        <BreathSetup onStart={handleStart} />
+        <BreathSetup 
+          onStart={handleStart} 
+          initialSettings={presetSettings}  // Pass preset settings
+        />
       ) : (
         <BreathAnimation 
-          pattern={pattern} 
+          pattern={presetSettings || defaultSettings} 
           navigation={navigation}
         />
       )}
-    </>
+    </View>
   );
 }
 

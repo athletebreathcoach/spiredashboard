@@ -16,6 +16,7 @@ import Typography from './constants/Typography';
 import BreathingComplete from './components/BreathingComplete';
 import Settings from './components/Settings';
 import Search from './components/Search';
+import BreathProtocols from './components/BreathProtocols';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -192,6 +193,20 @@ function AppContent({ user }) {
               component={Settings}
               options={{
                 title: 'Settings',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="Breath Protocols" 
+              component={BreathProtocols}
+              options={{
                 headerStyle: {
                   backgroundColor: theme.colors.background,
                 },

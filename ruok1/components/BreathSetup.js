@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,9 +15,9 @@ const { height } = Dimensions.get('window');
 const CONTAINER_PADDING = height * 0.02;
 const ITEM_SPACING = height * 0.012;
 
-export default function BreathSetup({ onStart }) {
+export default function BreathSetup({ onStart, initialSettings }) {
   const { theme } = useTheme();
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState(initialSettings || {
     inhaleTime: 4,
     inhaleHoldTime: 4,
     exhaleTime: 4,
@@ -25,6 +25,20 @@ export default function BreathSetup({ onStart }) {
     rounds: 3,
     totalTime: 48,
   });
+
+  useEffect(() => {
+    if (initialSettings) {
+      const roundTime = 
+        initialSettings.inhaleTime + 
+        initialSettings.inhaleHoldTime + 
+        initialSettings.exhaleTime + 
+        initialSettings.exhaleHoldTime;
+      setSettings({
+        ...initialSettings,
+        totalTime: roundTime * initialSettings.rounds
+      });
+    }
+  }, [initialSettings]);
 
   const getRoundTime = () => {
     return settings.inhaleTime + 
