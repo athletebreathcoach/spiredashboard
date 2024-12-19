@@ -13,10 +13,13 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function BreathHistory() {
+export default function BreathHistory({ userId }) {
   const { theme } = useTheme();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Use provided userId or fall back to current user
+  const targetUserId = userId || auth.currentUser.uid;
 
   useEffect(() => {
     fetchHistory();
@@ -24,7 +27,7 @@ export default function BreathHistory() {
 
   const fetchHistory = async () => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const userDoc = await getDoc(doc(db, 'users', targetUserId));
       if (userDoc.exists()) {
         const data = userDoc.data();
         setHistory(data.sessions || []);

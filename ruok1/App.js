@@ -18,6 +18,9 @@ import Settings from './components/Settings';
 import Search from './components/Search';
 import BreathProtocols from './components/BreathProtocols';
 import BreathHistory from './components/BreathHistory';
+import { getDoc, doc } from 'firebase/firestore';
+import CoachDashboard from './components/CoachDashboard';
+import ClientHistory from './components/ClientHistory';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -157,17 +160,37 @@ export default function App() {
 // Separate component to use theme after provider is initialized
 function AppContent({ user }) {
   const { theme } = useTheme();
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    // Fetch user role from Firebase
+    const fetchRole = async () => {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
+      
+      if (coachDoc.exists()) {
+        setUserRole('coach');
+      } else {
+        setUserRole('client');
+      }
+    };
+    
+    fetchRole();
+  }, [user]);
 
   return (
-    <>
-      {user ? (
-        <NavigationContainer>
-          <Stack.Navigator>
-            <Stack.Screen 
-              name="MainTabs" 
-              component={TabNavigator}
-              options={{ headerShown: false }}
-            />
+    <NavigationContainer>
+      <Stack.Navigator>
+        {userRole === 'coach' ? (
+          // Coach screens
+          <>
+            <Stack.Screen name="CoachDashboard" component={CoachDashboard} />
+            <Stack.Screen name="ClientHistory" component={ClientHistory} />
+          </>
+        ) : (
+          // Client screens
+          <>
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen 
               name="BreathGuide" 
               component={BreathGuide}
@@ -233,15 +256,10 @@ function AppContent({ user }) {
                 },
               }}
             />
-          </Stack.Navigator>
-        </NavigationContainer>
-      ) : (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          <Login />
-          <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'} />
-        </View>
-      )}
-    </>
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
