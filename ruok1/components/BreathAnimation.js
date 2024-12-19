@@ -14,7 +14,7 @@ import Typography from '../constants/Typography';
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
 
-export default function BreathAnimation({ pattern }) {
+export default function BreathAnimation({ pattern, navigation }) {
   const { theme } = useTheme();
   const COLORS = theme.colors.breathing;
   
@@ -24,6 +24,9 @@ export default function BreathAnimation({ pattern }) {
   const [currentPhase, setCurrentPhase] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [isCountingDown, setIsCountingDown] = useState(true);
+  const [breathCount, setBreathCount] = useState(0);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [isComplete, setIsComplete] = useState(false);
 
   const animatedColor = colorAnim.interpolate({
     inputRange: [0, 1, 2],
@@ -93,16 +96,26 @@ export default function BreathAnimation({ pattern }) {
     return () => clearInterval(countdownInterval);
   }, []);
 
+  useEffect(() => {
+    if (isComplete) {
+      navigation.replace('BreathingComplete', {
+        totalBreaths: breathCount,
+        streak: 1,
+        totalSessions: 1
+      });
+    }
+  }, [isComplete, breathCount, navigation]);
+
   const startBreathingAnimation = () => {
-    let currentRound = 0;
+    let roundCounter = 0;
 
     const animate = () => {
-      if (currentRound >= pattern.rounds) {
+      if (roundCounter >= pattern.rounds) {
         stopTickingHaptics();
         return;
       }
 
-      startTickingHaptics(); // Start ticking for the round
+      startTickingHaptics();
 
       // Inhale
       setCurrentPhase('Inhale');
@@ -161,11 +174,19 @@ export default function BreathAnimation({ pattern }) {
             setCurrentPhase('Hold');
             setTimeout(async () => {
               await triggerHaptic('transition');
-              currentRound++;
-              if (currentRound < pattern.rounds) {
+              roundCounter++;
+              setCurrentRound(roundCounter + 1);
+              setBreathCount(prev => {
+                const newCount = prev + 1;
+                if (roundCounter >= pattern.rounds) {
+                  stopTickingHaptics();
+                  setIsComplete(true);
+                }
+                return newCount;
+              });
+              
+              if (roundCounter < pattern.rounds) {
                 animate();
-              } else {
-                stopTickingHaptics();
               }
             }, pattern.exhaleHoldTime * 1000);
           });
@@ -198,7 +219,7 @@ export default function BreathAnimation({ pattern }) {
       ) : (
         <>
           <Text style={[styles.roundText, { color: theme.colors.text }]}>
-            Round 1 of {pattern.rounds}
+            Round {currentRound} of {pattern.rounds}
           </Text>
           <View style={styles.circleContainer}>
             <Animated.View

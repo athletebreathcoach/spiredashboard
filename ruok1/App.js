@@ -13,6 +13,8 @@ import BreathGuide from './components/BreathGuide';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import Layout from './constants/Layout';
 import Typography from './constants/Typography';
+import BreathingComplete from './components/BreathingComplete';
+import Settings from './components/Settings';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -88,7 +90,24 @@ function TabNavigator() {
           headerRight: () => null
         }}
       />
-      <Tab.Screen name="Profile" component={Profile} />
+      <Tab.Screen 
+        name="Profile" 
+        component={Profile}
+        options={({ navigation }) => ({
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settings')}
+              style={{ marginRight: Layout.spacing.medium }}
+            >
+              <Ionicons 
+                name="settings-outline" 
+                size={24} 
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+          ),
+        })}
+      />
     </Tab.Navigator>
   );
 }
@@ -144,6 +163,26 @@ function AppContent({ user }) {
                   fontWeight: '800',
                   textTransform: 'uppercase',
                   letterSpacing: 1,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="BreathingComplete" 
+              component={BreathingComplete}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="Settings" 
+              component={Settings}
+              options={{
+                title: 'Settings',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
                 },
               }}
             />

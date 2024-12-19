@@ -3,23 +3,26 @@ import { StyleSheet, View } from 'react-native';
 import BreathSetup from './BreathSetup';
 import BreathAnimation from './BreathAnimation';
 
-export default function BreathGuide() {
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
-  const [breathPattern, setBreathPattern] = useState(null);
+export default function BreathGuide({ navigation }) {
+  const [showSetup, setShowSetup] = useState(true);
+  const [pattern, setPattern] = useState(null);
 
-  const handleStart = (pattern) => {
-    setBreathPattern(pattern);
-    setIsSetupComplete(true);
+  const handleStart = (settings) => {
+    setPattern(settings);
+    setShowSetup(false);
   };
 
-  if (!isSetupComplete) {
-    return <BreathSetup onStart={handleStart} />;
-  }
-
   return (
-    <View style={styles.container}>
-      <BreathAnimation pattern={breathPattern} />
-    </View>
+    <>
+      {showSetup ? (
+        <BreathSetup onStart={handleStart} />
+      ) : (
+        <BreathAnimation 
+          pattern={pattern} 
+          navigation={navigation}
+        />
+      )}
+    </>
   );
 }
 
