@@ -15,6 +15,7 @@ import Layout from './constants/Layout';
 import Typography from './constants/Typography';
 import BreathingComplete from './components/BreathingComplete';
 import Settings from './components/Settings';
+import Search from './components/Search';
 
 // Update the quotes to be more motivational/athletic
 const quotes = [
@@ -68,6 +69,8 @@ function TabNavigator() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'Search') {
+            iconName = focused ? 'search' : 'search-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -88,6 +91,19 @@ function TabNavigator() {
         component={HomeScreen} 
         options={{
           headerRight: () => null
+        }}
+      />
+      <Tab.Screen 
+        name="Search" 
+        component={Search}
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'search' : 'search-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
         }}
       />
       <Tab.Screen 
