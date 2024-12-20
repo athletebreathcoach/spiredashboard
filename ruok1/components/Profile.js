@@ -11,51 +11,11 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { collection, getDocs } from 'firebase/firestore';
 
 export default function Profile({ navigation }) {
   const { theme } = useTheme();
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchMetrics = async () => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setMetrics({
-          dailyBreaths: data.dailyBreaths || 0,
-          totalBreaths: data.totalBreaths || 0,
-          lastBreathDate: data.lastBreathDate || null,
-        });
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-      setLoading(false);
-    }
-  };
-
-  // Fetch on mount
-  useEffect(() => {
-    fetchMetrics();
-  }, []);
-
-  // Fetch when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchMetrics();
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
+  const [loading, setLoading] = useState(false);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -70,7 +30,7 @@ export default function Profile({ navigation }) {
       
       <View style={styles.headerContainer}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Breath Metrics
+          Breath History
         </Text>
         <Ionicons 
           name="time-outline" 
@@ -79,26 +39,6 @@ export default function Profile({ navigation }) {
           style={styles.historyIcon}
           onPress={() => navigation.navigate('BreathHistory')}
         />
-      </View>
-      
-      <View style={styles.metricsContainer}>
-        <View style={[styles.metricCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-            {metrics?.dailyBreaths || 0}
-          </Text>
-          <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-            Daily Breaths
-          </Text>
-        </View>
-
-        <View style={[styles.metricCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-            {metrics?.totalBreaths || 0}
-          </Text>
-          <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-            All Time Breaths
-          </Text>
-        </View>
       </View>
     </View>
   );
