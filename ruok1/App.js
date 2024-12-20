@@ -77,8 +77,16 @@ function TabNavigator() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarStyle: {
-          backgroundColor: theme.colors.background,
-          borderTopColor: theme.colors.border,
+          backgroundColor: '#1C1C1E',
+          borderTopColor: 'rgba(0, 0, 0, 0.3)',
+          borderTopWidth: 1,
+          height: 85,
+          paddingBottom: 25,
+          paddingTop: 10,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSecondary,
