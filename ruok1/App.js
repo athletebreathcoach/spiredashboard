@@ -31,6 +31,7 @@ import SectionDetail from './components/SectionDetail';
 import AddSectionItem from './components/AddSectionItem';
 import Training from './components/Training';
 import Community from './components/Community';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -212,9 +213,11 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AppContent user={user} />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <AppContent user={user} />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
