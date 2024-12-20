@@ -29,6 +29,8 @@ import HabitsTasks from './components/HabitsTasks';
 import Programs from './components/Programs';
 import SectionDetail from './components/SectionDetail';
 import AddSectionItem from './components/AddSectionItem';
+import Training from './components/Training';
+import Community from './components/Community';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -63,10 +65,14 @@ function TabNavigator() {
           let iconName;
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'Training') {
+            iconName = focused ? 'barbell' : 'barbell-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'Community') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -96,6 +102,25 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen 
+        name="Training" 
+        component={Training}
+        options={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+            shadowColor: 'transparent',
+            elevation: 0,
+            borderBottomWidth: 0,
+          },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'barbell' : 'barbell-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tab.Screen 
         name="Search" 
         component={Search}
         options={{
@@ -108,6 +133,25 @@ function TabNavigator() {
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'search' : 'search-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Community" 
+        component={Community}
+        options={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+            shadowColor: 'transparent',
+            elevation: 0,
+            borderBottomWidth: 0,
+          },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons 
+              name={focused ? 'people' : 'people-outline'} 
               size={size} 
               color={color} 
             />
