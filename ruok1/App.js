@@ -32,6 +32,9 @@ import AddSectionItem from './components/AddSectionItem';
 import Training from './components/Training';
 import Community from './components/Community';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import ExerciseSelector from './components/ExerciseSelector';
+import ProgramDetail from './components/ProgramDetail';
+import ProgramDayEdit from './components/ProgramDayEdit';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -457,6 +460,54 @@ function AppContent({ user }) {
               component={AddSectionItem}
               options={{
                 title: 'Add Item',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ExerciseSelector" 
+              component={ExerciseSelector}
+              options={{
+                title: 'Select Exercise',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ProgramDetail" 
+              component={ProgramDetail}
+              options={{
+                title: 'Program Details',
+                headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: theme.colors.background,
+                },
+                headerTintColor: theme.colors.primary,
+                headerTitleStyle: {
+                  fontWeight: '600',
+                  letterSpacing: 0.5,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ProgramDayEdit" 
+              component={ProgramDayEdit}
+              options={{
+                title: 'Edit Day',
                 headerBackTitle: 'Back',
                 headerStyle: {
                   backgroundColor: theme.colors.background,

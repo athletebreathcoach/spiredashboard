@@ -101,12 +101,17 @@ const categories = [
   }
 ];
 
-export default function Exercises({ navigation }) {
+export default function Exercises({ route, navigation }) {
+  const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
   const handleExercisePress = (exercise) => {
-    navigation.navigate('ExerciseDetail', { exercise });
+    if (selectionMode && onSelect) {
+      onSelect(exercise);
+    } else {
+      navigation.navigate('ExerciseDetail', { exercise });
+    }
   };
 
   const handleScroll = (event) => {
@@ -155,6 +160,13 @@ export default function Exercises({ navigation }) {
                       <Text style={styles.category}>#{exercise.category}</Text>
                     </View>
                   </View>
+                  {selectionMode && (
+                    <Ionicons 
+                      name="add-circle-outline" 
+                      size={24} 
+                      color="#00B5E0" 
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
 

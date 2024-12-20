@@ -1,27 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import { useTheme } from '../theme/ThemeContext';
-import Layout from '../constants/Layout';
-import Typography from '../constants/Typography';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { getTodaysTraining } from '../firebase/programs';
+import { auth } from '../config/firebase';
 
-export default function Training() {
-  const { theme } = useTheme();
+export default function Training({ navigation }) {
+  const [todaysExercises, setTodaysExercises] = useState([]);
+  
+  useEffect(() => {
+    loadTodaysTraining();
+  }, []);
+
+  const loadTodaysTraining = async () => {
+    const exercises = await getTodaysTraining(auth.currentUser.uid);
+    setTodaysExercises(exercises);
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.text, { color: theme.colors.text }]}>Training Screen</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Today's Training</Text>
+      <ScrollView>
+        {todaysExercises.map((exercise, index) => (
+          <TouchableOpacity 
+            key={index}
+            onPress={() => navigation.navigate('LogExercise', { exercise })}
+          >
+            {/* Exercise card UI */}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 20,
   },
-  text: {
-    fontSize: Layout.text.large,
-    fontFamily: Typography.fonts.medium,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
-}); 
+}; 

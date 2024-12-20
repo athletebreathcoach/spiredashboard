@@ -63,12 +63,17 @@ const categories = [
   }
 ]; 
 
-export default function BreathingTests({ navigation }) {
+export default function BreathingTests({ route, navigation }) {
+  const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
   const handleTestPress = (test) => {
-    navigation.navigate('TestDetail', { test });
+    if (selectionMode && onSelect) {
+      onSelect(test);
+    } else {
+      navigation.navigate('TestDetail', { test });
+    }
   };
 
   const handleScroll = (event) => {
@@ -117,6 +122,13 @@ export default function BreathingTests({ navigation }) {
                       <Text style={styles.category}>#{test.category}</Text>
                     </View>
                   </View>
+                  {selectionMode && (
+                    <Ionicons 
+                      name="add-circle-outline" 
+                      size={24} 
+                      color="#00B5E0" 
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
 

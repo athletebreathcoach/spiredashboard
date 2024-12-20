@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -79,39 +79,63 @@ const protocols = [
   },
 ];
 
-export default function BreathProtocols({ navigation }) {
+export default function BreathProtocols({ route, navigation }) {
+  const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
+  const [currentPage, setCurrentPage] = useState(0);
 
-  const handleProtocolSelect = (protocol) => {
-    navigation.navigate('BreathGuide', { 
-      settings: protocol.settings,
-      presetName: protocol.title 
-    });
+  const handleProtocolPress = (protocol) => {
+    if (selectionMode && onSelect) {
+      onSelect(protocol);
+    } else {
+      navigation.navigate('ProtocolDetail', { protocol });
+    }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Breath Protocols</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Select a breathing technique to begin
-      </Text>
-
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        horizontal
+        pagingEnabled
         showsVerticalScrollIndicator={false}
       >
         {protocols.map((protocol) => (
-          <TouchableOpacity
-            key={protocol.id}
-            style={[styles.card, { backgroundColor: protocol.color }]}
-            onPress={() => handleProtocolSelect(protocol)}
-          >
-            <View style={styles.cardHeader}>
-              <Ionicons name={protocol.icon} size={32} color="#FFFFFF" />
-              <Text style={styles.cardTitle}>{protocol.title}</Text>
-            </View>
-            <Text style={styles.cardDescription}>{protocol.description}</Text>
-          </TouchableOpacity>
+          <View key={protocol.id} style={styles.column}>
+            <Text style={styles.columnTitle}>{protocol.title}</Text>
+            
+            <ScrollView 
+              style={styles.protocolList}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.protocolListContent}
+            >
+              <TouchableOpacity
+                key={protocol.id}
+                style={[styles.protocolItem, { backgroundColor: protocol.color }]}
+                onPress={() => handleProtocolPress(protocol)}
+              >
+                <Ionicons 
+                  name={protocol.icon} 
+                  size={24} 
+                  color="#00B5E0" 
+                  style={styles.protocolIcon}
+                />
+                <View style={styles.protocolContent}>
+                  <Text style={styles.protocolTitle}>{protocol.title}</Text>
+                  <View style={styles.protocolDetails}>
+                    <Text style={styles.date}>{protocol.date}</Text>
+                    <Text style={styles.category}>#{protocol.category}</Text>
+                  </View>
+                </View>
+                {selectionMode && (
+                  <Ionicons 
+                    name="add-circle-outline" 
+                    size={24} 
+                    color="#00B5E0" 
+                  />
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         ))}
       </ScrollView>
     </View>

@@ -63,12 +63,17 @@ const categories = [
   }
 ]; 
 
-export default function HabitsTasks({ navigation }) {
+export default function HabitsTasks({ route, navigation }) {
+  const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
   const handleItemPress = (item) => {
-    navigation.navigate('TaskDetail', { item });
+    if (selectionMode && onSelect) {
+      onSelect(item);
+    } else {
+      navigation.navigate('HabitDetail', { item });
+    }
   };
 
   const handleScroll = (event) => {
@@ -117,6 +122,13 @@ export default function HabitsTasks({ navigation }) {
                       <Text style={styles.category}>#{item.category}</Text>
                     </View>
                   </View>
+                  {selectionMode && (
+                    <Ionicons 
+                      name="add-circle-outline" 
+                      size={24} 
+                      color="#00B5E0" 
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
 

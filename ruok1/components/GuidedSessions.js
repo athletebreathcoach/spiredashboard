@@ -63,12 +63,17 @@ const categories = [
   }
 ]; 
 
-export default function GuidedSessions({ navigation }) {
+export default function GuidedSessions({ route, navigation }) {
+  const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
 
   const handleSessionPress = (session) => {
-    navigation.navigate('SessionDetail', { session });
+    if (selectionMode && onSelect) {
+      onSelect(session);
+    } else {
+      navigation.navigate('SessionDetail', { session });
+    }
   };
 
   const handleScroll = (event) => {
@@ -117,6 +122,13 @@ export default function GuidedSessions({ navigation }) {
                       <Text style={styles.category}>#{session.category}</Text>
                     </View>
                   </View>
+                  {selectionMode && (
+                    <Ionicons 
+                      name="add-circle-outline" 
+                      size={24} 
+                      color="#00B5E0" 
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
 

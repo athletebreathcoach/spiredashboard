@@ -65,6 +65,32 @@ const categories = [
         editable: false,
       }
     ]
+  },
+  {
+    id: 'sessions',
+    title: 'Sessions',
+    items: [
+      {
+        id: 5,
+        title: 'Pre-Competition',
+        category: 'Session',
+        duration: '60 min',
+        description: 'Complete preparation routine',
+        icon: 'flag-outline',
+        color: '#2C2C2E',
+        editable: true,
+      },
+      {
+        id: 6,
+        title: 'Recovery Day',
+        category: 'Session',
+        duration: '90 min',
+        description: 'Full recovery and regeneration',
+        icon: 'battery-charging-outline',
+        color: '#2C2C2E',
+        editable: true,
+      }
+    ]
   }
 ];
 
@@ -75,8 +101,8 @@ export default function Programs({ navigation }) {
   const handleItemPress = (item) => {
     if (item.category === 'Section') {
       navigation.navigate('SectionDetail', { item });
-    } else {
-      navigation.navigate('ProgramDetail', { item });
+    } else if (item.category === 'Program') {
+      navigation.navigate('ProgramDetail', { program: item });
     }
   };
 
