@@ -5,11 +5,11 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 export default function Forum() {
-  const { theme } = useTheme();
+  const theme = useTheme();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.text, { color: theme.colors.text }]}>Forum Screen</Text>
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.text, theme?.colors?.text && { color: theme.colors.text }]}>Forum Screen</Text>
     </View>
   );
 }

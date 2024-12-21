@@ -7,7 +7,7 @@ import Forum from './Forum';
 import Chat from './Chat';
 
 export default function Community() {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState('Forum');
 
   const renderTabContent = () => {
@@ -23,19 +23,19 @@ export default function Community() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.tabBar, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.tabBar, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity
           style={[
             styles.tab,
             activeTab === 'Forum' && styles.activeTab,
-            { borderBottomColor: activeTab === 'Forum' ? theme.colors.primary : 'transparent' }
+            { borderBottomColor: activeTab === 'Forum' ? theme?.colors?.primary : 'transparent' }
           ]}
           onPress={() => setActiveTab('Forum')}
         >
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'Forum' ? theme.colors.primary : theme.colors.textSecondary }
+              { color: activeTab === 'Forum' ? theme?.colors?.primary : theme?.colors?.textSecondary }
             ]}
           >
             Forum
@@ -45,14 +45,14 @@ export default function Community() {
           style={[
             styles.tab,
             activeTab === 'Chat' && styles.activeTab,
-            { borderBottomColor: activeTab === 'Chat' ? theme.colors.primary : 'transparent' }
+            { borderBottomColor: activeTab === 'Chat' ? theme?.colors?.primary : 'transparent' }
           ]}
           onPress={() => setActiveTab('Chat')}
         >
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'Chat' ? theme.colors.primary : theme.colors.textSecondary }
+              { color: activeTab === 'Chat' ? theme?.colors?.primary : theme?.colors?.textSecondary }
             ]}
           >
             Chat

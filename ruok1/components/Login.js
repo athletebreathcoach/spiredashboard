@@ -20,8 +20,8 @@ export default function Login({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { theme } = useTheme();
-  const fromSettings = route.params?.fromSettings;
+  const theme = useTheme();
+  const fromSettings = route?.params?.fromSettings ?? false;
 
   useEffect(() => {
     if (fromSettings) {
@@ -89,7 +89,7 @@ export default function Login({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.loginContainer}>
         {fromSettings && (
@@ -97,22 +97,25 @@ export default function Login({ navigation, route }) {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={[styles.backButtonText, { color: theme.colors.primary }]}>Cancel</Text>
+            <Text style={[styles.backButtonText, theme?.colors?.primary && { color: theme.colors.primary }]}>Cancel</Text>
           </TouchableOpacity>
         )}
         
-        <Text style={[styles.title, { color: theme.colors.text }]}>
+        <Text style={[styles.title, theme?.colors?.text && { color: theme.colors.text }]}>
           Welcome to BreathWork
         </Text>
         
         <TextInput
-          style={[styles.input, { 
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-            color: theme.colors.text
-          }]}
+          style={[
+            styles.input, 
+            theme?.colors && {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              color: theme.colors.text
+            }
+          ]}
           placeholder="Email"
-          placeholderTextColor={theme.colors.textSecondary}
+          placeholderTextColor={theme?.colors?.textSecondary}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -121,13 +124,16 @@ export default function Login({ navigation, route }) {
         />
         
         <TextInput
-          style={[styles.input, { 
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-            color: theme.colors.text
-          }]}
+          style={[
+            styles.input,
+            theme?.colors && {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              color: theme.colors.text
+            }
+          ]}
           placeholder="Password"
-          placeholderTextColor={theme.colors.textSecondary}
+          placeholderTextColor={theme?.colors?.textSecondary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -135,7 +141,11 @@ export default function Login({ navigation, route }) {
         />
         
         <TouchableOpacity 
-          style={[styles.button, { backgroundColor: theme.colors.primary }, isLoading && styles.buttonDisabled]} 
+          style={[
+            styles.button,
+            theme?.colors?.primary && { backgroundColor: theme.colors.primary },
+            isLoading && styles.buttonDisabled
+          ]} 
           onPress={handleLogin}
           disabled={isLoading}
         >

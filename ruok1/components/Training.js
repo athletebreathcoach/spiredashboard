@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 const DAY_WIDTH = width / 7; // Width for each day button
 
 export default function Training({ navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [exercises, setExercises] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekDates, setWeekDates] = useState([]);
@@ -68,12 +68,12 @@ export default function Training({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
       {/* Week Selector */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        style={[styles.weekSelector, { borderBottomColor: theme.colors.border }]}
+        style={[styles.weekSelector, theme?.colors?.border && { borderBottomColor: theme.colors.border }]}
         contentContainerStyle={styles.weekSelectorContent}
       >
         {weekDates.map((date, index) => {
@@ -93,14 +93,14 @@ export default function Training({ navigation }) {
             >
               <Text style={[
                 styles.dayText,
-                { color: theme.colors.textSecondary },
+                theme?.colors?.textSecondary && { color: theme.colors.textSecondary },
                 (isSelected || today) && { color: '#00B5E0' }
               ]}>
                 {formattedDate.day}
               </Text>
               <Text style={[
                 styles.dateText,
-                { color: theme.colors.text },
+                theme?.colors?.text && { color: theme.colors.text },
                 (isSelected || today) && { color: '#00B5E0' }
               ]}>
                 {formattedDate.date}
@@ -113,11 +113,11 @@ export default function Training({ navigation }) {
         })}
       </ScrollView>
 
-      <Text style={[styles.title, { color: theme.colors.text }]}>Today's Training</Text>
+      <Text style={[styles.title, theme?.colors?.text && { color: theme.colors.text }]}>Today's Training</Text>
       
       <ScrollView style={styles.scrollView}>
         {loading ? (
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.emptyText, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
             Loading...
           </Text>
         ) : exercises.length > 0 ? (
@@ -133,10 +133,10 @@ export default function Training({ navigation }) {
                 style={styles.exerciseIcon}
               />
               <View style={styles.exerciseContent}>
-                <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+                <Text style={[styles.exerciseTitle, theme?.colors?.text && { color: theme.colors.text }]}>
                   {exercise.title}
                 </Text>
-                <Text style={[styles.exerciseType, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.exerciseType, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
                   {exercise.type}
                 </Text>
               </View>
@@ -149,7 +149,7 @@ export default function Training({ navigation }) {
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.emptyText, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
             No exercises scheduled for {selectedDate.toLocaleDateString()}
           </Text>
         )}
@@ -157,7 +157,7 @@ export default function Training({ navigation }) {
 
       {/* Add Exercise Button */}
       <TouchableOpacity 
-        style={[styles.addButton, { backgroundColor: theme.colors.background }]}
+        style={[styles.addButton, theme?.colors?.background && { backgroundColor: theme.colors.background }]}
         onPress={() => navigation.navigate('Exercises', { selectionMode: true })}
       >
         <Ionicons name="add-circle" size={32} color="#00B5E0" />

@@ -15,7 +15,7 @@ import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Profile({ navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -103,18 +103,18 @@ export default function Profile({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
       <ScrollView>
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="person-circle-outline" size={80} color={theme.colors.primary} />
+            <Ionicons name="person-circle-outline" size={80} color={theme?.colors?.primary} />
           </View>
-          <Text style={[styles.name, { color: theme.colors.text }]}>
+          <Text style={[styles.name, theme?.colors?.text && { color: theme.colors.text }]}>
             {auth.currentUser?.email || 'User'}
           </Text>
           {isCoach && (
             <View style={styles.coachBadge}>
-              <Text style={[styles.coachText, { color: theme.colors.primary }]}>Coach</Text>
+              <Text style={[styles.coachText, theme?.colors?.primary && { color: theme.colors.primary }]}>Coach</Text>
             </View>
           )}
         </View>
@@ -122,7 +122,7 @@ export default function Profile({ navigation }) {
         {/* Pending Invites Section */}
         {pendingInvites.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.sectionTitle, theme?.colors?.text && { color: theme.colors.text }]}>
               Coach Invitations
             </Text>
             {pendingInvites.map(invite => (
@@ -131,19 +131,19 @@ export default function Profile({ navigation }) {
                 style={[styles.inviteCard, { backgroundColor: '#2C2C2E' }]}
               >
                 <View style={styles.inviteInfo}>
-                  <Text style={[styles.inviteText, { color: theme.colors.text }]}>
+                  <Text style={[styles.inviteText, theme?.colors?.text && { color: theme.colors.text }]}>
                     {invite.coachEmail} wants to be your coach
                   </Text>
                 </View>
                 <View style={styles.inviteButtons}>
                   <TouchableOpacity
-                    style={[styles.inviteButton, { backgroundColor: theme.colors.error }]}
+                    style={[styles.inviteButton, theme?.colors?.error && { backgroundColor: theme.colors.error }]}
                     onPress={() => handleInviteResponse(invite, false)}
                   >
                     <Ionicons name="close" size={24} color="#FFFFFF" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.inviteButton, { backgroundColor: theme.colors.success }]}
+                    style={[styles.inviteButton, theme?.colors?.success && { backgroundColor: theme.colors.success }]}
                     onPress={() => handleInviteResponse(invite, true)}
                   >
                     <Ionicons name="checkmark" size={24} color="#FFFFFF" />
@@ -157,36 +157,36 @@ export default function Profile({ navigation }) {
         {/* Coach Section */}
         {isCoach && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.sectionTitle, theme?.colors?.text && { color: theme.colors.text }]}>
               Coach Tools
             </Text>
             <TouchableOpacity
               style={[styles.menuItem, { backgroundColor: '#2C2C2E' }]}
               onPress={() => navigation.navigate('CoachDashboard')}
             >
-              <Ionicons name="people-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.menuText, { color: theme.colors.text }]}>
+              <Ionicons name="people-outline" size={24} color={theme?.colors?.primary} />
+              <Text style={[styles.menuText, theme?.colors?.text && { color: theme.colors.text }]}>
                 Client Dashboard
               </Text>
-              <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
+              <Ionicons name="chevron-forward" size={24} color={theme?.colors?.primary} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* History Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.sectionTitle, theme?.colors?.text && { color: theme.colors.text }]}>
             History
           </Text>
           <TouchableOpacity
             style={[styles.menuItem, { backgroundColor: '#2C2C2E' }]}
             onPress={() => navigation.navigate('BreathHistory')}
           >
-            <Ionicons name="time-outline" size={24} color={theme.colors.primary} />
-            <Text style={[styles.menuText, { color: theme.colors.text }]}>
+            <Ionicons name="time-outline" size={24} color={theme?.colors?.primary} />
+            <Text style={[styles.menuText, theme?.colors?.text && { color: theme.colors.text }]}>
               Breathing History
             </Text>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
+            <Ionicons name="chevron-forward" size={24} color={theme?.colors?.primary} />
           </TouchableOpacity>
         </View>
       </ScrollView>

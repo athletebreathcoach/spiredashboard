@@ -137,7 +137,7 @@ const categories = [
 ];
 
 export default function Search({ navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
 
@@ -168,21 +168,24 @@ export default function Search({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
       <View style={styles.searchContainer}>
         <Ionicons 
           name="search-outline" 
           size={20} 
-          color={theme.colors.textSecondary} 
+          color={theme?.colors?.textSecondary} 
           style={styles.searchIcon}
         />
         <TextInput
-          style={[styles.searchInput, { 
-            backgroundColor: theme.colors.surface,
-            color: theme.colors.text,
-          }]}
+          style={[
+            styles.searchInput, 
+            theme?.colors && { 
+              backgroundColor: theme.colors.surface,
+              color: theme.colors.text,
+            }
+          ]}
           placeholder="Search exercises, tests, sessions..."
-          placeholderTextColor={theme.colors.textSecondary}
+          placeholderTextColor={theme?.colors?.textSecondary}
           value={searchQuery}
           onChangeText={handleSearch}
         />
@@ -212,7 +215,7 @@ export default function Search({ navigation }) {
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.noResults, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
                 No results found
               </Text>
             )}

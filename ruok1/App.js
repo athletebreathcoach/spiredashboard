@@ -42,14 +42,14 @@ const Tab = createBottomTabNavigator();
 
 // Update HomeScreen to use navigation
 function HomeScreen({ navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
 
   const handleBreathGuide = () => {
     navigation.navigate('BreathGuide');
   };
 
   return (
-    <View style={[styles.homeContainer, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.homeContainer, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
       <TouchableOpacity 
         style={styles.breathButton}
         onPress={handleBreathGuide}
@@ -61,7 +61,7 @@ function HomeScreen({ navigation }) {
 }
 
 function TabNavigator() {
-  const { theme } = useTheme();
+  const theme = useTheme();
 
   return (
     <Tab.Navigator
@@ -93,24 +93,24 @@ function TabNavigator() {
           left: 0,
           right: 0,
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        headerStyle: {
+        tabBarActiveTintColor: theme?.colors?.primary || '#6C5CE7',
+        tabBarInactiveTintColor: theme?.colors?.textSecondary || '#A0A0A0',
+        headerStyle: theme?.colors?.background ? {
           backgroundColor: theme.colors.background,
-        },
-        headerTintColor: theme.colors.text,
+        } : undefined,
+        headerTintColor: theme?.colors?.text,
       })}
     >
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
         options={{
-          headerStyle: {
+          headerStyle: theme?.colors?.background ? {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          },
+          } : undefined,
           headerRight: () => null
         }}
       />
@@ -118,12 +118,12 @@ function TabNavigator() {
         name="Training" 
         component={Training}
         options={{
-          headerStyle: {
+          headerStyle: theme?.colors?.background ? {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          },
+          } : undefined,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'barbell' : 'barbell-outline'} 
@@ -137,12 +137,12 @@ function TabNavigator() {
         name="Search" 
         component={Search}
         options={{
-          headerStyle: {
+          headerStyle: theme?.colors?.background ? {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          },
+          } : undefined,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'search' : 'search-outline'} 
@@ -156,12 +156,12 @@ function TabNavigator() {
         name="Community" 
         component={Community}
         options={{
-          headerStyle: {
+          headerStyle: theme?.colors?.background ? {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          },
+          } : undefined,
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'people' : 'people-outline'} 
@@ -175,12 +175,12 @@ function TabNavigator() {
         name="Profile" 
         component={Profile}
         options={({ navigation }) => ({
-          headerStyle: {
+          headerStyle: theme?.colors?.background ? {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          },
+          } : undefined,
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('Settings')}
@@ -189,7 +189,7 @@ function TabNavigator() {
               <Ionicons 
                 name="settings-outline" 
                 size={24} 
-                color={theme.colors.text}
+                color={theme?.colors?.text || '#FFFFFF'}
               />
             </TouchableOpacity>
           ),
@@ -201,37 +201,46 @@ function TabNavigator() {
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  if (loading) {
-    return null;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AppContent user={user} />
+        <NavigationContainer>
+          <StatusBar style="auto" />
+          {user ? <AuthenticatedStack user={user} /> : <UnauthenticatedStack />}
+        </NavigationContainer>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
 
-// Separate component to use theme after provider is initialized
-function AppContent({ user }) {
-  const { theme } = useTheme();
+// Unauthenticated stack
+function UnauthenticatedStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen 
+        name="Login" 
+        component={Login}
+        initialParams={{ fromSettings: false }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Authenticated stack
+function AuthenticatedStack({ user }) {
+  const theme = useTheme();
   const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    // Fetch user role from Firebase
     const fetchRole = async () => {
       if (user) {
         console.log('Checking role for user:', user.email);
@@ -253,315 +262,70 @@ function AppContent({ user }) {
     fetchRole();
   }, [user]);
 
-  // Add console log for current role
-  useEffect(() => {
-    console.log('Current user role:', userRole);
-  }, [userRole]);
-
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.colors.background,
-          },
-          headerTintColor: theme.colors.text,
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: theme?.colors?.background ? {
+          backgroundColor: theme.colors.background,
+        } : undefined,
+        headerTintColor: theme?.colors?.text,
+        headerTitleStyle: {
+          fontFamily: Typography.fonts.medium,
+        },
+      }}
+    >
+      <Stack.Screen 
+        name="MainTabs" 
+        component={TabNavigator}
+        options={{ headerShown: false }}
+      />
+      {userRole === 'coach' && (
+        <Stack.Screen 
+          name="CoachDashboard" 
+          component={CoachDashboard}
+          options={{
+            title: 'Coach Dashboard',
+            headerTitleStyle: {
+              fontFamily: Typography.fonts.bold,
+              fontSize: Layout.text.large,
+            }
+          }}
+        />
+      )}
+      <Stack.Screen 
+        name="Settings" 
+        component={Settings}
+        options={{
+          presentation: 'modal',
           headerTitleStyle: {
-            fontFamily: Typography.fonts.medium,
-          },
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
         }}
-      >
-        {!user ? (
-          // Unauthenticated screens
-          <Stack.Screen 
-            name="Login" 
-            component={Login}
-            options={{ 
-              headerShown: false
-            }}
-          />
-        ) : (
-          // Both coach and client screens use TabNavigator
-          <>
-            <Stack.Screen 
-              name="MainTabs" 
-              component={TabNavigator}
-              options={{ 
-                headerShown: false 
-              }}
-            />
-            {/* Coach-specific screens */}
-            {userRole === 'coach' && (
-              <>
-                <Stack.Screen 
-                  name="CoachDashboard" 
-                  component={CoachDashboard}
-                  options={{
-                    title: 'Coach Dashboard',
-                    headerTitleStyle: {
-                      fontFamily: Typography.fonts.bold,
-                      fontSize: Layout.text.large,
-                    }
-                  }}
-                />
-              </>
-            )}
-            {/* Common screens */}
-            <Stack.Screen 
-              name="ClientHistory" 
-              component={ClientHistory}
-              options={{
-                title: 'Client History',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen 
-              name="ClientBreathHistory" 
-              component={ClientBreathHistory}
-              options={{
-                title: 'Breathing History',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen 
-              name="BreathGuide" 
-              component={BreathGuide}
-              options={{
-                title: 'BREATH GUIDE',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '800',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="BreathingComplete" 
-              component={BreathingComplete}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="Settings" 
-              component={Settings}
-              options={{
-                title: 'Settings',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="Breath Protocols" 
-              component={BreathProtocols}
-              options={{
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="BreathHistory" 
-              component={BreathHistory}
-              options={{
-                title: 'Breathing History',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="Exercises" 
-              component={Exercises}
-              options={{
-                title: 'Exercises',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="ExerciseDetail" 
-              component={ExerciseDetail}
-              options={{
-                headerShown: true,
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen 
-              name="BreathingTests" 
-              component={BreathingTests}
-              options={{
-                title: 'Breathing Tests',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="GuidedSessions" 
-              component={GuidedSessions}
-              options={{
-                title: 'Guided Sessions',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="HabitsTasks" 
-              component={HabitsTasks}
-              options={{
-                title: 'Habits & Tasks',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="Programs" 
-              component={Programs}
-              options={{
-                title: 'Programs',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="SectionDetail" 
-              component={SectionDetail}
-              options={{
-                title: 'Section Details',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="AddSectionItem" 
-              component={AddSectionItem}
-              options={{
-                title: 'Add Item',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="ExerciseSelector" 
-              component={ExerciseSelector}
-              options={{
-                title: 'Select Exercise',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="ProgramDetail" 
-              component={ProgramDetail}
-              options={{
-                title: 'Program Details',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-            <Stack.Screen 
-              name="ProgramDayEdit" 
-              component={ProgramDayEdit}
-              options={{
-                title: 'Edit Day',
-                headerBackTitle: 'Back',
-                headerStyle: {
-                  backgroundColor: theme.colors.background,
-                },
-                headerTintColor: theme.colors.primary,
-                headerTitleStyle: {
-                  fontWeight: '600',
-                  letterSpacing: 0.5,
-                },
-              }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+      />
+      <Stack.Screen 
+        name="BreathHistory" 
+        component={BreathHistory}
+        options={{
+          title: 'Breathing History',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="ClientHistory" 
+        component={ClientHistory}
+        options={{
+          title: 'Client History',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+    </Stack.Navigator>
   );
 }
 

@@ -1,89 +1,59 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../config/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { useColorScheme } from 'react-native';
+import { lightColors, darkColors } from './colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ThemeContext = createContext();
 
-export const themes = {
-  light: {
-    name: 'light',
-    colors: {
-      background: '#FFFFFF',
-      surface: '#F5F5F5',
-      primary: '#00B5E0',
-      secondary: '#015B98',
-      text: '#000000',
-      textSecondary: '#666666',
-      border: '#DDDDDD',
-      error: '#FF3B30',
-      success: '#50C878',
-      breathing: {
-        inhale: '#50C878',
-        hold: '#00B5E0',
-        exhale: '#FF3B30',
-        countdown: '#FFA500',
-      }
-    }
-  },
-  dark: {
-    name: 'dark',
-    colors: {
-      background: '#000000',
-      surface: '#111111',
-      primary: '#00B5E0',
-      secondary: '#015B98',
-      text: '#FFFFFF',
-      textSecondary: '#999999',
-      border: '#333333',
-      error: '#FF3B30',
-      success: '#50C878',
-      breathing: {
-        inhale: '#50C878',
-        hold: '#00B5E0',
-        exhale: '#FF3B30',
-        countdown: '#FFA500',
-      }
-    }
-  }
-};
-
-export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(themes.dark);
+export const ThemeProvider = ({ children }) => {
+  const deviceColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', or 'system'
 
   useEffect(() => {
-    // Load user's theme preference from Firestore
-    const loadThemePreference = async () => {
-      if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists() && userDoc.data().preferences?.theme) {
-          setTheme(themes[userDoc.data().preferences.theme]);
-        }
-      }
-    };
-
     loadThemePreference();
   }, []);
 
-  const toggleTheme = async () => {
-    const newTheme = theme.name === 'light' ? themes.dark : themes.light;
-    setTheme(newTheme);
-
-    // Save theme preference to Firestore
-    if (auth.currentUser) {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      await updateDoc(userRef, {
-        'preferences.theme': newTheme.name
-      });
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('themeMode');
+      if (savedTheme) {
+        setThemeMode(savedTheme);
+      }
+    } catch (error) {
+      console.error('Error loading theme preference:', error);
     }
   };
 
+  const setTheme = async (mode) => {
+    try {
+      await AsyncStorage.setItem('themeMode', mode);
+      setThemeMode(mode);
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
+  };
+
+  const isDark = themeMode === 'dark' || (themeMode === 'system' && deviceColorScheme === 'dark');
+  const colors = isDark ? darkColors : lightColors;
+
+  const theme = {
+    colors,
+    isDark,
+    setTheme,
+    themeMode,
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={theme}>
       {children}
     </ThemeContext.Provider>
   );
-}
+};
 
-export function useTheme() {
-  return useContext(ThemeContext);
-} 
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+}; 
