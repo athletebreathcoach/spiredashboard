@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
-import { auth } from './config/firebase';
+import { auth, db } from './config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -233,12 +233,17 @@ function AppContent({ user }) {
     // Fetch user role from Firebase
     const fetchRole = async () => {
       if (user) {
+        console.log('Checking role for user:', user.email);
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
         
+        console.log('Coach doc exists:', coachDoc.exists());
+        
         if (coachDoc.exists()) {
+          console.log('Setting user role to coach');
           setUserRole('coach');
         } else {
+          console.log('Setting user role to client');
           setUserRole('client');
         }
       }
@@ -246,6 +251,11 @@ function AppContent({ user }) {
     
     fetchRole();
   }, [user]);
+
+  // Add console log for current role
+  useEffect(() => {
+    console.log('Current user role:', userRole);
+  }, [userRole]);
 
   return (
     <NavigationContainer>
@@ -269,24 +279,8 @@ function AppContent({ user }) {
               headerShown: false
             }}
           />
-        ) : userRole === 'coach' ? (
-          // Coach screens
-          <>
-            <Stack.Screen 
-              name="CoachDashboard" 
-              component={CoachDashboard}
-              options={{
-                title: 'Coach Dashboard',
-                headerTitleStyle: {
-                  fontFamily: Typography.fonts.bold,
-                  fontSize: Layout.text.large,
-                }
-              }}
-            />
-            <Stack.Screen name="ClientHistory" component={ClientHistory} />
-          </>
         ) : (
-          // Client screens
+          // Both coach and client screens use TabNavigator
           <>
             <Stack.Screen 
               name="MainTabs" 
@@ -295,6 +289,24 @@ function AppContent({ user }) {
                 headerShown: false 
               }}
             />
+            {/* Coach-specific screens */}
+            {userRole === 'coach' && (
+              <>
+                <Stack.Screen 
+                  name="CoachDashboard" 
+                  component={CoachDashboard}
+                  options={{
+                    title: 'Coach Dashboard',
+                    headerTitleStyle: {
+                      fontFamily: Typography.fonts.bold,
+                      fontSize: Layout.text.large,
+                    }
+                  }}
+                />
+                <Stack.Screen name="ClientHistory" component={ClientHistory} />
+              </>
+            )}
+            {/* Common screens */}
             <Stack.Screen 
               name="BreathGuide" 
               component={BreathGuide}

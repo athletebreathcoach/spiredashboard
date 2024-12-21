@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
@@ -13,7 +13,7 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 const { width } = Dimensions.get('window');
-const CARD_MARGIN = 10;
+const CARD_MARGIN = Layout.spacing.medium;
 const CARD_WIDTH = width - (CARD_MARGIN * 2 + Layout.spacing.large * 2);
 
 const protocols = [
@@ -82,60 +82,59 @@ const protocols = [
 export default function BreathProtocols({ route, navigation }) {
   const { selectionMode, onSelect } = route.params || {};
   const { theme } = useTheme();
-  const [currentPage, setCurrentPage] = useState(0);
 
   const handleProtocolPress = (protocol) => {
     if (selectionMode && onSelect) {
       onSelect(protocol);
     } else {
-      navigation.navigate('ProtocolDetail', { protocol });
+      navigation.navigate('BreathGuide', { 
+        settings: protocol.settings,
+        presetName: protocol.title
+      });
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Breathing Protocols
+      </Text>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+        Choose a protocol to begin your breathing practice
+      </Text>
+
       <ScrollView 
-        horizontal
-        pagingEnabled
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
         {protocols.map((protocol) => (
-          <View key={protocol.id} style={styles.column}>
-            <Text style={styles.columnTitle}>{protocol.title}</Text>
+          <TouchableOpacity
+            key={protocol.id}
+            style={[styles.card, { backgroundColor: protocol.color }]}
+            onPress={() => handleProtocolPress(protocol)}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name={protocol.icon} size={24} color="#FFFFFF" />
+              <Text style={styles.cardTitle}>{protocol.title}</Text>
+            </View>
+            <Text style={styles.cardDescription}>{protocol.description}</Text>
             
-            <ScrollView 
-              style={styles.protocolList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.protocolListContent}
-            >
-              <TouchableOpacity
-                key={protocol.id}
-                style={[styles.protocolItem, { backgroundColor: protocol.color }]}
-                onPress={() => handleProtocolPress(protocol)}
-              >
-                <Ionicons 
-                  name={protocol.icon} 
-                  size={24} 
-                  color="#00B5E0" 
-                  style={styles.protocolIcon}
-                />
-                <View style={styles.protocolContent}>
-                  <Text style={styles.protocolTitle}>{protocol.title}</Text>
-                  <View style={styles.protocolDetails}>
-                    <Text style={styles.date}>{protocol.date}</Text>
-                    <Text style={styles.category}>#{protocol.category}</Text>
-                  </View>
-                </View>
-                {selectionMode && (
-                  <Ionicons 
-                    name="add-circle-outline" 
-                    size={24} 
-                    color="#00B5E0" 
-                  />
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+            <View style={styles.cardDetails}>
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.detailText}>
+                  {protocol.settings.totalTime}s
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Ionicons name="repeat-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.detailText}>
+                  {protocol.settings.rounds} rounds
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>
@@ -156,6 +155,9 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
     paddingBottom: Layout.spacing.large,
@@ -182,5 +184,21 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.regular,
     color: '#FFFFFF',
     opacity: 0.9,
+    marginBottom: Layout.spacing.medium,
+  },
+  cardDetails: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: Layout.spacing.large,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.small,
+  },
+  detailText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+    color: '#FFFFFF',
   },
 }); 
