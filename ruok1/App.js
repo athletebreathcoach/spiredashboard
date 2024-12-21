@@ -35,6 +35,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ExerciseSelector from './components/ExerciseSelector';
 import ProgramDetail from './components/ProgramDetail';
 import ProgramDayEdit from './components/ProgramDayEdit';
+import ClientBreathHistory from './components/ClientBreathHistory';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -303,10 +304,25 @@ function AppContent({ user }) {
                     }
                   }}
                 />
-                <Stack.Screen name="ClientHistory" component={ClientHistory} />
               </>
             )}
             {/* Common screens */}
+            <Stack.Screen 
+              name="ClientHistory" 
+              component={ClientHistory}
+              options={{
+                title: 'Client History',
+                headerBackTitle: 'Back',
+              }}
+            />
+            <Stack.Screen 
+              name="ClientBreathHistory" 
+              component={ClientBreathHistory}
+              options={{
+                title: 'Breathing History',
+                headerBackTitle: 'Back',
+              }}
+            />
             <Stack.Screen 
               name="BreathGuide" 
               component={BreathGuide}

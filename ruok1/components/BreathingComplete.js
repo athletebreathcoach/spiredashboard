@@ -7,7 +7,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -20,20 +20,22 @@ export default function BreathingComplete({ navigation, route }) {
   const handleLogSession = async () => {
     setIsSaving(true);
     try {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const session = {
-        timestamp: Date.now(),
-        ...sessionData
-      };
-
-      await updateDoc(userRef, {
-        sessions: arrayUnion(session)
+      // Save to the breathingExercises subcollection
+      const breathingRef = collection(db, 'users', auth.currentUser.uid, 'breathingExercises');
+      await addDoc(breathingRef, {
+        ...sessionData,
+        totalBreaths,
+        completedAt: serverTimestamp(),
+        duration: sessionData.totalTime,
+        protocol: sessionData.presetName
       });
 
       // Navigate back to home after successful save
       navigation.navigate('Home');
     } catch (error) {
       console.error('Error saving session:', error);
+      Alert.alert('Error', 'Failed to save breathing session');
+    } finally {
       setIsSaving(false);
     }
   };
@@ -45,7 +47,23 @@ export default function BreathingComplete({ navigation, route }) {
       </Text>
       
       <View style={styles.statsContainer}>
-        {/* ... existing stats ... */}
+        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+            Duration
+          </Text>
+          <Text style={[styles.statValue, { color: theme.colors.text }]}>
+            {sessionData.totalTime}s
+          </Text>
+        </View>
+
+        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+            Breaths
+          </Text>
+          <Text style={[styles.statValue, { color: theme.colors.text }]}>
+            {totalBreaths}
+          </Text>
+        </View>
       </View>
 
       <TouchableOpacity
@@ -83,35 +101,6 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.medium,
     fontSize: Layout.text.xlarge,
     marginTop: Layout.spacing.large,
-  },
-  circleContainer: {
-    width: 300,
-    height: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: Layout.spacing.xlarge,
-  },
-  breathCountContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  breathCount: {
-    fontFamily: Typography.fonts.bold,
-    fontSize: 72,
-  },
-  breathLabel: {
-    fontFamily: Typography.fonts.medium,
-    fontSize: Layout.text.large,
-  },
-  congratsText: {
-    fontFamily: Typography.fonts.bold,
-    fontSize: Layout.text.xlarge,
-    textAlign: 'center',
-    marginBottom: Layout.spacing.small,
-  },
-  subText: {
-    fontFamily: Typography.fonts.medium,
-    fontSize: Layout.text.large,
     marginBottom: Layout.spacing.xlarge,
   },
   statsContainer: {
@@ -133,23 +122,6 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: Typography.fonts.bold,
     fontSize: Layout.text.xxlarge,
-  },
-  continueButton: {
-    width: '100%',
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.large,
-    alignItems: 'center',
-  },
-  continueText: {
-    fontFamily: Typography.fonts.bold,
-    fontSize: Layout.text.large,
-  },
-  shareButton: {
-    marginTop: Layout.spacing.large,
-  },
-  shareText: {
-    fontFamily: Typography.fonts.medium,
-    fontSize: Layout.text.medium,
   },
   logButton: {
     padding: Layout.spacing.large,

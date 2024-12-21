@@ -18,7 +18,6 @@ export default function ClientHistory({ route, navigation }) {
   const { clientId } = route.params;
   const [loading, setLoading] = useState(true);
   const [clientEmail, setClientEmail] = useState('');
-  const [breathingHistory, setBreathingHistory] = useState([]);
   const [exerciseHistory, setExerciseHistory] = useState([]);
 
   useEffect(() => {
@@ -36,19 +35,6 @@ export default function ClientHistory({ route, navigation }) {
         setClientEmail(userDoc.data().email);
       }
       
-      // Get breathing exercises
-      const breathingRef = collection(db, 'users', clientId, 'breathingExercises');
-      const breathingQuery = query(breathingRef, orderBy('completedAt', 'desc'));
-      const breathingSnapshot = await getDocs(breathingQuery);
-      
-      const breathingData = breathingSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        type: 'breathing',
-        date: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
-      }));
-      setBreathingHistory(breathingData);
-      
       // Get exercise results
       const exerciseRef = collection(db, 'users', clientId, 'exerciseResults');
       const exerciseQuery = query(exerciseRef, orderBy('completedAt', 'desc'));
@@ -57,7 +43,6 @@ export default function ClientHistory({ route, navigation }) {
       const exerciseData = exerciseSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        type: 'exercise',
         date: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
       }));
       setExerciseHistory(exerciseData);
@@ -80,44 +65,6 @@ export default function ClientHistory({ route, navigation }) {
     });
   };
 
-  const renderBreathingCard = (item) => (
-    <View
-      key={item.id}
-      style={[styles.historyCard, { backgroundColor: '#2C2C2E' }]}
-    >
-      <View style={styles.historyHeader}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="fitness" size={24} color={theme.colors.primary} />
-          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-            Breathing Session
-          </Text>
-        </View>
-        <Text style={[styles.date, { color: theme.colors.textSecondary }]}>
-          {formatDate(item.date)}
-        </Text>
-      </View>
-      
-      <View style={styles.resultDetails}>
-        <View style={styles.resultItem}>
-          <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
-            Duration:
-          </Text>
-          <Text style={[styles.resultValue, { color: theme.colors.text }]}>
-            {item.duration} seconds
-          </Text>
-        </View>
-        <View style={styles.resultItem}>
-          <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
-            Protocol:
-          </Text>
-          <Text style={[styles.resultValue, { color: theme.colors.text }]}>
-            {item.protocol || 'Custom'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-
   const renderExerciseCard = (item) => (
     <View
       key={item.id}
@@ -137,7 +84,7 @@ export default function ClientHistory({ route, navigation }) {
       
       <View style={styles.resultDetails}>
         {Object.entries(item).map(([key, value]) => {
-          if (['id', 'exerciseId', 'completedAt', 'date', 'type'].includes(key)) return null;
+          if (['id', 'exerciseId', 'completedAt', 'date'].includes(key)) return null;
           return (
             <View key={key} style={styles.resultItem}>
               <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
@@ -153,11 +100,6 @@ export default function ClientHistory({ route, navigation }) {
     </View>
   );
 
-  // Combine and sort all history
-  const allHistory = [...breathingHistory, ...exerciseHistory].sort((a, b) => 
-    b.date - a.date
-  );
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
@@ -166,19 +108,29 @@ export default function ClientHistory({ route, navigation }) {
         </Text>
       </View>
 
+      <TouchableOpacity
+        style={[styles.breathingButton, { backgroundColor: theme.colors.primary }]}
+        onPress={() => navigation.navigate('ClientBreathHistory', { clientId: clientId })}
+      >
+        <Ionicons name="fitness" size={24} color="#FFFFFF" />
+        <Text style={styles.breathingButtonText}>View Breathing History</Text>
+      </TouchableOpacity>
+
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        Exercise History
+      </Text>
+
       {loading ? (
         <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
           Loading...
         </Text>
-      ) : allHistory.length > 0 ? (
+      ) : exerciseHistory.length > 0 ? (
         <ScrollView style={styles.historyList}>
-          {allHistory.map(item => 
-            item.type === 'breathing' ? renderBreathingCard(item) : renderExerciseCard(item)
-          )}
+          {exerciseHistory.map(item => renderExerciseCard(item))}
         </ScrollView>
       ) : (
         <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
-          No history yet
+          No exercise history yet
         </Text>
       )}
     </View>
@@ -197,6 +149,26 @@ const styles = StyleSheet.create({
   clientEmail: {
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
+  },
+  breathingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: Layout.spacing.large,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    gap: Layout.spacing.small,
+  },
+  breathingButtonText: {
+    color: '#FFFFFF',
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  sectionTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.semibold,
+    marginHorizontal: Layout.spacing.large,
+    marginBottom: Layout.spacing.medium,
   },
   message: {
     fontSize: 17,

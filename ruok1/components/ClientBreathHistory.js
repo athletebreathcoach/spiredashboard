@@ -6,26 +6,27 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { auth, db } from '../config/firebase';
+import { db } from '../config/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function BreathHistory() {
+export default function ClientBreathHistory({ route }) {
   const { theme } = useTheme();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { clientId } = route.params;
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [clientId]);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const breathingRef = collection(db, 'users', auth.currentUser.uid, 'breathingExercises');
+      const breathingRef = collection(db, 'users', clientId, 'breathingExercises');
       const breathingQuery = query(breathingRef, orderBy('completedAt', 'desc'));
       const snapshot = await getDocs(breathingQuery);
       
@@ -38,7 +39,7 @@ export default function BreathHistory() {
       setHistory(breathingData);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching breathing history:', error);
+      console.error('Error fetching client breathing history:', error);
       setLoading(false);
     }
   };

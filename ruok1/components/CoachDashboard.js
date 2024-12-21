@@ -125,6 +125,10 @@ export default function CoachDashboard({ navigation }) {
     }
   };
 
+  const handleClientPress = (clientId) => {
+    navigation.navigate('ClientHistory', { clientId });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TouchableOpacity
@@ -142,16 +146,17 @@ export default function CoachDashboard({ navigation }) {
           {clients.map(client => (
             <TouchableOpacity
               key={client.id}
-              style={[styles.clientCard, { backgroundColor: '#2C2C2E' }]}
-              onPress={() => navigation.navigate('ClientHistory', { clientId: client.id })}
+              style={[styles.clientCard, { backgroundColor: theme.colors.surface }]}
+              onPress={() => handleClientPress(client.id)}
             >
-              <Ionicons name="person-outline" size={24} color="#00B5E0" />
-              <View style={styles.clientInfo}>
-                <Text style={[styles.clientName, { color: theme.colors.text }]}>
-                  {client.email}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#00B5E0" />
+              <Text style={[styles.clientEmail, { color: theme.colors.text }]}>
+                {client.email}
+              </Text>
+              <Ionicons 
+                name="chevron-forward" 
+                size={24} 
+                color={theme.colors.textSecondary} 
+              />
             </TouchableOpacity>
           ))}
         </ScrollView>
