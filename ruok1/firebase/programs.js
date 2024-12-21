@@ -14,23 +14,14 @@ import {
 } from 'firebase/firestore';
 
 // Rename to be more accurate
-export const addExerciseToDate = async (userId, exercise, date) => {
+export const addExerciseToDate = async (userId, exercise, dateString) => {
   try {
-    // Format date as YYYY-MM-DD using local time
-    const localDate = new Date(date);
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
-    const dateString = `${year}-${month}-${day}`;
-    
     console.log('Date debugging:', {
-      originalDate: date,
-      localDate: localDate,
-      formattedDate: dateString,
-      dateComponents: { year, month, day }
+      dateString: dateString
     });
     
     const dateRef = doc(db, 'users', userId, 'training', dateString);
+    const docSnap = await getDoc(dateRef);
 
     // Create the exercise data
     const exerciseData = {
@@ -45,9 +36,17 @@ export const addExerciseToDate = async (userId, exercise, date) => {
 
     console.log('About to save exercise...');
     
-    await setDoc(dateRef, {
-      exercises: [exerciseData]
-    });
+    if (docSnap.exists()) {
+      // If document exists, append to exercises array
+      await updateDoc(dateRef, {
+        exercises: arrayUnion(exerciseData)
+      });
+    } else {
+      // If document doesn't exist, create it with first exercise
+      await setDoc(dateRef, {
+        exercises: [exerciseData]
+      });
+    }
 
     console.log('Exercise saved successfully!');
 
@@ -61,7 +60,7 @@ export const addExerciseToDate = async (userId, exercise, date) => {
       message: error.message,
       details: error.details,
       userId: userId,
-      date: dateString
+      dateString: dateString
     });
     throw error;
   }

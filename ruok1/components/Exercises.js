@@ -160,19 +160,8 @@ export default function Exercises({ route, navigation }) {
       return;
     }
 
-    const selectedDate = new Date(date.dateString);
-    const today = new Date();
-    
-    selectedDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate.getTime() < today.getTime()) {
-      Alert.alert('Invalid Date', 'Please select today or a future date');
-      return;
-    }
-
     try {
-      await addExerciseToDate(auth.currentUser.uid, selectedExercise, selectedDate);
+      await addExerciseToDate(auth.currentUser.uid, selectedExercise, date.dateString);
       setShowCalendar(false);
       setSelectedExercise(null);
     } catch (error) {
