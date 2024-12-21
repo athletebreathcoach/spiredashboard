@@ -74,7 +74,7 @@ function TabNavigator() {
             iconName = focused ? 'barbell' : 'barbell-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Messages') {
+          } else if (route.name === 'Community') {
             iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
@@ -153,7 +153,7 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="Messages" 
+        name="Community" 
         component={Community}
         options={{
           headerStyle: {
