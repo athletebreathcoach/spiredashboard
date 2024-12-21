@@ -7,11 +7,16 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { addExerciseToToday, addExerciseToDate } from '../firebase/programs';
+import { auth } from '../config/firebase';
+import { Calendar } from 'react-native-calendars';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width;  // Use full width for each column
@@ -25,8 +30,13 @@ const categories = [
         id: 1,
         title: 'Running',
         category: 'Cardio',
-        date: 'Dec 9',
+        description: 'Cardiovascular endurance training',
+        duration: '30 min',
         icon: 'walk-outline',
+        settings: {
+          defaultDistance: 3,
+          defaultDuration: 30,
+        },
         tracking: {
           type: 'cardio',
           fields: [
@@ -47,8 +57,14 @@ const categories = [
         id: 3,
         title: 'Bench Press',
         category: 'Strength',
-        date: 'Dec 9',
+        description: 'Compound upper body pushing movement',
+        duration: '15 min',
         icon: 'barbell-outline',
+        settings: {
+          defaultSets: 3,
+          defaultReps: 10,
+          defaultRest: 90,
+        },
         tracking: {
           type: 'strength',
           fields: [
@@ -102,13 +118,20 @@ const categories = [
 ];
 
 export default function Exercises({ route, navigation }) {
-  const { selectionMode, onSelect } = route.params || {};
+  const { selectionMode, programId, dayData } = route.params || {};
   const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(0);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState(null);
 
-  const handleExercisePress = (exercise) => {
-    if (selectionMode && onSelect) {
-      onSelect(exercise);
+  const handleExercisePress = async (exercise) => {
+    if (selectionMode) {
+      try {
+        await addExerciseToToday(auth.currentUser.uid, exercise);
+        navigation.goBack();
+      } catch (error) {
+        console.error('Error adding exercise:', error);
+      }
     } else {
       navigation.navigate('ExerciseDetail', { exercise });
     }
@@ -117,6 +140,45 @@ export default function Exercises({ route, navigation }) {
   const handleScroll = (event) => {
     const page = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentPage(page);
+  };
+
+  const handleAddPress = (exercise, event) => {
+    event.stopPropagation(); // Prevent triggering the card's onPress
+    setSelectedExercise(exercise);
+    setShowCalendar(true);
+  };
+
+  const handleDateSelect = async (date) => {
+    console.log('Auth object:', auth);
+    console.log('Current user:', auth.currentUser);
+    console.log('User ID:', auth.currentUser?.uid);
+    console.log('User email:', auth.currentUser?.email);
+
+    if (!auth.currentUser) {
+      console.log('No authenticated user!');
+      Alert.alert('Error', 'Not authenticated');
+      return;
+    }
+
+    const selectedDate = new Date(date.dateString);
+    const today = new Date();
+    
+    selectedDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate.getTime() < today.getTime()) {
+      Alert.alert('Invalid Date', 'Please select today or a future date');
+      return;
+    }
+
+    try {
+      await addExerciseToDate(auth.currentUser.uid, selectedExercise, selectedDate);
+      setShowCalendar(false);
+      setSelectedExercise(null);
+    } catch (error) {
+      console.error('Error scheduling exercise:', error);
+      Alert.alert('Error', 'Failed to schedule exercise');
+    }
   };
 
   return (
@@ -144,7 +206,7 @@ export default function Exercises({ route, navigation }) {
               {category.exercises.map((exercise) => (
                 <TouchableOpacity
                   key={exercise.id}
-                  style={styles.exerciseItem}
+                  style={[styles.exerciseItem, { backgroundColor: '#2C2C2E' }]}
                   onPress={() => handleExercisePress(exercise)}
                 >
                   <Ionicons 
@@ -156,17 +218,21 @@ export default function Exercises({ route, navigation }) {
                   <View style={styles.exerciseContent}>
                     <Text style={styles.exerciseTitle}>{exercise.title}</Text>
                     <View style={styles.exerciseDetails}>
-                      <Text style={[styles.date, { color: '#00B5E0' }]}>{exercise.date}</Text>
-                      <Text style={styles.category}>#{exercise.category}</Text>
+                      <Text style={[styles.category, { color: '#00B5E0' }]}>
+                        #{exercise.category}
+                      </Text>
                     </View>
                   </View>
-                  {selectionMode && (
+                  <TouchableOpacity 
+                    style={styles.addButton}
+                    onPress={(event) => handleAddPress(exercise, event)}
+                  >
                     <Ionicons 
                       name="add-circle-outline" 
                       size={24} 
                       color="#00B5E0" 
                     />
-                  )}
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
 
@@ -195,6 +261,60 @@ export default function Exercises({ route, navigation }) {
           />
         ))}
       </View>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Select Date
+            </Text>
+            
+            <Calendar
+              theme={{
+                backgroundColor: theme.colors.surface,
+                calendarBackground: theme.colors.surface,
+                textSectionTitleColor: theme.colors.textSecondary,
+                selectedDayBackgroundColor: '#00B5E0',
+                selectedDayTextColor: '#FFFFFF',
+                todayTextColor: '#00B5E0',
+                dayTextColor: theme.colors.text,
+                textDisabledColor: theme.colors.textSecondary,
+                arrowColor: '#00B5E0',
+                monthTextColor: theme.colors.text,
+                textDayFontFamily: Typography.fonts.regular,
+                textMonthFontFamily: Typography.fonts.semibold,
+                textDayHeaderFontFamily: Typography.fonts.medium,
+              }}
+              onDayPress={handleDateSelect}
+              enableSwipeMonths={true}
+              current={new Date().toISOString().split('T')[0]}
+              markedDates={{
+                [new Date().toISOString().split('T')[0]]: {
+                  selected: true,
+                  selectedColor: '#00B5E0',
+                }
+              }}
+            />
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowCalendar(false);
+                setSelectedExercise(null);
+              }}
+            >
+              <Text style={[styles.cancelText, { color: theme.colors.text }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -289,5 +409,35 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginHorizontal: 4,
+  },
+  addButton: {
+    padding: 4,  // Give the plus icon some padding for better touch area
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: Layout.spacing.large,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.large,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
+    textAlign: 'center',
+    marginBottom: Layout.spacing.large,
+  },
+  cancelButton: {
+    marginTop: Layout.spacing.large,
+    padding: Layout.spacing.medium,
+  },
+  cancelText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
   },
 }); 

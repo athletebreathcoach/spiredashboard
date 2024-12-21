@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,10 +10,39 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { addProgramDayItem, getProgramDayItems } from '../firebase/programs';
+import { auth } from '../config/firebase';
 
 export default function ProgramDayEdit({ route, navigation }) {
   const { theme } = useTheme();
   const { program, day, date, type } = route.params;
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadItems = async () => {
+      try {
+        if (!program?.id || (!day && !date)) {
+          setItems([]);
+          return;
+        }
+
+        const dayItems = await getProgramDayItems(auth.currentUser.uid, program.id, {
+          type: type || 'weekly',
+          day: day || null,
+          date: date || null
+        });
+        setItems(dayItems || []);
+      } catch (error) {
+        console.error('Error loading items:', error);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadItems();
+  }, [program?.id, day, date, type]);
 
   const categories = [
     {
@@ -61,10 +90,9 @@ export default function ProgramDayEdit({ route, navigation }) {
   ];
 
   const handleCategoryPress = (category) => {
-    // Map category IDs to existing screens and components
     const screens = {
-      sessions: 'Programs',  // We'll filter for Sessions in Programs component
-      sections: 'Programs',  // We'll filter for Sections in Programs component
+      sessions: 'Programs',
+      sections: 'Programs',
       breathingTests: 'BreathingTests',
       exercises: 'Exercises',
       breathProtocols: 'Breath Protocols',
@@ -72,17 +100,19 @@ export default function ProgramDayEdit({ route, navigation }) {
       guidedSessions: 'GuidedSessions',
     };
 
-    // Pass additional params to indicate we're in selection mode
+    if (!program?.id || (!day && !date)) {
+      console.error('Missing required program or date data');
+      return;
+    }
+
     navigation.navigate(screens[category.id], {
-      selectionMode: true,  // This tells the component we're selecting items
-      onSelect: (item) => {
-        // Handle adding item to the day
-        console.log('Selected:', item);
-        navigation.goBack();
-      },
-      day,
-      date,
-      type,
+      selectionMode: true,
+      programId: program.id,
+      dayData: {
+        type: type || 'weekly',
+        day: day || null,
+        date: date || null
+      }
     });
   };
 
@@ -101,35 +131,60 @@ export default function ProgramDayEdit({ route, navigation }) {
         </Text>
       </View>
 
-      <ScrollView style={styles.categoriesList}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[styles.categoryCard, { backgroundColor: '#2C2C2E' }]}
-            onPress={() => handleCategoryPress(category)}
-          >
-            <Ionicons 
-              name={category.icon} 
-              size={24} 
-              color="#00B5E0" 
-              style={styles.categoryIcon}
-            />
-            <View style={styles.categoryContent}>
-              <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>
-                {category.title}
-              </Text>
-              <Text style={[styles.categoryDescription, { color: theme.colors.textSecondary }]}>
-                {category.description}
-              </Text>
-            </View>
-            <Ionicons 
-              name="chevron-forward" 
-              size={24} 
-              color={theme.colors.textSecondary} 
-            />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.content}>
+        {/* Selected Items Section */}
+        {items.length > 0 && (
+          <View style={styles.selectedItemsSection}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Selected Items
+            </Text>
+            <ScrollView style={styles.selectedItems}>
+              {items.map((item, index) => (
+                <View key={index} style={[styles.selectedItemCard, { backgroundColor: '#2C2C2E' }]}>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.itemType, { color: theme.colors.textSecondary }]}>{item.type}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Categories Section */}
+        <View style={styles.categoriesSection}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Add Items
+          </Text>
+          <ScrollView style={styles.categoriesList}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryCard, { backgroundColor: '#2C2C2E' }]}
+                onPress={() => handleCategoryPress(category)}
+              >
+                <Ionicons 
+                  name={category.icon} 
+                  size={24} 
+                  color="#00B5E0" 
+                  style={styles.categoryIcon}
+                />
+                <View style={styles.categoryContent}>
+                  <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>
+                    {category.title}
+                  </Text>
+                  <Text style={[styles.categoryDescription, { color: theme.colors.textSecondary }]}>
+                    {category.description}
+                  </Text>
+                </View>
+                <Ionicons 
+                  name="chevron-forward" 
+                  size={24} 
+                  color={theme.colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
     </View>
   );
 }
@@ -150,9 +205,42 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: Typography.fonts.regular,
   },
+  content: {
+    flex: 1,
+    paddingHorizontal: Layout.spacing.large,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
+    marginBottom: Layout.spacing.medium,
+  },
+  selectedItemsSection: {
+    maxHeight: '40%',
+  },
+  selectedItems: {
+    marginBottom: Layout.spacing.large,
+  },
+  selectedItemCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  itemTitle: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+  },
+  itemType: {
+    fontSize: 15,
+    fontFamily: Typography.fonts.regular,
+  },
+  categoriesSection: {
+    flex: 1,
+  },
   categoriesList: {
     flex: 1,
-    padding: Layout.spacing.large,
   },
   categoryCard: {
     flexDirection: 'row',

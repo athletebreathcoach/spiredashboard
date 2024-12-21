@@ -1,72 +1,92 @@
 import { db } from '../config/firebase';
-import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  arrayUnion, 
+  serverTimestamp, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where 
+} from 'firebase/firestore';
 
-// Structure in Firestore:
-// users/{userId}/programs/{programId}
-//   - name
-//   - description
-//   - startDate
-//   - endDate
-//   - schedule: {
-//       monday: [{exerciseId, sets, reps, etc}],
-//       tuesday: [...],
-//       etc.
-//     }
-
-export const createUserProgram = async (userId, programData) => {
+// Rename to be more accurate
+export const addExerciseToDate = async (userId, exercise, date) => {
   try {
-    const programRef = collection(db, 'users', userId, 'programs');
-    await addDoc(programRef, {
-      ...programData,
-      createdAt: serverTimestamp(),
-      schedule: programData.schedule || {},
+    // Format date as YYYY-MM-DD using local time
+    const localDate = new Date(date);
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
+    console.log('Date debugging:', {
+      originalDate: date,
+      localDate: localDate,
+      formattedDate: dateString,
+      dateComponents: { year, month, day }
     });
+    
+    const dateRef = doc(db, 'users', userId, 'training', dateString);
+
+    // Create the exercise data
+    const exerciseData = {
+      id: exercise.id,
+      title: exercise.title,
+      type: exercise.category?.toLowerCase() || 'exercise',
+      addedAt: new Date().toISOString(),
+      tracking: exercise.tracking || null,
+      icon: exercise.icon || null,
+      completed: false
+    };
+
+    console.log('About to save exercise...');
+    
+    await setDoc(dateRef, {
+      exercises: [exerciseData]
+    });
+
+    console.log('Exercise saved successfully!');
+
+    const verification = await getDoc(dateRef);
+    console.log('Verification read:', verification.exists(), verification.data());
+
+    return exerciseData;
   } catch (error) {
-    console.error('Error creating program:', error);
+    console.error('Detailed error:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      userId: userId,
+      date: dateString
+    });
     throw error;
   }
 };
 
-// Get today's scheduled exercises
-export const getTodaysTraining = async (userId) => {
+// Update to get exercises for any date
+export const getExercisesForDate = async (userId, date) => {
   try {
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'lowercase' });
-    const programsRef = collection(db, 'users', userId, 'programs');
-    const snapshot = await getDocs(programsRef);
-    
-    let todaysExercises = [];
-    snapshot.docs.forEach(doc => {
-      const program = doc.data();
-      if (program.schedule && program.schedule[today]) {
-        todaysExercises = [...todaysExercises, ...program.schedule[today].map(exercise => ({
-          ...exercise,
-          programId: doc.id,
-          programName: program.name
-        }))];
-      }
-    });
-    
-    return todaysExercises;
-  } catch (error) {
-    console.error('Error getting today\'s training:', error);
-    throw error;
-  }
-};
+    // Format date as YYYY-MM-DD using local time
+    const localDate = new Date(date);
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
 
-// Add exercise to program schedule
-export const addExerciseToProgram = async (userId, programId, exerciseData, dayOfWeek) => {
-  try {
-    const programRef = doc(db, 'users', userId, 'programs', programId);
-    const program = await getDoc(programRef);
-    
-    if (!program.exists()) throw new Error('Program not found');
-    
-    const schedule = program.data().schedule || {};
-    schedule[dayOfWeek] = [...(schedule[dayOfWeek] || []), exerciseData];
-    
-    await updateDoc(programRef, { schedule });
+    const dateRef = doc(db, 'users', userId, 'training', dateString);
+    const snapshot = await getDoc(dateRef);
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    return snapshot.data().exercises || [];
   } catch (error) {
-    console.error('Error adding exercise to program:', error);
-    throw error;
+    console.error('Error getting exercises:', error);
+    return [];
   }
 }; 

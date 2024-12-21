@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isCoach() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/coaches/$(request.auth.uid));
+    }
+
+    // Give users full access to all their data and subcollections
+    match /users/{userId}/{document=**} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||  // User accessing their own data
+        isCoach()                      // Or is a coach
+      );
+      allow write: if isAuthenticated() && request.auth.uid == userId;  // Only users can write their own data
+    }
+
+    // Explicit rules for training collection
+    match /users/{userId}/training/{date} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && isCoach();
+    }
+
+    // Global collections that everyone can read
+    match /{collection}/{documentId} {
+      allow read: if isAuthenticated();
+      allow write: if false;  // Only admins can write to global collections
+    }
+    
+    // Coaches collection
+    match /coaches/{coachId} {
+      allow read: if isAuthenticated();
+      allow write: if false;  // Only admins can modify coaches
+    }
+  }
+}
