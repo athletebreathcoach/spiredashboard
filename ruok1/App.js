@@ -232,13 +232,15 @@ function AppContent({ user }) {
   useEffect(() => {
     // Fetch user role from Firebase
     const fetchRole = async () => {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
-      
-      if (coachDoc.exists()) {
-        setUserRole('coach');
-      } else {
-        setUserRole('client');
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
+        
+        if (coachDoc.exists()) {
+          setUserRole('coach');
+        } else {
+          setUserRole('client');
+        }
       }
     };
     
@@ -258,7 +260,16 @@ function AppContent({ user }) {
           },
         }}
       >
-        {userRole === 'coach' ? (
+        {!user ? (
+          // Unauthenticated screens
+          <Stack.Screen 
+            name="Login" 
+            component={Login}
+            options={{ 
+              headerShown: false
+            }}
+          />
+        ) : userRole === 'coach' ? (
           // Coach screens
           <>
             <Stack.Screen 

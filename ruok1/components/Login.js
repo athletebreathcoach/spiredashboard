@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,11 +16,20 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
-export default function Login() {
+export default function Login({ navigation, route }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { theme } = useTheme();
+  const fromSettings = route.params?.fromSettings;
+
+  useEffect(() => {
+    if (fromSettings) {
+      navigation.setOptions({
+        presentation: 'modal'
+      });
+    }
+  }, [fromSettings, navigation]);
 
   const handleLogin = async () => {
     if (email === '' || password === '') {
@@ -32,6 +41,9 @@ export default function Login() {
       setIsLoading(true);
       const response = await signInWithEmailAndPassword(auth, email, password);
       console.log('Logged in with:', response.user.email);
+      if (fromSettings) {
+        navigation.goBack();
+      }
     } catch (error) {
       console.error(error);
       Alert.alert('Error', error.message);
@@ -62,6 +74,9 @@ export default function Login() {
       });
 
       console.log('Account created with:', response.user.email);
+      if (fromSettings) {
+        navigation.goBack();
+      }
     } catch (error) {
       console.error(error);
       Alert.alert('Error', error.message);
@@ -76,6 +91,15 @@ export default function Login() {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.loginContainer}>
+        {fromSettings && (
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={[styles.backButtonText, { color: theme.colors.primary }]}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+        
         <Text style={[styles.title, { color: theme.colors.text }]}>
           Welcome to BreathWork
         </Text>
@@ -87,6 +111,7 @@ export default function Login() {
             color: theme.colors.text
           }]}
           placeholder="Email"
+          placeholderTextColor={theme.colors.textSecondary}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -101,6 +126,7 @@ export default function Login() {
             color: theme.colors.text
           }]}
           placeholder="Password"
+          placeholderTextColor={theme.colors.textSecondary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -108,11 +134,11 @@ export default function Login() {
         />
         
         <TouchableOpacity 
-          style={[styles.button, isLoading && styles.buttonDisabled]} 
+          style={[styles.button, { backgroundColor: theme.colors.primary }, isLoading && styles.buttonDisabled]} 
           onPress={handleLogin}
           disabled={isLoading}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
             {isLoading ? 'Loading...' : 'Login'}
           </Text>
         </TouchableOpacity>
@@ -122,7 +148,7 @@ export default function Login() {
           onPress={handleSignUp}
           disabled={isLoading}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
             {isLoading ? 'Loading...' : 'Sign Up'}
           </Text>
         </TouchableOpacity>
@@ -173,10 +199,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.35,
   },
   buttonDisabled: {
-    backgroundColor: '#cccccc',
+    opacity: 0.5,
   },
   signUpButton: {
     backgroundColor: '#34C759',
     marginTop: 10,
+  },
+  backButton: {
+    position: 'absolute',
+    top: Layout.spacing.large,
+    left: Layout.spacing.large,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
   },
 }); 

@@ -5,10 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { auth } from '../config/firebase';
-import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
+import { updatePassword, sendPasswordResetEmail, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function Settings({ navigation }) {
   const { theme, toggleTheme } = useTheme();
+  const isAuthenticated = auth.currentUser != null;
 
   const handleLogout = async () => {
     try {
@@ -31,10 +32,14 @@ export default function Settings({ navigation }) {
     }
   };
 
+  const handleLogin = () => {
+    navigation.navigate('Login', { fromSettings: true });
+  };
+
   const sections = [
     {
       title: '',
-      items: [
+      items: isAuthenticated ? [
         { 
           icon: 'person-circle-outline', 
           label: 'Account',
@@ -51,6 +56,12 @@ export default function Settings({ navigation }) {
           label: 'Logout',
           onPress: handleLogout
         },
+      ] : [
+        {
+          icon: 'log-in-outline',
+          label: 'Sign In',
+          onPress: handleLogin
+        }
       ]
     },
     {
