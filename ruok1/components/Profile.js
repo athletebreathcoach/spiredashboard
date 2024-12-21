@@ -23,7 +23,23 @@ export default function Profile({ navigation }) {
   useEffect(() => {
     checkCoachStatus();
     loadPendingInvites();
+    ensureUserFields();
   }, []);
+
+  const ensureUserFields = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists() && !userDoc.data().hasOwnProperty('coachId')) {
+        await updateDoc(userRef, {
+          coachId: null
+        });
+      }
+    } catch (error) {
+      console.error('Error ensuring user fields:', error);
+    }
+  };
 
   const checkCoachStatus = async () => {
     try {
@@ -61,6 +77,12 @@ export default function Profile({ navigation }) {
         const coachRef = doc(db, 'coaches', invite.coachId);
         await updateDoc(coachRef, {
           clients: arrayUnion(auth.currentUser.uid)
+        });
+
+        // Update client's coachId
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userRef, {
+          coachId: invite.coachId
         });
       }
 

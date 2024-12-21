@@ -67,6 +67,7 @@ export default function Login({ navigation, route }) {
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
         breathingExercises: [],
+        coachId: null,
         preferences: {
           notifications: true,
           theme: 'light'
