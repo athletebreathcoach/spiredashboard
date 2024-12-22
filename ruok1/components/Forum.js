@@ -7,8 +7,12 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import LungsIcon from './LungsIcon';
 import { auth, db } from '../config/firebase';
 import {
   collection,
@@ -21,6 +25,8 @@ import {
   getDoc,
   deleteDoc,
   onSnapshot,
+  updateDoc,
+  collectionGroup,
 } from 'firebase/firestore';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -41,6 +47,11 @@ export default function Forum() {
   const [isCoach, setIsCoach] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [inputHeight, setInputHeight] = useState(100);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showComments, setShowComments] = useState({});
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     checkIfCoach();
@@ -81,6 +92,16 @@ export default function Forum() {
       for (const document of snapshot.docs) {
         const postData = document.data();
         
+        // Get comments for this post
+        const commentsRef = collection(db, 'forum_posts', document.id, 'comments');
+        const commentsQuery = query(commentsRef, orderBy('timestamp', 'desc'));
+        const commentsSnapshot = await getDocs(commentsQuery);
+        const comments = commentsSnapshot.docs.map(commentDoc => ({
+          id: commentDoc.id,
+          ...commentDoc.data(),
+          timestamp: commentDoc.data().timestamp?.toDate() || new Date(),
+        }));
+        
         // Extract coachId based on different formats
         let coachId = null;
         let isCoachPost = false;
@@ -107,8 +128,9 @@ export default function Forum() {
           text: postData.text,
           authorEmail: postData.coachEmail || postData.userEmail,
           authorId: coachId || postData.userId,
-          timestamp: postData.timestamp,
-          likes: postData.likes || []
+          timestamp: postData.timestamp?.toDate() || new Date(),
+          likes: postData.likes || [],
+          comments: comments || []
         });
       }
 
@@ -125,17 +147,12 @@ export default function Forum() {
         coachDataMap[id] = doc.exists() ? doc.data() : null;
       });
 
-      // Create final posts array
+      // Create final posts array with comments included
       const postsData = postsWithCoachIds.map(post => ({
-        id: post.id,
-        text: post.text,
-        isCoachPost: post.isCoachPost,
-        authorId: post.authorId,
+        ...post,
         authorName: post.isCoachPost 
           ? (coachDataMap[post.coachId]?.name || post.authorEmail?.split('@')[0] || 'Unknown Coach')
           : (post.authorEmail?.split('@')[0] || 'Unknown User'),
-        timestamp: post.timestamp?.toDate?.() || new Date(),
-        likes: post.likes
       }));
       
       setPosts(postsData);
@@ -239,44 +256,246 @@ export default function Forum() {
     }
   };
 
-  const renderPost = useCallback(({ item }) => (
-    <View style={[
-      styles.postContainer,
-      item.isCoachPost && styles.coachPostContainer
-    ]}>
-      <View style={styles.postHeader}>
-        <View style={styles.coachInfo}>
-          <View style={[
-            styles.coachAvatar,
-            !item.isCoachPost && styles.clientAvatar
-          ]}>
-            <Text style={styles.coachInitials}>
-              {(item.authorName || 'Anonymous').substring(0, 2).toUpperCase()}
-            </Text>
+  const toggleLike = async (postId) => {
+    try {
+      const postRef = doc(db, 'forum_posts', postId);
+      const postDoc = await getDoc(postRef);
+      const currentLikes = postDoc.data().likes || [];
+      const userId = auth.currentUser.uid;
+
+      // Optimistically update UI
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id === postId) {
+          const newLikes = currentLikes.includes(userId)
+            ? currentLikes.filter(id => id !== userId)
+            : [...currentLikes, userId];
+          return { ...post, likes: newLikes };
+        }
+        return post;
+      }));
+
+      // Update in Firestore
+      if (currentLikes.includes(userId)) {
+        // Unlike
+        await updateDoc(postRef, {
+          likes: currentLikes.filter(id => id !== userId)
+        });
+      } else {
+        // Like
+        await updateDoc(postRef, {
+          likes: [...currentLikes, userId]
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // If error occurs, refresh posts to restore correct state
+      loadPosts();
+    }
+  };
+
+  const addComment = async (postId) => {
+    if (!newComment.trim() || submittingComment) return;
+
+    try {
+      setSubmittingComment(true);
+      const commentsRef = collection(doc(db, 'forum_posts', postId), 'comments');
+      await addDoc(commentsRef, {
+        text: newComment.trim(),
+        userId: auth.currentUser.uid,
+        userEmail: auth.currentUser.email,
+        isCoach: isCoach,
+        timestamp: serverTimestamp(),
+      });
+
+      setNewComment('');
+      // Automatically show comments after adding one
+      setShowComments(prev => ({
+        ...prev,
+        [postId]: true
+      }));
+      await loadPosts(); // Reload to get new comments
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const deleteComment = async (postId, commentId) => {
+    try {
+      const commentRef = doc(db, 'forum_posts', postId, 'comments', commentId);
+      await deleteDoc(commentRef);
+      await loadPosts(); // Reload to update comments
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+  };
+
+  const renderComment = useCallback(({ item, postId }) => {
+    const isAuthor = item.userId === auth.currentUser.uid;
+    return (
+      <View style={styles.commentContainer}>
+        <View style={styles.commentHeader}>
+          <View style={styles.commentAuthorInfo}>
+            <View style={[
+              styles.commentAvatar,
+              item.isCoach ? styles.coachAvatar : styles.clientAvatar
+            ]}>
+              <Text style={styles.commentInitials}>
+                {(item.userEmail?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.commentAuthorName}>
+                {item.userEmail?.split('@')[0] || 'Anonymous'}
+              </Text>
+              <Text style={styles.commentRole}>
+                {item.isCoach ? 'Coach' : 'Client'}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.coachName}>{item.authorName || 'Anonymous'}</Text>
-            <Text style={styles.roleText}>
-              {item.isCoachPost ? 'Coach' : 'Client'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.postActions}>
-          <Text style={styles.timestamp}>{formatDate(item.timestamp)}</Text>
-          {((isCoach && item.authorId === auth.currentUser.uid) || 
-            (!isCoach && item.authorId === auth.currentUser.uid)) && (
-            <TouchableOpacity 
+          {isAuthor && (
+            <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => deletePost(item.id)}
+              onPress={() => deleteComment(postId, item.id)}
             >
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              <Ionicons name="trash-outline" size={16} color="#FF3B30" />
             </TouchableOpacity>
           )}
         </View>
+        <Text style={styles.commentText}>{item.text}</Text>
+        <Text style={styles.commentTimestamp}>
+          {formatDate(item.timestamp)}
+        </Text>
       </View>
-      <Text style={styles.postText}>{item.text}</Text>
-    </View>
-  ), [formatDate, isCoach, deletePost]);
+    );
+  }, [formatDate]);
+
+  const renderPost = useCallback(({ item }) => {
+    const isLiked = item.likes?.includes(auth.currentUser.uid);
+    const hasComments = item.comments?.length > 0;
+    const isCommentsVisible = showComments[item.id];
+
+    return (
+      <View style={[
+        styles.postContainer,
+        item.isCoachPost && styles.coachPostContainer
+      ]}>
+        <View style={styles.postHeader}>
+          <View style={styles.coachInfo}>
+            <View style={[
+              styles.coachAvatar,
+              !item.isCoachPost && styles.clientAvatar
+            ]}>
+              <Text style={styles.coachInitials}>
+                {(item.authorName || 'Anonymous').substring(0, 2).toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.coachName}>{item.authorName || 'Anonymous'}</Text>
+              <Text style={styles.roleText}>
+                {item.isCoachPost ? 'Coach' : 'Client'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.postActions}>
+            <Text style={styles.timestamp}>{formatDate(item.timestamp)}</Text>
+            {((isCoach && item.authorId === auth.currentUser.uid) || 
+              (!isCoach && item.authorId === auth.currentUser.uid)) && (
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => deletePost(item.id)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+        <Text style={styles.postText}>{item.text}</Text>
+        <View style={styles.postFooter}>
+          <View style={styles.footerActions}>
+            <TouchableOpacity 
+              style={styles.likeButton} 
+              onPress={() => toggleLike(item.id)}
+            >
+              <LungsIcon 
+                size={24} 
+                color={isLiked ? "#00B5E0" : "#8E8E93"} 
+              />
+              {item.likes?.length > 0 && (
+                <Text style={styles.likeCount}>{item.likes.length}</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.commentButton}
+              onPress={() => setShowComments(prev => ({
+                ...prev,
+                [item.id]: !prev[item.id]
+              }))}
+            >
+              <Ionicons 
+                name={hasComments ? "chatbubble" : "chatbubble-outline"} 
+                size={20} 
+                color="#8E8E93" 
+              />
+              {hasComments && (
+                <Text style={styles.commentCount}>{item.comments.length}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {isCommentsVisible && (
+          <View style={styles.commentsSection}>
+            <View style={styles.commentInput}>
+              <TextInput
+                style={styles.commentTextInput}
+                value={newComment}
+                onChangeText={setNewComment}
+                placeholder="Write a comment..."
+                placeholderTextColor="#8E8E93"
+                multiline
+              />
+              <TouchableOpacity
+                style={[
+                  styles.commentSubmitButton,
+                  { opacity: newComment.trim() && !submittingComment ? 1 : 0.5 }
+                ]}
+                onPress={() => addComment(item.id)}
+                disabled={!newComment.trim() || submittingComment}
+              >
+                <Ionicons name="send" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            {item.comments && item.comments.length > 0 ? (
+              item.comments.map(comment => (
+                <View key={comment.id}>
+                  {renderComment({ item: comment, postId: item.id })}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noCommentsText}>No comments yet</Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }, [formatDate, isCoach, deletePost, toggleLike, showComments, newComment, submittingComment]);
+
+  const openPostModal = () => {
+    setIsModalVisible(true);
+  };
+
+  const closePostModal = () => {
+    setIsModalVisible(false);
+    setNewPost('');
+    setInputHeight(100);
+  };
+
+  const handlePost = async () => {
+    await createPost();
+    closePostModal();
+  };
 
   if (loading) {
     return (
@@ -288,34 +507,90 @@ export default function Forum() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.createPostContainer}>
-        <TextInput
-          style={[styles.input, { height: Math.max(100, inputHeight) }]}
-          value={newPost}
-          onChangeText={handleTextChange}
-          onContentSizeChange={(event) => {
-            setInputHeight(event.nativeEvent.contentSize.height);
-          }}
-          placeholder={isCoach 
-            ? "Share an update with your clients..."
-            : "Share your thoughts..."}
-          placeholderTextColor="#8E8E93"
-          multiline
-          maxLength={1000}
-        />
-        <TouchableOpacity
-          style={[
-            styles.postButton, 
-            { opacity: newPost.trim() && !submitting ? 1 : 0.5 }
-          ]}
-          onPress={createPost}
-          disabled={!newPost.trim() || submitting}
-        >
-          <Text style={styles.postButtonText}>
-            {submitting ? 'Posting...' : 'Post'}
+      <TouchableOpacity 
+        style={styles.compactPostInput}
+        onPress={openPostModal}
+      >
+        <View style={styles.compactInputRow}>
+          <View style={[
+            styles.coachAvatar,
+            !isCoach && styles.clientAvatar,
+            styles.smallAvatar
+          ]}>
+            <Text style={styles.coachInitials}>
+              {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.placeholderText}>
+            Write something
           </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
+
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closePostModal}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={closePostModal}
+              >
+                <Ionicons name="close" size={24} color="#8E8E93" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.postButton,
+                  { opacity: newPost.trim() && !submitting ? 1 : 0.5 }
+                ]}
+                onPress={handlePost}
+                disabled={!newPost.trim() || submitting}
+              >
+                <Text style={styles.postButtonText}>
+                  {submitting ? 'Posting...' : 'Post'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <View style={styles.userInfo}>
+                <View style={[
+                  styles.coachAvatar,
+                  !isCoach && styles.clientAvatar
+                ]}>
+                  <Text style={styles.coachInitials}>
+                    {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.userName}>
+                  {auth.currentUser.email?.split('@')[0] || 'Anonymous'}
+                </Text>
+              </View>
+              <TextInput
+                style={[styles.modalInput, { height: Math.max(100, inputHeight) }]}
+                value={newPost}
+                onChangeText={handleTextChange}
+                onContentSizeChange={(event) => {
+                  setInputHeight(event.nativeEvent.contentSize.height);
+                }}
+                placeholder={isCoach 
+                  ? "Share an update with your clients..."
+                  : "Share your thoughts..."}
+                placeholderTextColor="#8E8E93"
+                multiline
+                maxLength={1000}
+                autoFocus
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <FlatList
         data={posts}
@@ -437,5 +712,186 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     fontSize: 12,
     marginTop: 2,
+  },
+  postFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2E',
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    padding: 5,
+  },
+  likeCount: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  compactPostInput: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 25,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 12,
+  },
+  compactInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  smallAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  placeholderText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#000000',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    minHeight: 300,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2E',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalBody: {
+    padding: 16,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  userName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  modalInput: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlignVertical: 'top',
+    paddingTop: 0,
+  },
+  commentContainer: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2E',
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentAuthorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  commentInitials: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  commentAuthorName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  commentRole: {
+    color: '#8E8E93',
+    fontSize: 12,
+  },
+  commentText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  commentTimestamp: {
+    color: '#8E8E93',
+    fontSize: 12,
+  },
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  commentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    padding: 5,
+  },
+  commentCount: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  commentsSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2C2C2E',
+  },
+  commentInput: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginBottom: 12,
+  },
+  commentTextInput: {
+    flex: 1,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 20,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 14,
+    maxHeight: 100,
+    minHeight: 40,
+  },
+  commentSubmitButton: {
+    backgroundColor: '#00B5E0',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noCommentsText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 12,
   },
 }); 
