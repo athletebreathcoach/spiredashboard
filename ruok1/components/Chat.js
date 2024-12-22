@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  FlatList,
   SafeAreaView,
   Platform,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
+import { GiftedChat, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { 
@@ -19,26 +19,31 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
-  doc,
-  getDoc,
 } from 'firebase/firestore';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 export default function Chat({ navigation, route }) {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
   const { client } = route.params || {};
 
   useEffect(() => {
     if (client?.id) {
       const chatId = [auth.currentUser.uid, client.id].sort().join('_');
       const messagesRef = collection(db, 'chats', chatId, 'messages');
-      const q = query(messagesRef, orderBy('timestamp', 'asc'));
+      const q = query(messagesRef, orderBy('timestamp', 'desc'));
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const newMessages = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate()
+          _id: doc.id,
+          text: doc.data().text,
+          createdAt: doc.data().timestamp?.toDate(),
+          user: {
+            _id: doc.data().senderId,
+            name: doc.data().senderId === auth.currentUser.uid ? 
+              auth.currentUser.email?.split('@')[0] : client.name,
+            avatar: null,
+          },
         }));
         setMessages(newMessages);
       });
@@ -47,80 +52,78 @@ export default function Chat({ navigation, route }) {
     }
   }, [client]);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !client?.id) return;
+  const onSend = useCallback((newMessages = []) => {
+    if (!client?.id) return;
 
-    try {
-      const chatId = [auth.currentUser.uid, client.id].sort().join('_');
-      const messagesRef = collection(db, 'chats', chatId, 'messages');
-      
-      await addDoc(messagesRef, {
-        text: newMessage.trim(),
-        senderId: auth.currentUser.uid,
-        timestamp: serverTimestamp(),
-      });
+    const chatId = [auth.currentUser.uid, client.id].sort().join('_');
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
 
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
+    const { text } = newMessages[0];
+    
+    addDoc(messagesRef, {
+      text,
+      senderId: auth.currentUser.uid,
+      timestamp: serverTimestamp(),
+    });
+  }, [client]);
 
-  const formatTime = (date) => {
-    if (!date) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    return 'Dec 19, ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const renderMessage = ({ item, index }) => {
-    const isOwn = item.senderId === auth.currentUser.uid;
-    const showAvatar = !isOwn && (!messages[index - 1] || messages[index - 1].senderId !== item.senderId);
-    const showTime = !messages[index + 1] || messages[index + 1].senderId !== item.senderId;
-
+  const renderBubble = (props) => {
     return (
-      <View style={styles.messageRow}>
-        {!isOwn && showAvatar && (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{client?.initials || 'U'}</Text>
-          </View>
-        )}
-        <View style={[
-          styles.messageContainer,
-          isOwn ? styles.ownMessage : styles.otherMessage,
-          !isOwn && !showAvatar && { marginLeft: 50 }
-        ]}>
-          <Text style={[
-            styles.messageText,
-            isOwn ? styles.ownMessageText : styles.otherMessageText
-          ]}>
-            {item.text}
-          </Text>
-          {showTime && (
-            <Text style={[
-              styles.timeText,
-              isOwn ? styles.ownTimeText : styles.otherTimeText
-            ]}>
-              {formatTime(item.timestamp)}
-              {isOwn && ' ✓'}
-            </Text>
-          )}
-        </View>
-      </View>
+      <Bubble
+        {...props}
+        wrapperStyle={{
+          right: {
+            backgroundColor: '#00B5E0',
+          },
+          left: {
+            backgroundColor: '#1C1C1E',
+          },
+        }}
+        textStyle={{
+          right: {
+            color: '#FFFFFF',
+          },
+          left: {
+            color: '#FFFFFF',
+          },
+        }}
+      />
     );
   };
 
-  const renderDateSeparator = (date) => (
-    <View style={styles.dateSeparator}>
-      <Text style={styles.dateText}>{formatDate(date)}</Text>
-    </View>
-  );
+  const renderSend = (props) => {
+    return (
+      <Send {...props}>
+        <View style={styles.sendButton}>
+          <Ionicons name="send" size={24} color="#00B5E0" />
+        </View>
+      </Send>
+    );
+  };
+
+  const renderInputToolbar = (props) => {
+    return (
+      <InputToolbar
+        {...props}
+        containerStyle={styles.inputToolbar}
+        primaryStyle={styles.inputPrimary}
+      />
+    );
+  };
+
+  const renderComposer = (props) => {
+    return (
+      <Composer
+        {...props}
+        textInputStyle={styles.composer}
+        placeholderTextColor="#8E8E93"
+        multiline={true}
+      />
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -136,65 +139,48 @@ export default function Chat({ navigation, route }) {
         </View>
       </View>
 
-      {/* Messages */}
-      <KeyboardAvoidingView 
-        style={styles.content} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <FlatList
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesList}
-          inverted={false}
+      {/* Chat */}
+      <View style={styles.chatContainer}>
+        <GiftedChat
+          messages={messages}
+          onSend={messages => onSend(messages)}
+          user={{
+            _id: auth.currentUser.uid,
+            name: auth.currentUser.email?.split('@')[0],
+          }}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
+          renderSend={renderSend}
+          renderAvatar={null}
+          showAvatarForEveryMessage={false}
+          showUserAvatar={false}
+          alwaysShowSend
+          renderUsernameOnMessage
+          parsePatterns={(linkStyle) => [
+            { type: 'url', style: styles.link },
+            { pattern: /#(\w+)/, style: styles.hashtag },
+          ]}
+          messagesContainerStyle={styles.messagesContainer}
+          minInputToolbarHeight={60}
+          maxComposerHeight={100}
+          isKeyboardInternallyHandled={true}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={90}
+          listViewProps={{
+            style: { flex: 1 },
+            contentContainerStyle: { paddingBottom: 20 }
+          }}
         />
-
-        {/* Input Bar */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputRow}>
-            <View style={styles.avatarSmall}>
-              <Text style={styles.avatarTextSmall}>ZK</Text>
-            </View>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                value={newMessage}
-                onChangeText={setNewMessage}
-                placeholder="Message..."
-                placeholderTextColor="#8E8E93"
-                multiline
-              />
-              <View style={styles.inputButtons}>
-                <TouchableOpacity style={styles.inputButton}>
-                  <Text style={styles.gifText}>GIF</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.inputButton}>
-                  <Ionicons name="mic-outline" size={24} color="#6C5CE7" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.inputButton}>
-                  <Ionicons name="camera-outline" size={24} color="#6C5CE7" />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <TouchableOpacity 
-              style={[styles.sendButton, { opacity: newMessage.trim() ? 1 : 0.5 }]}
-              onPress={sendMessage}
-              disabled={!newMessage.trim()}
-            >
-              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -202,7 +188,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: '#1C1C1E',
   },
   backButton: {
     padding: 8,
@@ -211,6 +197,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '600',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginHorizontal: 16,
   },
@@ -230,133 +217,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#6C5CE7',
     marginHorizontal: 2,
   },
-  content: {
+  chatContainer: {
     flex: 1,
+    backgroundColor: '#000000',
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
   },
-  messagesList: {
-    padding: 16,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    marginVertical: 4,
-    alignItems: 'flex-end',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  messageContainer: {
-    maxWidth: '70%',
-    padding: 12,
-    borderRadius: 20,
-  },
-  ownMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#6C5CE7',
-    borderBottomRightRadius: 4,
-    marginLeft: 50,
-  },
-  otherMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F2F2F7',
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  ownMessageText: {
-    color: '#FFFFFF',
-  },
-  otherMessageText: {
-    color: '#000000',
-  },
-  timeText: {
-    fontSize: 12,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  ownTimeText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  otherTimeText: {
-    color: '#8E8E93',
-  },
-  dateSeparator: {
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  inputContainer: {
+  inputToolbar: {
+    backgroundColor: '#1C1C1E',
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
+    borderTopColor: '#2C2C2E',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginBottom: Platform.OS === 'ios' ? 30 : 20,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-  },
-  avatarSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#98FB98',
-    justifyContent: 'center',
+  inputPrimary: {
     alignItems: 'center',
-    marginRight: 8,
   },
-  avatarTextSmall: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  inputWrapper: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
+  composer: {
+    backgroundColor: '#2C2C2E',
     borderRadius: 20,
-    marginRight: 8,
-    padding: 8,
-  },
-  input: {
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 10,
+    marginRight: 10,
+    color: '#FFFFFF',
     fontSize: 16,
-    maxHeight: 100,
-    paddingHorizontal: 8,
-  },
-  inputButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingTop: 4,
-  },
-  inputButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  gifText: {
-    color: '#6C5CE7',
-    fontSize: 14,
-    fontWeight: '600',
+    flex: 1,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#6C5CE7',
-    justifyContent: 'center',
+    height: 44,
+    width: 44,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+  },
+  messagesContainer: {
+    backgroundColor: '#000000',
+  },
+  link: {
+    color: '#00B5E0',
+    textDecorationLine: 'underline',
+  },
+  hashtag: {
+    color: '#00B5E0',
   },
 }); 

@@ -36,6 +36,7 @@ import ExerciseSelector from './components/ExerciseSelector';
 import ProgramDetail from './components/ProgramDetail';
 import ProgramDayEdit from './components/ProgramDayEdit';
 import ClientBreathHistory from './components/ClientBreathHistory';
+import Chat from './components/Chat';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -237,30 +238,22 @@ function UnauthenticatedStack() {
 
 // Authenticated stack
 function AuthenticatedStack({ user }) {
-  const theme = useTheme();
   const [userRole, setUserRole] = useState(null);
+  const theme = useTheme();
 
   useEffect(() => {
-    const fetchRole = async () => {
-      if (user) {
-        console.log('Checking role for user:', user.email);
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
-        
-        console.log('Coach doc exists:', coachDoc.exists());
-        
-        if (coachDoc.exists()) {
-          console.log('Setting user role to coach');
-          setUserRole('coach');
-        } else {
-          console.log('Setting user role to client');
-          setUserRole('client');
-        }
-      }
-    };
-    
-    fetchRole();
-  }, [user]);
+    checkUserRole();
+  }, []);
+
+  const checkUserRole = async () => {
+    try {
+      const coachDoc = await getDoc(doc(db, 'coaches', user.uid));
+      setUserRole(coachDoc.exists() ? 'coach' : 'client');
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      setUserRole('client');
+    }
+  };
 
   return (
     <Stack.Navigator
@@ -422,6 +415,14 @@ function AuthenticatedStack({ user }) {
             fontFamily: Typography.fonts.bold,
             fontSize: Layout.text.large,
           }
+        }}
+      />
+      <Stack.Screen 
+        name="Chat" 
+        component={Chat}
+        options={{
+          headerShown: false,
+          presentation: 'modal'
         }}
       />
     </Stack.Navigator>
