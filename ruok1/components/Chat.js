@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
 } from 'react-native';
-import { GiftedChat, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
+import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { 
@@ -42,7 +42,6 @@ export default function Chat({ navigation, route }) {
             _id: doc.data().senderId,
             name: doc.data().senderId === auth.currentUser.uid ? 
               auth.currentUser.email?.split('@')[0] : client.name,
-            avatar: null,
           },
         }));
         setMessages(newMessages);
@@ -74,30 +73,30 @@ export default function Chat({ navigation, route }) {
         wrapperStyle={{
           right: {
             backgroundColor: '#00B5E0',
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            marginVertical: 3,
           },
           left: {
             backgroundColor: '#1C1C1E',
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            marginVertical: 3,
           },
         }}
         textStyle={{
           right: {
             color: '#FFFFFF',
+            fontSize: 16,
           },
           left: {
             color: '#FFFFFF',
+            fontSize: 16,
           },
         }}
       />
-    );
-  };
-
-  const renderSend = (props) => {
-    return (
-      <Send {...props}>
-        <View style={styles.sendButton}>
-          <Ionicons name="send" size={24} color="#00B5E0" />
-        </View>
-      </Send>
     );
   };
 
@@ -105,8 +104,13 @@ export default function Chat({ navigation, route }) {
     return (
       <InputToolbar
         {...props}
-        containerStyle={styles.inputToolbar}
-        primaryStyle={styles.inputPrimary}
+        containerStyle={{
+          backgroundColor: '#000000',
+          borderTopWidth: 0,
+          padding: 8,
+          paddingBottom: Platform.OS === 'ios' ? 40 : 8,
+        }}
+        primaryStyle={{ alignItems: 'center' }}
       />
     );
   };
@@ -115,64 +119,89 @@ export default function Chat({ navigation, route }) {
     return (
       <Composer
         {...props}
-        textInputStyle={styles.composer}
+        textInputStyle={{
+          backgroundColor: '#1C1C1E',
+          borderRadius: 20,
+          paddingHorizontal: 15,
+          paddingTop: 10,
+          paddingBottom: 10,
+          marginLeft: 0,
+          marginRight: 4,
+          color: '#FFFFFF',
+          fontSize: 16,
+        }}
         placeholderTextColor="#8E8E93"
-        multiline={true}
+        placeholder="Message..."
+      />
+    );
+  };
+
+  const renderSend = (props) => {
+    return (
+      <Send {...props} containerStyle={{ justifyContent: 'center', height: 44, marginRight: 4 }}>
+        <View style={{ padding: 8 }}>
+          <Ionicons name="send" size={24} color="#00B5E0" />
+        </View>
+      </Send>
+    );
+  };
+
+  const renderDay = (props) => {
+    return (
+      <Day
+        {...props}
+        textStyle={{
+          color: '#8E8E93',
+          fontSize: 12,
+          fontWeight: '500',
+        }}
       />
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#6C5CE7" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{client?.name || 'Chat'}</Text>
-        <View style={styles.headerRight}>
-          <View style={styles.dotContainer}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
+      <SafeAreaView>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#6C5CE7" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{client?.name || 'Chat'}</Text>
+          <View style={styles.headerRight} />
         </View>
-      </View>
+      </SafeAreaView>
 
-      {/* Chat */}
-      <View style={styles.chatContainer}>
-        <GiftedChat
-          messages={messages}
-          onSend={messages => onSend(messages)}
-          user={{
-            _id: auth.currentUser.uid,
-            name: auth.currentUser.email?.split('@')[0],
-          }}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderComposer={renderComposer}
-          renderSend={renderSend}
-          renderAvatar={null}
-          showAvatarForEveryMessage={false}
-          showUserAvatar={false}
-          alwaysShowSend
-          renderUsernameOnMessage
-          parsePatterns={(linkStyle) => [
-            { type: 'url', style: styles.link },
-            { pattern: /#(\w+)/, style: styles.hashtag },
-          ]}
-          messagesContainerStyle={styles.messagesContainer}
-          minInputToolbarHeight={60}
-          maxComposerHeight={100}
-          isKeyboardInternallyHandled={true}
-          keyboardShouldPersistTaps="handled"
-          bottomOffset={90}
-          listViewProps={{
-            style: { flex: 1 },
-            contentContainerStyle: { paddingBottom: 20 }
-          }}
-        />
-      </View>
+      <GiftedChat
+        messages={messages}
+        onSend={messages => onSend(messages)}
+        user={{
+          _id: auth.currentUser.uid,
+          name: auth.currentUser.email?.split('@')[0],
+        }}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderComposer={renderComposer}
+        renderSend={renderSend}
+        renderDay={renderDay}
+        renderAvatar={null}
+        showUserAvatar={false}
+        alwaysShowSend
+        renderUsernameOnMessage={false}
+        maxComposerHeight={80}
+        minInputToolbarHeight={44}
+        listViewProps={{
+          style: { backgroundColor: '#000000' },
+          contentContainerStyle: { paddingBottom: 8 },
+        }}
+        timeTextStyle={{
+          right: { color: 'rgba(255,255,255,0.5)' },
+          left: { color: 'rgba(255,255,255,0.5)' },
+        }}
+        dateFormat="MMM D, YYYY"
+        timeFormat="h:mm A"
+        inverted={true}
+        infiniteScroll={true}
+      />
     </View>
   );
 }
@@ -187,11 +216,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1C1E',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#2C2C2E',
   },
   backButton: {
     padding: 8,
+    marginLeft: -8,
   },
   headerTitle: {
     flex: 1,
@@ -203,62 +233,5 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
-    alignItems: 'center',
-  },
-  dotContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#6C5CE7',
-    marginHorizontal: 2,
-  },
-  chatContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-  },
-  inputToolbar: {
-    backgroundColor: '#1C1C1E',
-    borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginBottom: Platform.OS === 'ios' ? 30 : 20,
-  },
-  inputPrimary: {
-    alignItems: 'center',
-  },
-  composer: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingTop: 10,
-    paddingBottom: 10,
-    marginRight: 10,
-    color: '#FFFFFF',
-    fontSize: 16,
-    flex: 1,
-  },
-  sendButton: {
-    height: 44,
-    width: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 4,
-  },
-  messagesContainer: {
-    backgroundColor: '#000000',
-  },
-  link: {
-    color: '#00B5E0',
-    textDecorationLine: 'underline',
-  },
-  hashtag: {
-    color: '#00B5E0',
   },
 }); 
