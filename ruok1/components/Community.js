@@ -7,6 +7,7 @@ import { auth, db } from '../config/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import Forum from './Forum';
+import Chat from './Chat';
 
 export default function Community() {
   const theme = useTheme();
@@ -15,6 +16,7 @@ export default function Community() {
   const [clients, setClients] = useState([]);
   const [isCoach, setIsCoach] = useState(false);
   const [coachData, setCoachData] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -90,15 +92,15 @@ export default function Community() {
   }, [isCoach]);
 
   const handleClientSelect = (client) => {
-    navigation.navigate('Chat', { client });
+    setSelectedClient(client);
   };
 
   const handleChatTab = () => {
     setActiveTab('chat');
-    if (!isCoach && coachData) {
-      // If user is a client, go directly to chat with their coach
-      navigation.navigate('Chat', { client: coachData });
-    }
+  };
+
+  const handleBackToClients = () => {
+    setSelectedClient(null);
   };
 
   const renderContent = () => {
@@ -114,7 +116,17 @@ export default function Community() {
               </View>
             );
           }
-          return null; // Return null because we navigate directly to chat
+          return <Chat 
+            navigation={navigation} 
+            route={{ params: { client: coachData } }}
+            hideHeader={true}
+          />;
+        }
+        if (selectedClient) {
+          return <Chat 
+            navigation={{ ...navigation, goBack: handleBackToClients }} 
+            route={{ params: { client: selectedClient } }} 
+          />;
         }
         return (
           <View style={styles.clientList}>

@@ -23,7 +23,7 @@ import {
 
 const { height: screenHeight } = Dimensions.get('window');
 
-export default function Chat({ navigation, route }) {
+export default function Chat({ navigation, route, hideHeader }) {
   const [messages, setMessages] = useState([]);
   const { client } = route.params || {};
 
@@ -108,7 +108,8 @@ export default function Chat({ navigation, route }) {
           backgroundColor: '#000000',
           borderTopWidth: 0,
           padding: 8,
-          paddingBottom: Platform.OS === 'ios' ? 40 : 8,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          marginBottom: Platform.OS === 'ios' ? 80 : 90,
         }}
         primaryStyle={{ alignItems: 'center' }}
       />
@@ -161,15 +162,17 @@ export default function Chat({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#6C5CE7" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{client?.name || 'Chat'}</Text>
-          <View style={styles.headerRight} />
-        </View>
-      </SafeAreaView>
+      {!hideHeader && (
+        <SafeAreaView>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color="#6C5CE7" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{client?.name || 'Chat'}</Text>
+            <View style={styles.headerRight} />
+          </View>
+        </SafeAreaView>
+      )}
 
       <GiftedChat
         messages={messages}
@@ -201,6 +204,7 @@ export default function Chat({ navigation, route }) {
         timeFormat="h:mm A"
         inverted={true}
         infiniteScroll={true}
+        bottomOffset={Platform.OS === 'ios' ? 80 : 90}
       />
     </View>
   );
