@@ -18,7 +18,28 @@ const CIRCLE_SIZE = width * 0.8;
 
 export default function BreathAnimation({ pattern, navigation }) {
   const { theme } = useTheme();
-  const COLORS = theme.colors.breathing;
+
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0',
+    breathing: {
+      inhale: '#4A90E2',
+      hold: '#FF9500',
+      exhale: '#FF3B30'
+    }
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary,
+    breathing: theme?.colors?.breathing || defaultColors.breathing
+  };
   
   const scale = useRef(new Animated.Value(0.4)).current;
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -34,7 +55,7 @@ export default function BreathAnimation({ pattern, navigation }) {
 
   const animatedColor = colorAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [COLORS.inhale, COLORS.hold, COLORS.exhale],
+    outputRange: [colors.breathing.inhale, colors.breathing.hold, colors.breathing.exhale],
   });
 
   const glowOpacity = opacity.interpolate({
@@ -226,27 +247,27 @@ export default function BreathAnimation({ pattern, navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {isCountingDown ? (
         <View style={styles.countdownContainer}>
-          <Text style={[styles.roundText, { color: theme.colors.text }]}>
+          <Text style={[styles.roundText, { color: colors.text }]}>
             Round 1 of {pattern.rounds}
           </Text>
           <View style={[styles.countdownCircle, { 
-            borderColor: theme.colors.primary,
-            shadowColor: theme.colors.primary 
+            borderColor: colors.primary,
+            shadowColor: colors.primary 
           }]}>
-            <Text style={[styles.countdownText, { color: theme.colors.primary }]}>
+            <Text style={[styles.countdownText, { color: colors.primary }]}>
               {countdown}
             </Text>
-            <Text style={[styles.startingText, { color: theme.colors.text }]}>
+            <Text style={[styles.startingText, { color: colors.text }]}>
               Starting in...
             </Text>
           </View>
         </View>
       ) : (
         <>
-          <Text style={[styles.roundText, { color: theme.colors.text }]}>
+          <Text style={[styles.roundText, { color: colors.text }]}>
             Round {currentRound} of {pattern.rounds}
           </Text>
           <View style={styles.circleContainer}>
@@ -281,7 +302,7 @@ export default function BreathAnimation({ pattern, navigation }) {
                 style={[
                   styles.phaseText,
                   {
-                    color: theme.colors.text,
+                    color: colors.text,
                   },
                 ]}
               >
@@ -298,7 +319,6 @@ export default function BreathAnimation({ pattern, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },

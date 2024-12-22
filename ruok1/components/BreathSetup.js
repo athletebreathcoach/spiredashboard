@@ -118,15 +118,33 @@ export default function BreathSetup({ onStart, initialSettings }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0',
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary,
+  };
+
   const TimeControl = ({ label, value, onIncrement, onDecrement, style, textColor }) => (
     <View style={[styles.timerContainer, style]}>
       <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: colors.surface }]}
           onPress={onDecrement}
         >
-          <Ionicons name="remove" size={20} color={theme.colors.primary} />
+          <Ionicons name="remove" size={20} color={colors.primary} />
         </TouchableOpacity>
         
         <Text style={[styles.timerValue, { color: textColor }]}>
@@ -134,10 +152,10 @@ export default function BreathSetup({ onStart, initialSettings }) {
         </Text>
         
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: colors.surface }]}
           onPress={onIncrement}
         >
-          <Ionicons name="add" size={20} color={theme.colors.primary} />
+          <Ionicons name="add" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -148,29 +166,29 @@ export default function BreathSetup({ onStart, initialSettings }) {
       <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: colors.surface }]}
           onPress={() => decrement(settingKey)}
         >
-          <Ionicons name="remove" size={20} color={theme.colors.primary} />
+          <Ionicons name="remove" size={20} color={colors.primary} />
         </TouchableOpacity>
         
         <Text style={[styles.timerValue, { color: textColor }]}>{value}s</Text>
         
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: colors.surface }]}
           onPress={() => increment(settingKey)}
         >
-          <Ionicons name="add" size={20} color={theme.colors.primary} />
+          <Ionicons name="add" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Breathing Pattern</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.title, { color: colors.text }]}>Breathing Pattern</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Customize your breathing exercise
         </Text>
       </View>
@@ -187,49 +205,49 @@ export default function BreathSetup({ onStart, initialSettings }) {
             const newTime = Math.max(getRoundTime(), settings.totalTime - getRoundTime());
             updateRoundsFromTime(newTime);
           }}
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
 
         <TimerControl 
           label="Inhale" 
           value={settings.inhaleTime}
           settingKey="inhaleTime"
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.inhaleHoldTime}
           settingKey="inhaleHoldTime"
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
         <TimerControl 
           label="Exhale" 
           value={settings.exhaleTime}
           settingKey="exhaleTime"
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.exhaleHoldTime}
           settingKey="exhaleHoldTime"
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
         <TimerControl 
           label="Rounds" 
           value={settings.rounds}
           settingKey="rounds"
-          style={{ backgroundColor: theme.colors.surface }}
-          textColor={theme.colors.text}
+          style={{ backgroundColor: colors.surface }}
+          textColor={colors.text}
         />
       </View>
 
       <TouchableOpacity 
-        style={[styles.button, { backgroundColor: theme.colors.primary }]}
+        style={[styles.button, { backgroundColor: colors.primary }]}
         onPress={() => onStart(settings)}
       >
         <Text style={styles.buttonText}>Begin</Text>

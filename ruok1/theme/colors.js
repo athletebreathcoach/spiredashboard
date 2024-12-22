@@ -1,6 +1,6 @@
 export const lightColors = {
-  primary: '#6C5CE7',
-  secondary: '#8E8DFA',
+  primary: '#00B5E0',
+  secondary: '#33C3E6',
   background: '#FFFFFF',
   surface: '#F8F9FA',
   text: '#000000',
@@ -11,7 +11,7 @@ export const lightColors = {
   warning: '#FFC107',
   info: '#17A2B8',
   // Chat specific colors
-  messageBubbleOwn: '#6C5CE7',
+  messageBubbleOwn: '#00B5E0',
   messageBubbleOther: '#F2F2F7',
   messageTextOwn: '#FFFFFF',
   messageTextOther: '#000000',
@@ -20,8 +20,8 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  primary: '#8E8DFA',
-  secondary: '#6C5CE7',
+  primary: '#00B5E0',
+  secondary: '#33C3E6',
   background: '#000000',
   surface: '#1C1C1E',
   text: '#FFFFFF',
@@ -32,7 +32,7 @@ export const darkColors = {
   warning: '#FFD60A',
   info: '#64D2FF',
   // Chat specific colors
-  messageBubbleOwn: '#6C5CE7',
+  messageBubbleOwn: '#00B5E0',
   messageBubbleOther: '#2C2C2E',
   messageTextOwn: '#FFFFFF',
   messageTextOther: '#FFFFFF',

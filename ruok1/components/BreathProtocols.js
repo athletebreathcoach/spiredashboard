@@ -95,11 +95,11 @@ export default function BreathProtocols({ route, navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, theme?.colors?.text && { color: theme.colors.text }]}>
         Breathing Protocols
       </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+      <Text style={[styles.subtitle, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
         Choose a protocol to begin your breathing practice
       </Text>
 

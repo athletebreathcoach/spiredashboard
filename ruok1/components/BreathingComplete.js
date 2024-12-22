@@ -17,6 +17,24 @@ export default function BreathingComplete({ navigation, route }) {
   const [isSaving, setIsSaving] = useState(false);
   const { totalBreaths, streak, totalSessions, sessionData } = route.params;
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0'
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary
+  };
+
   const handleLogSession = async () => {
     setIsSaving(true);
     try {
@@ -41,33 +59,33 @@ export default function BreathingComplete({ navigation, route }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>
         Session Complete!
       </Text>
       
       <View style={styles.statsContainer}>
-        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+        <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
             Duration
           </Text>
-          <Text style={[styles.statValue, { color: theme.colors.text }]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {sessionData.totalTime}s
           </Text>
         </View>
 
-        <View style={[styles.statBox, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
+        <View style={[styles.statBox, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
             Breaths
           </Text>
-          <Text style={[styles.statValue, { color: theme.colors.text }]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {totalBreaths}
           </Text>
         </View>
       </View>
 
       <TouchableOpacity
-        style={[styles.logButton, { backgroundColor: theme.colors.primary }]}
+        style={[styles.logButton, { backgroundColor: colors.primary }]}
         onPress={handleLogSession}
         disabled={isSaving}
       >
@@ -79,11 +97,11 @@ export default function BreathingComplete({ navigation, route }) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.skipButton]}
+        style={styles.skipButton}
         onPress={() => navigation.navigate('Home')}
         disabled={isSaving}
       >
-        <Text style={[styles.skipButtonText, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.skipButtonText, { color: colors.textSecondary }]}>
           Skip Logging
         </Text>
       </TouchableOpacity>

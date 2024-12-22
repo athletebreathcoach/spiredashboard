@@ -1,184 +1,90 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = width;
-
-const categories = [
+const programs = [
   {
-    id: 'programs',
-    title: 'Programs',
-    items: [
-      {
-        id: 1,
-        title: 'Beginner Program',
-        category: 'Program',
-        duration: '4 weeks',
-        description: 'Foundation breath work and exercise program',
-        icon: 'calendar-outline',
-        color: '#2C2C2E',
-      },
-      {
-        id: 2,
-        title: 'Athletic Performance',
-        category: 'Program',
-        duration: '8 weeks',
-        description: 'Advanced breath work for athletes',
-        icon: 'trophy-outline',
-        color: '#2C2C2E',
-      }
-    ]
+    id: 1,
+    title: 'Beginner Program',
+    category: 'Foundation',
+    description: 'Start your breathing journey',
+    duration: '4 weeks',
+    icon: 'leaf-outline',
+    color: '#4A90E2',
   },
   {
-    id: 'sections',
-    title: 'Sections',
-    items: [
-      {
-        id: 3,
-        title: 'Morning Routine',
-        category: 'Section',
-        duration: '30 min',
-        description: 'Daily morning breath work and exercise',
-        icon: 'sunny-outline',
-        color: '#2C2C2E',
-        editable: true,
-      },
-      {
-        id: 4,
-        title: 'Recovery Session',
-        category: 'Section',
-        duration: '45 min',
-        description: 'Post-workout recovery routine',
-        icon: 'refresh-outline',
-        color: '#2C2C2E',
-        editable: false,
-      }
-    ]
+    id: 2,
+    title: 'Performance',
+    category: 'Advanced',
+    description: 'Enhance athletic performance',
+    duration: '8 weeks',
+    icon: 'flash-outline',
+    color: '#FF9500',
   },
   {
-    id: 'sessions',
-    title: 'Sessions',
-    items: [
-      {
-        id: 5,
-        title: 'Pre-Competition',
-        category: 'Session',
-        duration: '60 min',
-        description: 'Complete preparation routine',
-        icon: 'flag-outline',
-        color: '#2C2C2E',
-        editable: true,
-      },
-      {
-        id: 6,
-        title: 'Recovery Day',
-        category: 'Session',
-        duration: '90 min',
-        description: 'Full recovery and regeneration',
-        icon: 'battery-charging-outline',
-        color: '#2C2C2E',
-        editable: true,
-      }
-    ]
-  }
+    id: 3,
+    title: 'Stress Relief',
+    category: 'Wellness',
+    description: 'Manage stress and anxiety',
+    duration: '6 weeks',
+    icon: 'water-outline',
+    color: '#FF3B30',
+  },
+  {
+    id: 4,
+    title: 'Sleep Better',
+    category: 'Recovery',
+    description: 'Improve sleep quality',
+    duration: '4 weeks',
+    icon: 'moon-outline',
+    color: '#5856D6',
+  },
 ];
 
 export default function Programs({ navigation }) {
-  const { theme } = useTheme();
-  const [currentPage, setCurrentPage] = useState(0);
-
-  const handleItemPress = (item) => {
-    if (item.category === 'Section') {
-      navigation.navigate('SectionDetail', { item });
-    } else if (item.category === 'Program') {
-      navigation.navigate('ProgramDetail', { program: item });
-    }
-  };
-
-  const handleScroll = (event) => {
-    const page = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentPage(page);
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView 
-        horizontal
-        pagingEnabled
-        decelerationRate="fast"
-        snapToInterval={COLUMN_WIDTH}
-        snapToAlignment="center"
-        showsHorizontalScrollIndicator={false}
-        style={styles.horizontalScroll}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {categories.map((category) => (
-          <View key={category.id} style={styles.column}>
-            <Text style={styles.columnTitle}>{category.title}</Text>
-            
-            <ScrollView 
-              style={styles.itemList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.itemListContent}
-            >
-              {category.items.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.itemCard, { backgroundColor: item.color }]}
-                  onPress={() => handleItemPress(item)}
-                >
-                  <Ionicons 
-                    name={item.icon} 
-                    size={24} 
-                    color="#00B5E0" 
-                    style={styles.itemIcon}
-                  />
-                  <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <View style={styles.itemDetails}>
-                      <Text style={[styles.date, { color: '#00B5E0' }]}>{item.duration}</Text>
-                      <Text style={styles.category}>#{item.category}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        Programs
+      </Text>
+      <Text style={styles.subtitle}>
+        Structured breathing programs for your goals
+      </Text>
 
-              <TouchableOpacity style={styles.addButton}>
-                <Ionicons name="add" size={24} color="#00B5E0" />
-                <Text style={[styles.addButtonText, { color: '#00B5E0' }]}>
-                  Add {category.title}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {programs.map((program) => (
+          <TouchableOpacity
+            key={program.id}
+            style={[styles.card, { backgroundColor: program.color }]}
+            onPress={() => navigation.navigate('ProgramDetail', { program })}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name={program.icon} size={24} color="#FFFFFF" />
+              <Text style={styles.cardTitle}>{program.title}</Text>
+            </View>
+            <Text style={styles.cardDescription}>{program.description}</Text>
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardCategory}>#{program.category}</Text>
+              <View style={styles.durationContainer}>
+                <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.duration}>{program.duration}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <View style={styles.pageIndicator}>
-        {categories.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: currentPage === index ? '#00B5E0' : '#48484A',
-              },
-            ]}
-          />
-        ))}
-      </View>
     </View>
   );
 }
@@ -186,90 +92,68 @@ export default function Programs({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: Layout.spacing.large,
+    backgroundColor: '#1C1C1E',
   },
-  horizontalScroll: {
-    flex: 1,
-  },
-  column: {
-    width: COLUMN_WIDTH,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  columnTitle: {
-    fontSize: 28,
-    fontFamily: Typography.fonts.semibold,
+  title: {
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
     color: '#FFFFFF',
-    marginVertical: 20,
   },
-  itemList: {
+  subtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+    color: '#8E8E93',
+  },
+  scrollView: {
     flex: 1,
   },
-  itemListContent: {
+  scrollContent: {
     paddingBottom: Layout.spacing.large,
   },
-  itemCard: {
+  card: {
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+    marginBottom: Layout.spacing.medium,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: Layout.spacing.medium,
   },
-  itemIcon: {
-    marginRight: 12,
-    width: 24,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 17,
+  cardTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
     color: '#FFFFFF',
-    fontFamily: Typography.fonts.regular,
-    marginBottom: 4,
+    marginLeft: Layout.spacing.medium,
   },
-  itemDetails: {
+  cardDescription: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    color: '#FFFFFF',
+    marginBottom: Layout.spacing.medium,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardCategory: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  durationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  date: {
-    fontSize: 15,
-    color: '#00B5E0',  // Using the blue accent color
-    marginRight: 8,
+  duration: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-  },
-  category: {
-    fontSize: 15,
-    color: '#8E8E93',
-    fontFamily: Typography.fonts.regular,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  addButtonText: {
-    fontSize: 17,
-    marginLeft: 8,
-    fontFamily: Typography.fonts.regular,
-  },
-  pageIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(28, 28, 30, 0.7)',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    color: '#FFFFFF',
+    marginLeft: Layout.spacing.small,
   },
 }); 

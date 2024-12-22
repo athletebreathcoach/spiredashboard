@@ -17,6 +17,24 @@ export default function ExerciseDetail({ route }) {
   const { theme } = useTheme();
   const { exercise } = route.params;
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0'
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary
+  };
+
   // YouTube video ID for bench press tutorial
   const videoId = "vcBig73ojF0";
 
@@ -37,8 +55,8 @@ export default function ExerciseDetail({ route }) {
   ];
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>{exercise.title}</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>{exercise.title}</Text>
       
       <View style={styles.videoContainer}>
         <YoutubePlayer
@@ -49,18 +67,18 @@ export default function ExerciseDetail({ route }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Instructions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Instructions</Text>
         {instructions.map((instruction, index) => (
-          <Text key={index} style={[styles.instruction, { color: theme.colors.textSecondary }]}>
+          <Text key={index} style={[styles.instruction, { color: colors.textSecondary }]}>
             {instruction}
           </Text>
         ))}
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pro Tips</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pro Tips</Text>
         {tips.map((tip, index) => (
-          <Text key={index} style={[styles.tip, { color: theme.colors.textSecondary }]}>
+          <Text key={index} style={[styles.tip, { color: colors.textSecondary }]}>
             • {tip}
           </Text>
         ))}

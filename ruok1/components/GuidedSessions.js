@@ -1,161 +1,90 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = width;
-
-const categories = [
+const sessions = [
   {
-    id: 'relaxation',
-    title: 'Relaxation',
-    sessions: [
-      {
-        id: 1,
-        title: 'Box Breathing',
-        category: 'Relaxation',
-        date: 'Dec 9',
-        icon: 'square-outline',
-        color: '#2C2C2E',
-      },
-      {
-        id: 2,
-        title: 'Deep Calm',
-        category: 'Relaxation',
-        date: 'Dec 9',
-        icon: 'water-outline',
-        color: '#2C2C2E',
-      }
-    ]
+    id: 1,
+    title: 'Box Breathing',
+    category: 'Relaxation',
+    description: 'Guided box breathing session',
+    duration: '10 min',
+    icon: 'square-outline',
+    color: '#4A90E2',
   },
   {
-    id: 'performance',
-    title: 'Performance',
-    sessions: [
-      {
-        id: 3,
-        title: 'Pre-Workout',
-        category: 'Performance',
-        date: 'Dec 9',
-        icon: 'flame-outline',
-        color: '#FF3B30',
-      },
-      {
-        id: 4,
-        title: 'Recovery',
-        category: 'Performance',
-        date: 'Dec 9',
-        icon: 'refresh-outline',
-        color: '#5856D6',
-      }
-    ]
-  }
-]; 
+    id: 2,
+    title: 'Deep Calm',
+    category: 'Relaxation',
+    description: 'Deep relaxation practice',
+    duration: '15 min',
+    icon: 'water-outline',
+    color: '#FF9500',
+  },
+  {
+    id: 3,
+    title: 'Power Breathing',
+    category: 'Performance',
+    description: 'High-intensity breath work',
+    duration: '20 min',
+    icon: 'flash-outline',
+    color: '#FF3B30',
+  },
+  {
+    id: 4,
+    title: 'Sleep Prep',
+    category: 'Recovery',
+    description: 'Evening wind-down routine',
+    duration: '15 min',
+    icon: 'moon-outline',
+    color: '#5856D6',
+  },
+];
 
-export default function GuidedSessions({ route, navigation }) {
-  const { selectionMode, onSelect } = route.params || {};
-  const { theme } = useTheme();
-  const [currentPage, setCurrentPage] = useState(0);
-
-  const handleSessionPress = (session) => {
-    if (selectionMode && onSelect) {
-      onSelect(session);
-    } else {
-      navigation.navigate('SessionDetail', { session });
-    }
-  };
-
-  const handleScroll = (event) => {
-    const page = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentPage(page);
-  };
-
+export default function GuidedSessions({ navigation }) {
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView 
-        horizontal
-        pagingEnabled
-        decelerationRate="fast"
-        snapToInterval={COLUMN_WIDTH}
-        snapToAlignment="center"
-        showsHorizontalScrollIndicator={false}
-        style={styles.horizontalScroll}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {categories.map((category) => (
-          <View key={category.id} style={styles.column}>
-            <Text style={styles.columnTitle}>{category.title}</Text>
-            
-            <ScrollView 
-              style={styles.sessionList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.sessionListContent}
-            >
-              {category.sessions.map((session) => (
-                <TouchableOpacity
-                  key={session.id}
-                  style={[styles.sessionItem, { backgroundColor: session.color }]}
-                  onPress={() => handleSessionPress(session)}
-                >
-                  <Ionicons 
-                    name={session.icon} 
-                    size={24} 
-                    color="#00B5E0" 
-                    style={styles.sessionIcon}
-                  />
-                  <View style={styles.sessionContent}>
-                    <Text style={styles.sessionTitle}>{session.title}</Text>
-                    <View style={styles.sessionDetails}>
-                      <Text style={styles.date}>{session.date}</Text>
-                      <Text style={styles.category}>#{session.category}</Text>
-                    </View>
-                  </View>
-                  {selectionMode && (
-                    <Ionicons 
-                      name="add-circle-outline" 
-                      size={24} 
-                      color="#00B5E0" 
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        Guided Sessions
+      </Text>
+      <Text style={styles.subtitle}>
+        Follow along with guided breathing practices
+      </Text>
 
-              <TouchableOpacity style={styles.addButton}>
-                <Ionicons name="add" size={24} color="#00B5E0" />
-                <Text style={[styles.addButtonText, { color: '#00B5E0' }]}>
-                  Add {category.title} Session
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {sessions.map((session) => (
+          <TouchableOpacity
+            key={session.id}
+            style={[styles.card, { backgroundColor: session.color }]}
+            onPress={() => navigation.navigate('SessionDetail', { session })}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name={session.icon} size={24} color="#FFFFFF" />
+              <Text style={styles.cardTitle}>{session.title}</Text>
+            </View>
+            <Text style={styles.cardDescription}>{session.description}</Text>
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardCategory}>#{session.category}</Text>
+              <View style={styles.durationContainer}>
+                <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.duration}>{session.duration}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <View style={styles.pageIndicator}>
-        {categories.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: currentPage === index ? '#00B5E0' : '#48484A',
-              },
-            ]}
-          />
-        ))}
-      </View>
     </View>
   );
 }
@@ -163,91 +92,68 @@ export default function GuidedSessions({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: Layout.spacing.large,
+    backgroundColor: '#1C1C1E',
   },
-  horizontalScroll: {
-    flex: 1,
-  },
-  column: {
-    width: COLUMN_WIDTH,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  columnTitle: {
-    fontSize: 28,
-    fontFamily: Typography.fonts.semibold,
+  title: {
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
     color: '#FFFFFF',
-    marginVertical: 20,
   },
-  sessionList: {
+  subtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+    color: '#8E8E93',
+  },
+  scrollView: {
     flex: 1,
   },
-  sessionListContent: {
+  scrollContent: {
     paddingBottom: Layout.spacing.large,
   },
-  sessionItem: {
+  card: {
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+    marginBottom: Layout.spacing.medium,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: Layout.spacing.medium,
   },
-  sessionIcon: {
-    marginRight: 12,
-    width: 24,
-  },
-  sessionContent: {
-    flex: 1,
-  },
-  sessionTitle: {
-    fontSize: 17,
+  cardTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
     color: '#FFFFFF',
-    fontFamily: Typography.fonts.regular,
-    marginBottom: 4,
+    marginLeft: Layout.spacing.medium,
   },
-  sessionDetails: {
+  cardDescription: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    color: '#FFFFFF',
+    marginBottom: Layout.spacing.medium,
+  },
+  cardFooter: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  date: {
-    fontSize: 15,
-    color: '#FFFFFF',
-    marginRight: 8,
+  cardCategory: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-  },
-  category: {
-    fontSize: 15,
     color: '#FFFFFF',
     opacity: 0.8,
-    fontFamily: Typography.fonts.regular,
   },
-  addButton: {
+  durationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
   },
-  addButtonText: {
-    fontSize: 17,
-    marginLeft: 8,
+  duration: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-  },
-  pageIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(28, 28, 30, 0.7)',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    color: '#FFFFFF',
+    marginLeft: Layout.spacing.small,
   },
 }); 

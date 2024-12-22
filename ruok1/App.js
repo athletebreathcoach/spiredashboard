@@ -325,6 +325,105 @@ function AuthenticatedStack({ user }) {
           }
         }}
       />
+      <Stack.Screen 
+        name="ClientBreathHistory" 
+        component={ClientBreathHistory}
+        options={{
+          title: 'Breathing History',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BreathGuide" 
+        component={BreathGuide}
+        options={{
+          title: 'Breath Guide',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BreathProtocols" 
+        component={BreathProtocols}
+        options={{
+          title: 'Breath Protocols',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BreathingComplete" 
+        component={BreathingComplete}
+        options={{
+          title: 'Session Complete',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="Exercises" 
+        component={Exercises}
+        options={{
+          title: 'Exercises',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BreathingTests" 
+        component={BreathingTests}
+        options={{
+          title: 'Breathing Tests',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="GuidedSessions" 
+        component={GuidedSessions}
+        options={{
+          title: 'Guided Sessions',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="HabitsTasks" 
+        component={HabitsTasks}
+        options={{
+          title: 'Habits & Tasks',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="Programs" 
+        component={Programs}
+        options={{
+          title: 'Programs',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
     </Stack.Navigator>
   );
 }

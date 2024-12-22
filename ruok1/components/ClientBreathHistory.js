@@ -19,6 +19,24 @@ export default function ClientBreathHistory({ route }) {
   const [loading, setLoading] = useState(true);
   const { clientId } = route.params;
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0'
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary
+  };
+
   useEffect(() => {
     fetchHistory();
   }, [clientId]);
@@ -62,55 +80,55 @@ export default function ClientBreathHistory({ route }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {history.length > 0 ? (
           history.map((session) => (
             <View 
               key={session.id}
-              style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}
+              style={[styles.sessionCard, { backgroundColor: colors.surface }]}
             >
               <View style={styles.sessionHeader}>
-                <Text style={[styles.sessionTitle, { color: theme.colors.text }]}>
+                <Text style={[styles.sessionTitle, { color: colors.text }]}>
                   {session.presetName || 'Custom Breath Protocol'}
                 </Text>
-                <Text style={[styles.sessionDate, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.sessionDate, { color: colors.textSecondary }]}>
                   {formatDate(session.timestamp)}
                 </Text>
               </View>
               
               <View style={styles.sessionDetails}>
                 <View style={styles.detailItem}>
-                  <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
-                  <Text style={[styles.detailText, { color: theme.colors.text }]}>
+                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailText, { color: colors.text }]}>
                     {formatDuration(session.duration)}
                   </Text>
                 </View>
                 
                 <View style={styles.detailItem}>
-                  <Ionicons name="repeat-outline" size={16} color={theme.colors.textSecondary} />
-                  <Text style={[styles.detailText, { color: theme.colors.text }]}>
+                  <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailText, { color: colors.text }]}>
                     {session.rounds} rounds
                   </Text>
                 </View>
               </View>
 
               <View style={styles.patternContainer}>
-                <Text style={[styles.patternText, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.patternText, { color: colors.textSecondary }]}>
                   {`${session.inhaleTime}s - ${session.inhaleHoldTime}s - ${session.exhaleTime}s - ${session.exhaleHoldTime}s`}
                 </Text>
               </View>
             </View>
           ))
         ) : (
-          <Text style={[styles.emptyMessage, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
             No breathing sessions recorded yet
           </Text>
         )}

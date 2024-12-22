@@ -24,6 +24,26 @@ export default function CoachDashboard({ navigation }) {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0',
+    border: '#2C2C2E'
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary,
+    border: theme?.colors?.border || defaultColors.border
+  };
+
   useEffect(() => {
     loadClients();
   }, []);
@@ -130,9 +150,9 @@ export default function CoachDashboard({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+        style={[styles.addButton, { backgroundColor: colors.primary }]}
         onPress={() => setShowInviteModal(true)}
       >
         <Ionicons name="person-add" size={24} color="#FFFFFF" />
@@ -140,28 +160,28 @@ export default function CoachDashboard({ navigation }) {
       </TouchableOpacity>
 
       {loading ? (
-        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>Loading...</Text>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>Loading...</Text>
       ) : clients.length > 0 ? (
         <ScrollView style={styles.clientList}>
           {clients.map(client => (
             <TouchableOpacity
               key={client.id}
-              style={[styles.clientCard, { backgroundColor: theme.colors.surface }]}
+              style={[styles.clientCard, { backgroundColor: colors.surface }]}
               onPress={() => handleClientPress(client.id)}
             >
-              <Text style={[styles.clientEmail, { color: theme.colors.text }]}>
+              <Text style={[styles.clientEmail, { color: colors.text }]}>
                 {client.email}
               </Text>
               <Ionicons 
                 name="chevron-forward" 
                 size={24} 
-                color={theme.colors.textSecondary} 
+                color={colors.textSecondary} 
               />
             </TouchableOpacity>
           ))}
         </ScrollView>
       ) : (
-        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
           No clients yet
         </Text>
       )}
@@ -173,19 +193,19 @@ export default function CoachDashboard({ navigation }) {
         animationType="slide"
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               Invite Client
             </Text>
             
             <TextInput
               style={[styles.input, { 
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                color: theme.colors.text
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text
               }]}
               placeholder="Enter client's email"
-              placeholderTextColor={theme.colors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={inviteEmail}
               onChangeText={setInviteEmail}
               autoCapitalize="none"
@@ -195,19 +215,19 @@ export default function CoachDashboard({ navigation }) {
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
+                style={[styles.modalButton, { backgroundColor: colors.border }]}
                 onPress={() => {
                   setShowInviteModal(false);
                   setInviteEmail('');
                 }}
               >
-                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>
                   Cancel
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
                 onPress={handleInviteClient}
                 disabled={inviting}
               >

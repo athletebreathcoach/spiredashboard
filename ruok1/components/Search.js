@@ -57,6 +57,34 @@ const allItems = [
     color: '#FF9500',
     navigateTo: 'BreathingTests'
   },
+  // From Breath Protocols
+  {
+    id: 'bp1',
+    title: 'Box Breathing',
+    category: 'Protocol',
+    type: 'Breath Protocol',
+    icon: 'square-outline',
+    color: '#4A90E2',
+    navigateTo: 'BreathProtocols'
+  },
+  {
+    id: 'bp2',
+    title: 'Triangle Breathing',
+    category: 'Protocol',
+    type: 'Breath Protocol',
+    icon: 'triangle-outline',
+    color: '#FF9500',
+    navigateTo: 'BreathProtocols'
+  },
+  {
+    id: 'bp3',
+    title: '4-7-8 Breathing',
+    category: 'Protocol',
+    type: 'Breath Protocol',
+    icon: 'timer-outline',
+    color: '#FF3B30',
+    navigateTo: 'BreathProtocols'
+  },
   // From Guided Sessions
   {
     id: 'gs1',
@@ -103,36 +131,42 @@ const categories = [
     title: 'Programs',
     icon: 'library-outline',
     color: '#4A90E2',
+    navigateTo: 'Programs'
   },
   {
     id: 2,
     title: 'Breathing Tests',
     icon: 'fitness-outline',
     color: '#50E3C2',
+    navigateTo: 'BreathingTests'
   },
   {
     id: 3,
     title: 'Exercises',
     icon: 'barbell-outline',
     color: '#FF9500',
+    navigateTo: 'Exercises'
   },
   {
     id: 4,
     title: 'Breath Protocols',
     icon: 'pulse-outline',
     color: '#FF3B30',
+    navigateTo: 'BreathProtocols'
   },
   {
     id: 5,
     title: 'Habits & Tasks',
     icon: 'checkbox-outline',
     color: '#5856D6',
+    navigateTo: 'HabitsTasks'
   },
   {
     id: 6,
     title: 'Guided Sessions',
     icon: 'compass-outline',
     color: '#34C759',
+    navigateTo: 'GuidedSessions'
   },
 ];
 
@@ -154,16 +188,32 @@ export default function Search({ navigation }) {
   };
 
   const handleCategoryPress = (category) => {
-    if (category.title === 'Programs') {
-      navigation.navigate('Programs');
-    } else if (category.title === 'Breathing Tests') {
-      navigation.navigate('BreathingTests');
-    } else if (category.title === 'Guided Sessions') {
-      navigation.navigate('GuidedSessions');
-    } else if (category.title === 'Habits & Tasks') {
-      navigation.navigate('HabitsTasks');
+    navigation.navigate(category.navigateTo);
+  };
+
+  const handleItemPress = (item) => {
+    if (item.type === 'Exercise') {
+      navigation.navigate('ExerciseDetail', { 
+        exercise: {
+          ...item,
+          instructions: [
+            "1. Lie on a flat bench with your feet flat on the floor",
+            "2. Grip the barbell slightly wider than shoulder-width",
+            "3. Unrack the bar and lower it to your mid-chest",
+            "4. Keep your elbows at about a 45-degree angle to your body",
+            "5. Touch the bar to your chest while maintaining control",
+            "6. Press the bar back up to the starting position",
+          ],
+          tips: [
+            "Keep your wrists straight",
+            "Maintain a tight core throughout the movement",
+            "Drive your feet into the ground for stability",
+            "Keep your shoulder blades retracted",
+          ]
+        }
+      });
     } else {
-      navigation.navigate(category.title);
+      navigation.navigate(item.navigateTo);
     }
   };
 
@@ -202,7 +252,7 @@ export default function Search({ navigation }) {
                 <TouchableOpacity
                   key={item.id}
                   style={[styles.resultItem, { backgroundColor: item.color }]}
-                  onPress={() => navigation.navigate(item.navigateTo)}
+                  onPress={() => handleItemPress(item)}
                 >
                   <Ionicons name={item.icon} size={24} color="#FFFFFF" />
                   <View style={styles.resultContent}>

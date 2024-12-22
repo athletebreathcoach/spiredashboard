@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  SafeAreaView,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { auth, db } from '../config/firebase';
@@ -166,6 +167,13 @@ export default function Chat() {
 
   const subscribeToMessages = () => {
     const chatId = [auth.currentUser.uid, selectedClient.uid].sort().join('_');
+    console.log('Subscribing to chat:', {
+      chatId,
+      currentUser: auth.currentUser.uid,
+      selectedClient: selectedClient.uid,
+      isCoach
+    });
+    
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     const q = query(messagesRef, orderBy('timestamp', 'desc'));
 
@@ -175,6 +183,7 @@ export default function Chat() {
         ...doc.data(),
         timestamp: doc.data().timestamp?.toDate()
       }));
+      console.log('Received messages:', newMessages.length);
       setMessages(newMessages);
     });
   };
@@ -184,6 +193,13 @@ export default function Chat() {
 
     try {
       const chatId = [auth.currentUser.uid, selectedClient.uid].sort().join('_');
+      console.log('Sending message:', {
+        chatId,
+        currentUser: auth.currentUser.uid,
+        selectedClient: selectedClient.uid,
+        isCoach
+      });
+      
       const messagesRef = collection(db, 'chats', chatId, 'messages');
       
       await addDoc(messagesRef, {
@@ -197,41 +213,6 @@ export default function Chat() {
     } catch (error) {
       console.error('Error sending message:', error);
     }
-  };
-
-  const renderMessage = ({ item }) => {
-    const isOwnMessage = item.senderId === auth.currentUser.uid;
-    const initials = getInitials(isOwnMessage ? auth.currentUser.email.split('@')[0] : selectedClient?.name);
-    const colors = ['#FFD700', '#98FB98', '#87CEEB', '#DDA0DD', '#F08080'];
-    const colorIndex = initials.charCodeAt(0) % colors.length;
-
-    return (
-      <View style={[
-        styles.messageContainer,
-        isOwnMessage ? styles.ownMessage : styles.otherMessage
-      ]}>
-        {!isOwnMessage && (
-          <View style={[styles.messageInitialsCircle, { backgroundColor: colors[colorIndex] }]}>
-            <Text style={styles.messageInitialsText}>{initials}</Text>
-          </View>
-        )}
-        <View style={[
-          styles.messageBubble,
-          {
-            backgroundColor: isOwnMessage ? '#6C5CE7' : '#F2F2F7',
-            marginLeft: !isOwnMessage ? 8 : 0,
-            marginRight: isOwnMessage ? 8 : 0,
-          }
-        ]}>
-          <Text style={[
-            styles.messageText,
-            { color: isOwnMessage ? '#FFFFFF' : theme?.colors?.text }
-          ]}>
-            {item.text}
-          </Text>
-        </View>
-      </View>
-    );
   };
 
   // Add debug logs to track component state
@@ -255,10 +236,11 @@ export default function Chat() {
   // Add debug log for render conditions
   console.log('Render conditions:', {
     isCoach,
-    showChat,
-    shouldShowInbox: isCoach && !showChat
+    shouldShowInbox: isCoach && !showChat,
+    showChat
   });
 
+  // Show inbox for coaches when not in a chat
   if (isCoach && !showChat) {
     return (
       <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
@@ -288,105 +270,88 @@ export default function Chat() {
     );
   }
 
-  // Add debug log for chat view
-  console.log('Rendering chat view with client:', selectedClient);
-
-  return (
-    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.chatHeader, { 
-        borderBottomColor: theme?.colors?.border,
-        backgroundColor: theme?.colors?.background
-      }]}>
-        {isCoach && (
+  // Show chat window when a client is selected or user is not a coach
+  if (selectedClient) {
+    return (
+      <KeyboardAvoidingView 
+        style={[styles.container, { backgroundColor: theme?.colors?.background }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        {/* Simple header */}
+        <View style={[styles.chatHeader, { 
+          borderBottomColor: theme?.colors?.border || '#2C2C2E',
+          backgroundColor: theme?.colors?.background
+        }]}>
           <TouchableOpacity 
-            style={styles.backButton}
             onPress={() => {
-              console.log('Back button pressed');
               setShowChat(false);
               setSelectedClient(null);
             }}
           >
-            <Ionicons name="chevron-back" size={28} color={theme?.colors?.primary} />
+            <Text style={[styles.backButton, { color: theme?.colors?.primary }]}>Back</Text>
           </TouchableOpacity>
-        )}
-        <View style={styles.headerContent}>
-          <Text style={[styles.headerText, { color: theme?.colors?.text }]}>
-            {selectedClient?.name || selectedClient?.email?.split('@')[0] || 'Chat'}
-          </Text>
+          <Text style={[styles.headerText, { color: theme?.colors?.text }]}>{selectedClient.name}</Text>
         </View>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={theme?.colors?.text} />
-        </TouchableOpacity>
-      </View>
 
-      <View style={styles.chatContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          inverted
-          contentContainerStyle={styles.messagesList}
-          ListHeaderComponent={() => (
-            messages.length > 0 && (
-              <View style={styles.dateHeader}>
-                <Text style={[styles.dateText, { color: theme?.colors?.textSecondary }]}>
-                  {messages[0]?.timestamp?.toLocaleDateString([], { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
+        {/* Messages */}
+        <View style={styles.messagesContainer}>
+          <FlatList
+            data={messages}
+            renderItem={({ item }) => (
+              <View style={[
+                styles.messageContainer,
+                item.senderId === auth.currentUser.uid ? styles.ownMessage : styles.otherMessage
+              ]}>
+                <Text style={[
+                  styles.messageText,
+                  { color: item.senderId === auth.currentUser.uid ? '#FFFFFF' : theme?.colors?.text }
+                ]}>
+                  {item.text}
                 </Text>
               </View>
-            )
-          )}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyChat}>
-              <Text style={[styles.emptyChatText, { color: theme?.colors?.textSecondary }]}>
-                No messages yet
-              </Text>
-            </View>
-          )}
-        />
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <View style={[styles.inputContainer, { 
-          backgroundColor: theme?.colors?.surface,
-          borderTopColor: theme?.colors?.border
-        }]}>
-          <View style={styles.inputRow}>
-            <View style={[styles.inputWrapper, { backgroundColor: theme?.colors?.background }]}>
-              <TextInput
-                style={[styles.input, { color: theme?.colors?.text }]}
-                value={newMessage}
-                onChangeText={setNewMessage}
-                placeholder="Message..."
-                placeholderTextColor={theme?.colors?.textSecondary}
-                multiline
-              />
-            </View>
-            <TouchableOpacity style={styles.attachButton}>
-              <Ionicons name="image-outline" size={24} color={theme?.colors?.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.attachButton}>
-              <Ionicons name="mic-outline" size={24} color={theme?.colors?.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.sendButton, { 
-                backgroundColor: newMessage.trim() ? '#6C5CE7' : theme?.colors?.border 
-              }]}
-              onPress={sendMessage}
-              disabled={!newMessage.trim()}
-            >
-              <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+            )}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.messagesList}
+          />
         </View>
+
+        {/* Input */}
+        <SafeAreaView style={[styles.inputContainer, { 
+          borderTopColor: theme?.colors?.border || '#2C2C2E',
+          backgroundColor: theme?.colors?.background
+        }]}>
+          <TextInput
+            style={[styles.input, { 
+              color: theme?.colors?.text,
+              backgroundColor: theme?.colors?.surface || '#1C1C1E',
+              borderColor: theme?.colors?.border || '#2C2C2E'
+            }]}
+            value={newMessage}
+            onChangeText={setNewMessage}
+            placeholder="Message..."
+            placeholderTextColor={theme?.colors?.textSecondary}
+          />
+          <TouchableOpacity 
+            style={[styles.sendButton, { 
+              backgroundColor: newMessage.trim() ? '#6C5CE7' : theme?.colors?.border || '#2C2C2E'
+            }]}
+            onPress={sendMessage}
+            disabled={!newMessage.trim()}
+          >
+            <Text style={[styles.sendButtonText, { color: '#FFFFFF' }]}>Send</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
       </KeyboardAvoidingView>
+    );
+  }
+
+  // If no client is selected and not showing inbox, show empty state
+  return (
+    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.noChat, { color: theme?.colors?.textSecondary }]}>
+        Select a client to start chatting
+      </Text>
     </View>
   );
 }
@@ -459,117 +424,70 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.regular,
   },
   chatHeader: {
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: Layout.spacing.medium,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    height: 56,
+    padding: 10,
+    borderBottomWidth: 1,
   },
   backButton: {
-    marginRight: Layout.spacing.medium,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
+    fontSize: 16,
+    color: 'blue',
+    marginRight: 10,
   },
   headerText: {
-    fontSize: 20,
-    fontFamily: Typography.fonts.semibold,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chatContainer: {
-    flex: 1,
-  },
-  dateHeader: {
-    alignItems: 'center',
-    paddingVertical: Layout.spacing.small,
-  },
-  dateText: {
-    fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.medium,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   messageContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginVertical: 4,
-    paddingHorizontal: Layout.spacing.medium,
-  },
-  messageInitialsCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  messageInitialsText: {
-    color: '#000000',
-    fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.medium,
+    padding: 10,
+    margin: 5,
+    maxWidth: '80%',
+    borderRadius: 20,
   },
   ownMessage: {
-    justifyContent: 'flex-end',
+    alignSelf: 'flex-end',
+    backgroundColor: '#6C5CE7',
   },
   otherMessage: {
-    justifyContent: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    padding: Layout.spacing.medium,
-    borderRadius: 20,
-    minHeight: 40,
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#2C2C2E',
   },
   messageText: {
     fontSize: 16,
-    fontFamily: Typography.fonts.regular,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   inputContainer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 8,
-    paddingHorizontal: Layout.spacing.medium,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 8,
-  },
-  inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  inputWrapper: {
-    flex: 1,
-    borderRadius: 20,
-    marginRight: Layout.spacing.small,
-    paddingHorizontal: Layout.spacing.medium,
-    paddingVertical: 8,
-    maxHeight: 100,
+    padding: 10,
+    borderTopWidth: 1,
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   input: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
-  attachButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 20,
+    marginRight: 10,
+    fontSize: 16,
+    minHeight: 40,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    padding: 10,
+    borderRadius: 20,
+    height: 40,
+    width: 70,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   noChat: {
     textAlign: 'center',
@@ -580,17 +498,20 @@ const styles = StyleSheet.create({
   clientsList: {
     paddingVertical: Layout.spacing.small,
   },
-  messagesList: {
-    paddingVertical: Layout.spacing.medium,
-  },
   emptyChat: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     padding: Layout.spacing.xlarge,
   },
   emptyChatText: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
+  },
+  messagesContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  messagesList: {
+    flexGrow: 1,
+    paddingVertical: Layout.spacing.medium,
   },
 }); 

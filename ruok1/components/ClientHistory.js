@@ -20,6 +20,26 @@ export default function ClientHistory({ route, navigation }) {
   const [clientEmail, setClientEmail] = useState('');
   const [exerciseHistory, setExerciseHistory] = useState([]);
 
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0',
+    border: '#2C2C2E'
+  };
+
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary,
+    border: theme?.colors?.border || defaultColors.border
+  };
+
   useEffect(() => {
     loadClientData();
   }, [clientId]);
@@ -68,16 +88,16 @@ export default function ClientHistory({ route, navigation }) {
   const renderExerciseCard = (item) => (
     <View
       key={item.id}
-      style={[styles.historyCard, { backgroundColor: '#2C2C2E' }]}
+      style={[styles.historyCard, { backgroundColor: colors.surface }]}
     >
       <View style={styles.historyHeader}>
         <View style={styles.headerLeft}>
-          <Ionicons name="barbell" size={24} color={theme.colors.primary} />
-          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+          <Ionicons name="barbell" size={24} color={colors.primary} />
+          <Text style={[styles.exerciseTitle, { color: colors.text }]}>
             {item.exerciseId}
           </Text>
         </View>
-        <Text style={[styles.date, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.date, { color: colors.textSecondary }]}>
           {formatDate(item.date)}
         </Text>
       </View>
@@ -87,10 +107,10 @@ export default function ClientHistory({ route, navigation }) {
           if (['id', 'exerciseId', 'completedAt', 'date'].includes(key)) return null;
           return (
             <View key={key} style={styles.resultItem}>
-              <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.resultLabel, { color: colors.textSecondary }]}>
                 {key}:
               </Text>
-              <Text style={[styles.resultValue, { color: theme.colors.text }]}>
+              <Text style={[styles.resultValue, { color: colors.text }]}>
                 {value.toString()}
               </Text>
             </View>
@@ -101,27 +121,27 @@ export default function ClientHistory({ route, navigation }) {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.clientEmail, { color: theme.colors.text }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.clientEmail, { color: colors.text }]}>
           {clientEmail}
         </Text>
       </View>
 
       <TouchableOpacity
-        style={[styles.breathingButton, { backgroundColor: theme.colors.primary }]}
+        style={[styles.breathingButton, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate('ClientBreathHistory', { clientId: clientId })}
       >
         <Ionicons name="fitness" size={24} color="#FFFFFF" />
         <Text style={styles.breathingButtonText}>View Breathing History</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
         Exercise History
       </Text>
 
       {loading ? (
-        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
           Loading...
         </Text>
       ) : exerciseHistory.length > 0 ? (
@@ -129,7 +149,7 @@ export default function ClientHistory({ route, navigation }) {
           {exerciseHistory.map(item => renderExerciseCard(item))}
         </ScrollView>
       ) : (
-        <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
           No exercise history yet
         </Text>
       )}

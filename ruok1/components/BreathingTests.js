@@ -1,161 +1,80 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
-const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = width;
-
-const categories = [
+const tests = [
   {
-    id: 'baseline',
-    title: 'Baseline Tests',
-    tests: [
-      {
-        id: 1,
-        title: 'CO2 Tolerance',
-        category: 'Baseline',
-        date: 'Dec 9',
-        icon: 'timer-outline',
-        color: '#2C2C2E',
-      },
-      {
-        id: 2,
-        title: 'O2 Advantage Test',
-        category: 'Baseline',
-        date: 'Dec 9',
-        icon: 'pulse-outline',
-        color: '#2C2C2E',
-      }
-    ]
+    id: 1,
+    title: 'CO2 Tolerance',
+    category: 'Baseline',
+    description: 'Measure your CO2 tolerance level',
+    icon: 'timer-outline',
+    color: '#4A90E2',
   },
   {
-    id: 'performance',
-    title: 'Performance Tests',
-    tests: [
-      {
-        id: 3,
-        title: 'Recovery Rate',
-        category: 'Performance',
-        date: 'Dec 9',
-        icon: 'trending-up-outline',
-        color: '#FF3B30',
-      },
-      {
-        id: 4,
-        title: 'Breath Hold Time',
-        category: 'Performance',
-        date: 'Dec 9',
-        icon: 'stopwatch-outline',
-        color: '#5856D6',
-      }
-    ]
-  }
-]; 
+    id: 2,
+    title: 'O2 Advantage Test',
+    category: 'Baseline',
+    description: 'Measure your oxygen efficiency',
+    icon: 'pulse-outline',
+    color: '#FF9500',
+  },
+  {
+    id: 3,
+    title: 'BOLT Score',
+    category: 'Assessment',
+    description: 'Body Oxygen Level Test',
+    icon: 'analytics-outline',
+    color: '#FF3B30',
+  },
+  {
+    id: 4,
+    title: 'MAX Breath Hold',
+    category: 'Performance',
+    description: 'Maximum breath hold duration',
+    icon: 'stopwatch-outline',
+    color: '#5856D6',
+  },
+];
 
-export default function BreathingTests({ route, navigation }) {
-  const { selectionMode, onSelect } = route.params || {};
-  const { theme } = useTheme();
-  const [currentPage, setCurrentPage] = useState(0);
-
-  const handleTestPress = (test) => {
-    if (selectionMode && onSelect) {
-      onSelect(test);
-    } else {
-      navigation.navigate('TestDetail', { test });
-    }
-  };
-
-  const handleScroll = (event) => {
-    const page = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentPage(page);
-  };
-
+export default function BreathingTests({ navigation }) {
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView 
-        horizontal
-        pagingEnabled
-        decelerationRate="fast"
-        snapToInterval={COLUMN_WIDTH}
-        snapToAlignment="center"
-        showsHorizontalScrollIndicator={false}
-        style={styles.horizontalScroll}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {categories.map((category) => (
-          <View key={category.id} style={styles.column}>
-            <Text style={styles.columnTitle}>{category.title}</Text>
-            
-            <ScrollView 
-              style={styles.testList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.testListContent}
-            >
-              {category.tests.map((test) => (
-                <TouchableOpacity
-                  key={test.id}
-                  style={[styles.testItem, { backgroundColor: test.color }]}
-                  onPress={() => handleTestPress(test)}
-                >
-                  <Ionicons 
-                    name={test.icon} 
-                    size={24} 
-                    color="#00B5E0" 
-                    style={styles.testIcon}
-                  />
-                  <View style={styles.testContent}>
-                    <Text style={styles.testTitle}>{test.title}</Text>
-                    <View style={styles.testDetails}>
-                      <Text style={styles.date}>{test.date}</Text>
-                      <Text style={styles.category}>#{test.category}</Text>
-                    </View>
-                  </View>
-                  {selectionMode && (
-                    <Ionicons 
-                      name="add-circle-outline" 
-                      size={24} 
-                      color="#00B5E0" 
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
+    <View style={styles.container}>
+      <Text style={styles.title}>
+        Breathing Tests
+      </Text>
+      <Text style={styles.subtitle}>
+        Assess your breathing capacity
+      </Text>
 
-              <TouchableOpacity style={styles.addButton}>
-                <Ionicons name="add" size={24} color="#00B5E0" />
-                <Text style={[styles.addButtonText, { color: '#00B5E0' }]}>
-                  Add {category.title}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {tests.map((test) => (
+          <TouchableOpacity
+            key={test.id}
+            style={[styles.card, { backgroundColor: test.color }]}
+            onPress={() => navigation.navigate('BreathTestDetail', { test })}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name={test.icon} size={24} color="#FFFFFF" />
+              <Text style={styles.cardTitle}>{test.title}</Text>
+            </View>
+            <Text style={styles.cardDescription}>{test.description}</Text>
+            <Text style={styles.cardCategory}>#{test.category}</Text>
+          </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <View style={styles.pageIndicator}>
-        {categories.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: currentPage === index ? '#00B5E0' : '#48484A',
-              },
-            ]}
-          />
-        ))}
-      </View>
     </View>
   );
 }
@@ -163,91 +82,53 @@ export default function BreathingTests({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: Layout.spacing.large,
+    backgroundColor: '#1C1C1E',
   },
-  horizontalScroll: {
-    flex: 1,
-  },
-  column: {
-    width: COLUMN_WIDTH,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  columnTitle: {
-    fontSize: 28,
-    fontFamily: Typography.fonts.semibold,
+  title: {
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
     color: '#FFFFFF',
-    marginVertical: 20,
   },
-  testList: {
+  subtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+    color: '#8E8E93',
+  },
+  scrollView: {
     flex: 1,
   },
-  testListContent: {
+  scrollContent: {
     paddingBottom: Layout.spacing.large,
   },
-  testItem: {
+  card: {
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+    marginBottom: Layout.spacing.medium,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: Layout.spacing.medium,
   },
-  testIcon: {
-    marginRight: 12,
-    width: 24,
-  },
-  testContent: {
-    flex: 1,
-  },
-  testTitle: {
-    fontSize: 17,
+  cardTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
     color: '#FFFFFF',
+    marginLeft: Layout.spacing.medium,
+  },
+  cardDescription: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    marginBottom: 4,
-  },
-  testDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  date: {
-    fontSize: 15,
     color: '#FFFFFF',
-    marginRight: 8,
-    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.small,
   },
-  category: {
-    fontSize: 15,
+  cardCategory: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
     color: '#FFFFFF',
     opacity: 0.8,
-    fontFamily: Typography.fonts.regular,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  addButtonText: {
-    fontSize: 17,
-    marginLeft: 8,
-    fontFamily: Typography.fonts.regular,
-  },
-  pageIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(28, 28, 30, 0.7)',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
   },
 }); 
