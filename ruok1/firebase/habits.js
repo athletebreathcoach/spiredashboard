@@ -54,13 +54,14 @@ export const getTasks = async () => {
 // Get a specific habit or task by ID
 export const getHabitTaskById = async (itemId) => {
   try {
-    const doc = await getDoc(doc(db, 'habitstasks', itemId));
-    if (!doc.exists()) {
+    const docRef = doc(db, 'habitstasks', itemId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
       throw new Error('Item not found');
     }
     return {
-      id: doc.id,
-      ...doc.data()
+      id: docSnap.id,
+      ...docSnap.data()
     };
   } catch (error) {
     console.error('Error getting habit/task:', error);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
@@ -12,7 +12,7 @@ import ClientSelector from './ClientSelector';
 const { width } = Dimensions.get('window');
 const DAY_WIDTH = width / 7;
 
-export default function Training({ navigation }) {
+export default function Training({ navigation, route }) {
   const theme = useTheme();
   const [exercises, setExercises] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,6 +20,27 @@ export default function Training({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Add a focus listener to refresh data when returning to this screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadExercisesForDate(selectedDate);
+    });
+
+    return unsubscribe;
+  }, [navigation, selectedDate]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error refreshing exercises:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedDate]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -234,9 +255,17 @@ export default function Training({ navigation }) {
         </View>
 
         <ScrollView 
-          style={[styles.scrollView, { marginTop: -1 }]} 
-          contentContainerStyle={[styles.scrollViewContent, { marginTop: 0, paddingTop: 0 }]}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
         >
           {loading ? (
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
@@ -310,23 +339,15 @@ export default function Training({ navigation }) {
               })}
             </View>
           ) : (
-            <View style={[styles.emptyContainer, { marginTop: 40 }]}>
-              <Ionicons 
-                name="calendar-outline" 
-                size={48} 
-                color={theme.colors.textSecondary} 
-                style={styles.emptyIcon}
-              />
+            <View style={[styles.emptyContainer, { marginTop: -150 }]}>
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                No exercises scheduled for {selectedDate.toLocaleDateString()}
+                No exercises scheduled
               </Text>
               <TouchableOpacity
-                style={[styles.addFirstButton, { backgroundColor: theme.colors.primary }]}
+                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleAddExercise}
               >
-                <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>
-                  Add First Exercise
-                </Text>
+                <Text style={[styles.addButtonText, { color: theme.colors.white }]}>Add First Exercise</Text>
               </TouchableOpacity>
             </View>
           )}

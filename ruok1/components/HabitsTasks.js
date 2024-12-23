@@ -47,7 +47,7 @@ export default function HabitsTasks({ navigation, route }) {
     if (isSelectionMode && onItemSelect) {
       try {
         await onItemSelect(item);
-        navigation.goBack();
+        // Navigation is handled in the callback
       } catch (error) {
         console.error('Error in handleAddPress:', error);
       }
