@@ -51,12 +51,14 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.homeContainer, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.homeContainer, { backgroundColor: theme?.colors?.background }]}>
       <TouchableOpacity 
-        style={styles.breathButton}
+        style={[styles.breathButton, { backgroundColor: theme?.colors?.primary }]}
         onPress={handleBreathGuide}
       >
-        <Text style={styles.breathButtonText}>Breath Guide</Text>
+        <Text style={[styles.breathButtonText, { color: theme?.colors?.background }]}>
+          Breath Guide
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -458,12 +460,10 @@ function AuthenticatedStack({ user }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
     paddingVertical: 20,
   },
   homeContainer: {
     flex: 1,
-    backgroundColor: '#000000',
     paddingVertical: 20,
     alignItems: 'center',
   },
@@ -474,16 +474,14 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   breathButton: {
-    backgroundColor: '#00B5E0',
     paddingVertical: 20,
     paddingHorizontal: 50,
     borderRadius: 12,
-    shadowColor: '#00B5E0',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
     transform: [{ scale: 1.05 }],
