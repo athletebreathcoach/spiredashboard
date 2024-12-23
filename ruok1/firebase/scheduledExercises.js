@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   deleteDoc
 } from 'firebase/firestore';
+import { getHabitTaskById } from './habits';
 
 // Create a new scheduled exercise
 export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, options = {}) => {
@@ -214,6 +215,110 @@ export const deleteScheduledExercise = async (exerciseId) => {
     return true;
   } catch (error) {
     console.error('Error deleting scheduled exercise:', error);
+    throw error;
+  }
+};
+
+// Schedule a habit
+export const scheduleHabit = async (userId, habitId, scheduledDateTime, options = {}) => {
+  try {
+    const habit = await getHabitTaskById(habitId);
+    
+    const scheduledExerciseRef = collection(db, 'scheduledExercises');
+    
+    const scheduledHabit = {
+      habitId: habitId,
+      userId,
+      exerciseTitle: habit.title,
+      type: 'habit',
+      scheduledDateTime,
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        streak: 0,
+      },
+      clientComments: '',
+      coachNotes: '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      ...options
+    };
+
+    const docRef = await addDoc(scheduledExerciseRef, scheduledHabit);
+    return { id: docRef.id, ...scheduledHabit };
+  } catch (error) {
+    console.error('Error scheduling habit:', error);
+    throw error;
+  }
+};
+
+// Schedule a task
+export const scheduleTask = async (userId, taskId, scheduledDateTime, options = {}) => {
+  try {
+    const task = await getHabitTaskById(taskId);
+    
+    const scheduledExerciseRef = collection(db, 'scheduledExercises');
+    
+    const scheduledTask = {
+      taskId: taskId,
+      userId,
+      exerciseTitle: task.title,
+      type: 'task',
+      scheduledDateTime,
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        priority: task.priority || 'medium',
+      },
+      clientComments: '',
+      coachNotes: '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      ...options
+    };
+
+    const docRef = await addDoc(scheduledExerciseRef, scheduledTask);
+    return { id: docRef.id, ...scheduledTask };
+  } catch (error) {
+    console.error('Error scheduling task:', error);
+    throw error;
+  }
+};
+
+// Update habit completion status
+export const updateHabitStatus = async (scheduledExerciseId, completed) => {
+  try {
+    const exerciseRef = doc(db, 'scheduledExercises', scheduledExerciseId);
+    
+    await updateDoc(exerciseRef, {
+      'metrics.completed': completed,
+      status: completed ? 'completed' : 'scheduled',
+      updatedAt: serverTimestamp()
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error updating habit status:', error);
+    throw error;
+  }
+};
+
+// Update task completion status
+export const updateTaskStatus = async (scheduledExerciseId, completed) => {
+  try {
+    const exerciseRef = doc(db, 'scheduledExercises', scheduledExerciseId);
+    
+    await updateDoc(exerciseRef, {
+      'metrics.completed': completed,
+      status: completed ? 'completed' : 'scheduled',
+      updatedAt: serverTimestamp()
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error updating task status:', error);
     throw error;
   }
 };

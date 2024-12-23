@@ -14,19 +14,10 @@ service cloud.firestore {
       return request.auth.uid == userId || isCoach();
     }
 
-    // Give users full access to all their data and subcollections
-    match /users/{userId}/{document=**} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid == userId ||  // User accessing their own data
-        isCoach()                      // Or is a coach
-      );
-      allow write: if isAuthenticated() && request.auth.uid == userId;  // Only users can write their own data
-    }
-
-    // Explicit rules for training collection
-    match /users/{userId}/training/{date} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
-      allow read: if isAuthenticated() && isCoach();
+    // Rules for habitstasks collection
+    match /habitstasks/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isCoach();  // Only coaches can create/modify habits and tasks
     }
 
     // Rules for scheduled exercises root collection

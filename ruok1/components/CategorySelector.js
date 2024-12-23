@@ -12,6 +12,7 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { scheduleGuidedSession } from '../firebase/guidedSessions';
 import { scheduleExercise } from '../firebase/scheduledExercises';
+import { scheduleHabit, scheduleTask } from '../firebase/scheduledExercises';
 import { auth } from '../config/firebase';
 
 const categories = [
@@ -90,6 +91,32 @@ export default function CategorySelector({ navigation, route }) {
             navigation.navigate('Training');
           } catch (error) {
             console.error('Error scheduling exercise:', error);
+          }
+        }
+      });
+    } else if (category.navigateTo === 'HabitsTasks') {
+      navigation.navigate('HabitsTasks', {
+        mode: 'selection',
+        selectedDate,
+        itemType: 'habit',
+        onItemSelect: async (item) => {
+          try {
+            if (item.type === 'habit') {
+              await scheduleHabit(
+                auth.currentUser.uid,
+                item.id,
+                selectedDate
+              );
+            } else {
+              await scheduleTask(
+                auth.currentUser.uid,
+                item.id,
+                selectedDate
+              );
+            }
+            navigation.navigate('Training');
+          } catch (error) {
+            console.error('Error scheduling habit/task:', error);
           }
         }
       });

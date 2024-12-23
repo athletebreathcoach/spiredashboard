@@ -266,13 +266,35 @@ export default function Training({ navigation }) {
                         <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
                           {exercise.duration}
                         </Text>
+                      ) : exercise.type === 'habit' ? (
+                        <View style={styles.habitMetrics}>
+                          <Ionicons 
+                            name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                            size={20} 
+                            color={theme.colors.primary} 
+                          />
+                          <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                            Streak: {exercise.metrics?.streak || 0}
+                          </Text>
+                        </View>
+                      ) : exercise.type === 'task' ? (
+                        <View style={styles.taskMetrics}>
+                          <Ionicons 
+                            name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                            size={20} 
+                            color={theme.colors.primary} 
+                          />
+                          <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                            Priority: {exercise.metrics?.priority || 'medium'}
+                          </Text>
+                        </View>
                       ) : (
                         <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
                           {exercise.sets}x{exercise.reps}
                         </Text>
                       )}
                       {exercise.description && (
-                        <Text style={[styles.exerciseDescription, { color: theme.colors.text }]}>
+                        <Text style={[styles.exerciseDescription, { color: theme.colors.textSecondary }]}>
                           {exercise.description}
                         </Text>
                       )}
@@ -288,7 +310,7 @@ export default function Training({ navigation }) {
               })}
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
+            <View style={[styles.emptyContainer, { marginTop: 40 }]}>
               <Ionicons 
                 name="calendar-outline" 
                 size={48} 
@@ -302,7 +324,9 @@ export default function Training({ navigation }) {
                 style={[styles.addFirstButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleAddExercise}
               >
-                <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>Add First Exercise</Text>
+                <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>
+                  Add First Exercise
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -360,6 +384,7 @@ const styles = StyleSheet.create({
   },
   exerciseContent: {
     flex: 1,
+    paddingRight: Layout.spacing.small,
   },
   exerciseTitle: {
     fontSize: 20,
@@ -369,7 +394,7 @@ const styles = StyleSheet.create({
   exerciseMetrics: {
     fontSize: 17,
     fontFamily: Typography.fonts.medium,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   exerciseDescription: {
     fontSize: 15,
@@ -378,6 +403,7 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: Layout.spacing.small,
+    alignSelf: 'center',
   },
   addButton: {
     position: 'absolute',
@@ -428,6 +454,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 0,
   },
   emptyIcon: {
@@ -470,5 +497,15 @@ const styles = StyleSheet.create({
   exerciseList: {
     paddingTop: 0,
     marginTop: 8,
+  },
+  habitMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  taskMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 }); 

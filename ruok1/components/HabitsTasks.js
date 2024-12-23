@@ -1,58 +1,76 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { useTheme } from '../theme/ThemeContext';
+import { getHabits, getTasks } from '../firebase/habits';
 
-const habits = [
-  {
-    id: 1,
-    title: 'Morning Breath Work',
-    category: 'Daily',
-    description: 'Start your day with mindful breathing',
-    icon: 'sunny-outline',
-    color: '#4A90E2',
-  },
-  {
-    id: 2,
-    title: 'Evening Wind Down',
-    category: 'Daily',
-    description: 'Prepare for restful sleep',
-    icon: 'moon-outline',
-    color: '#FF9500',
-  },
-  {
-    id: 3,
-    title: 'Pre-Workout Routine',
-    category: 'Exercise',
-    description: 'Optimize your workout performance',
-    icon: 'barbell-outline',
-    color: '#FF3B30',
-  },
-  {
-    id: 4,
-    title: 'Recovery Session',
-    category: 'Exercise',
-    description: 'Enhance post-workout recovery',
-    icon: 'refresh-outline',
-    color: '#5856D6',
-  },
-];
+export default function HabitsTasks({ navigation, route }) {
+  const theme = useTheme();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isSelectionMode = route.params?.mode === 'selection';
+  const onItemSelect = route.params?.onItemSelect;
+  const selectedDate = route.params?.selectedDate;
+  const itemType = route.params?.itemType || 'habit'; // 'habit' or 'task'
 
-export default function HabitsTasks({ navigation }) {
+  useEffect(() => {
+    loadItems();
+  }, [itemType]);
+
+  const loadItems = async () => {
+    try {
+      const itemsData = itemType === 'habit' ? await getHabits() : await getTasks();
+      setItems(itemsData);
+    } catch (error) {
+      console.error('Error loading items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleItemPress = (item) => {
+    if (!isSelectionMode) {
+      navigation.navigate('HabitTaskDetail', { item });
+    }
+  };
+
+  const handleAddPress = async (item) => {
+    if (isSelectionMode && onItemSelect) {
+      try {
+        await onItemSelect(item);
+        navigation.goBack();
+      } catch (error) {
+        console.error('Error in handleAddPress:', error);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        Habits & Tasks
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        {isSelectionMode ? `Add ${itemType === 'habit' ? 'Habit' : 'Task'}` : 'Habits & Tasks'}
       </Text>
-      <Text style={styles.subtitle}>
-        Build consistent breathing practices
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+        {isSelectionMode 
+          ? `Select a ${itemType} to add to schedule` 
+          : 'Build consistent practices and complete tasks'}
       </Text>
 
       <ScrollView 
@@ -60,18 +78,37 @@ export default function HabitsTasks({ navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {habits.map((habit) => (
+        {items.map((item) => (
           <TouchableOpacity
-            key={habit.id}
-            style={[styles.card, { backgroundColor: habit.color }]}
-            onPress={() => navigation.navigate('HabitDetail', { habit })}
+            key={item.id}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleItemPress(item)}
           >
-            <View style={styles.cardHeader}>
-              <Ionicons name={habit.icon} size={24} color="#FFFFFF" />
-              <Text style={styles.cardTitle}>{habit.title}</Text>
+            <View style={styles.cardContent}>
+              <View style={styles.cardHeader}>
+                <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{item.title}</Text>
+              </View>
+              <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
+                {item.description}
+              </Text>
+              {item.type === 'task' && (
+                <Text style={[styles.cardPriority, { color: theme.colors.primary }]}>
+                  Priority: {item.priority}
+                </Text>
+              )}
             </View>
-            <Text style={styles.cardDescription}>{habit.description}</Text>
-            <Text style={styles.cardCategory}>#{habit.category}</Text>
+
+            {isSelectionMode && (
+              <View style={styles.addButtonContainer}>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => handleAddPress(item)}
+                >
+                  <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
+                </TouchableOpacity>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -83,19 +120,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.large,
-    backgroundColor: '#1C1C1E',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
     marginBottom: Layout.spacing.small,
-    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
-    color: '#8E8E93',
   },
   scrollView: {
     flex: 1,
@@ -107,6 +145,11 @@ const styles = StyleSheet.create({
     padding: Layout.spacing.large,
     borderRadius: Layout.borderRadius.large,
     marginBottom: Layout.spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardContent: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -116,19 +159,22 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.bold,
-    color: '#FFFFFF',
     marginLeft: Layout.spacing.medium,
   },
   cardDescription: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
     marginBottom: Layout.spacing.small,
   },
-  cardCategory: {
+  cardPriority: {
     fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
-    opacity: 0.8,
+    fontFamily: Typography.fonts.medium,
+  },
+  addButtonContainer: {
+    marginLeft: Layout.spacing.medium,
+    justifyContent: 'center',
+  },
+  addButton: {
+    padding: Layout.spacing.small,
   },
 }); 
