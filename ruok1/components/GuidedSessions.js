@@ -55,10 +55,10 @@ export default function GuidedSessions({ navigation, route }) {
   return (
     <View style={[styles.container, { backgroundColor: theme?.colors?.background ?? '#000000' }]}>
       <Text style={[styles.title, { color: theme?.colors?.text ?? '#FFFFFF' }]}>
-        Guided Sessions
+        {isSelectionMode ? 'Add Guided Session' : 'Guided Sessions'}
       </Text>
       <Text style={[styles.subtitle, { color: theme?.colors?.textSecondary ?? '#A0A0A0' }]}>
-        Follow along with guided breathing practices
+        {isSelectionMode ? 'Select a session to add to schedule' : 'Follow along with guided breathing practices'}
       </Text>
 
       <ScrollView 
@@ -85,7 +85,12 @@ export default function GuidedSessions({ navigation, route }) {
                 <Text style={[styles.duration, { color: theme?.colors?.text ?? '#FFFFFF' }]}>{session.duration}</Text>
               </View>
               {isSelectionMode && (
-                <Ionicons name="add-circle-outline" size={24} color={theme?.colors?.primary ?? '#00B5E0'} />
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => handleSessionPress(session)}
+                >
+                  <Ionicons name="add-circle" size={32} color={theme?.colors?.primary ?? '#00B5E0'} />
+                </TouchableOpacity>
               )}
             </View>
           </TouchableOpacity>
@@ -149,5 +154,8 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginLeft: Layout.spacing.small,
+  },
+  addButton: {
+    padding: Layout.spacing.small,
   },
 }); 

@@ -37,6 +37,7 @@ import ProgramDetail from './components/ProgramDetail';
 import ProgramDayEdit from './components/ProgramDayEdit';
 import ClientBreathHistory from './components/ClientBreathHistory';
 import Chat from './components/Chat';
+import CategorySelector from './components/CategorySelector';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -437,6 +438,17 @@ function AuthenticatedStack({ user }) {
         options={{
           headerShown: false,
           presentation: 'modal'
+        }}
+      />
+      <Stack.Screen 
+        name="CategorySelector" 
+        component={CategorySelector}
+        options={{
+          title: 'Add to Schedule',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
         }}
       />
     </Stack.Navigator>

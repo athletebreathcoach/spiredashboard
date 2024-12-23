@@ -93,22 +93,8 @@ export default function Training({ navigation }) {
   };
 
   const handleAddExercise = () => {
-    // If coach is viewing their own calendar or if user is not a coach
-    const targetUserId = selectedClient?.id || auth.currentUser.uid;
-    
-    navigation.navigate('Exercises', {
-      mode: 'selection',
-      targetUserId,
+    navigation.navigate('CategorySelector', {
       selectedDate,
-      onExerciseSelect: async (exercise) => {
-        try {
-          await scheduleExercise(targetUserId, exercise.id, selectedDate);
-          // Refresh the exercises list
-          loadExercisesForDate(selectedDate);
-        } catch (error) {
-          console.error('Error scheduling exercise:', error);
-        }
-      }
     });
   };
 

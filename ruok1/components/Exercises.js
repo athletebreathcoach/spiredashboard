@@ -19,6 +19,7 @@ export default function Exercises({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const isSelectionMode = route.params?.mode === 'selection';
   const onExerciseSelect = route.params?.onExerciseSelect;
+  const selectedDate = route.params?.selectedDate;
 
   useEffect(() => {
     loadExercises();
@@ -36,11 +37,19 @@ export default function Exercises({ navigation, route }) {
   };
 
   const handleExercisePress = (exercise) => {
-    if (isSelectionMode && onExerciseSelect) {
-      onExerciseSelect(exercise);
-      navigation.goBack();
-    } else {
+    if (!isSelectionMode) {
       navigation.navigate('ExerciseDetail', { exercise });
+    }
+  };
+
+  const handleAddPress = async (exercise) => {
+    console.log('Add button pressed', { exercise, isSelectionMode, onExerciseSelect, selectedDate });
+    if (isSelectionMode && onExerciseSelect) {
+      try {
+        await onExerciseSelect(exercise);
+      } catch (error) {
+        console.error('Error in handleAddPress:', error);
+      }
     }
   };
 
@@ -94,7 +103,7 @@ export default function Exercises({ navigation, route }) {
               <View style={styles.addButtonContainer}>
                 <TouchableOpacity
                   style={styles.addButton}
-                  onPress={() => handleExercisePress(exercise)}
+                  onPress={() => handleAddPress(exercise)}
                 >
                   <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
                 </TouchableOpacity>
