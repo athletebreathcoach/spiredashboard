@@ -14,7 +14,7 @@ import Typography from '../constants/Typography';
 import { getPresetExercises } from '../firebase/exercises';
 
 export default function ExerciseSelector({ route, navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const { onSelect } = route.params;
   const [exercises, setExercises] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,13 +72,13 @@ export default function ExerciseSelector({ route, navigation }) {
         {filteredExercises.map((exercise) => (
           <TouchableOpacity
             key={exercise.id}
-            style={[styles.exerciseCard, { backgroundColor: '#2C2C2E' }]}
+            style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
             onPress={() => handleSelect(exercise)}
           >
             <Ionicons 
               name={exercise.icon} 
               size={24} 
-              color="#00B5E0" 
+              color={theme.colors.primary} 
               style={styles.exerciseIcon}
             />
             <View style={styles.exerciseContent}>
@@ -89,7 +89,7 @@ export default function ExerciseSelector({ route, navigation }) {
                 <Text style={[styles.exerciseType, { color: theme.colors.textSecondary }]}>
                   {exercise.type}
                 </Text>
-                <Text style={[styles.exerciseCategory, { color: '#00B5E0' }]}>
+                <Text style={[styles.exerciseCategory, { color: theme.colors.primary }]}>
                   #{exercise.category}
                 </Text>
               </View>
@@ -97,7 +97,7 @@ export default function ExerciseSelector({ route, navigation }) {
             <Ionicons 
               name="add-circle-outline" 
               size={24} 
-              color="#00B5E0" 
+              color={theme.colors.primary} 
             />
           </TouchableOpacity>
         ))}

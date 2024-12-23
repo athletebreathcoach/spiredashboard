@@ -14,7 +14,7 @@ import Typography from '../constants/Typography';
 import { Calendar } from 'react-native-calendars';
 
 export default function ProgramDetail({ route, navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const { program } = route.params;
   const [programType, setProgramType] = useState(null); // 'weekly' or 'calendar'
   const [showTypeSelector, setShowTypeSelector] = useState(true);
@@ -69,16 +69,16 @@ export default function ProgramDetail({ route, navigation }) {
         transparent
         animationType="slide"
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Select Program Type
             </Text>
             <TouchableOpacity
-              style={styles.typeOption}
+              style={[styles.typeOption, { backgroundColor: theme.colors.background }]}
               onPress={() => handleTypeSelect('weekly')}
             >
-              <Ionicons name="calendar-outline" size={24} color="#00B5E0" />
+              <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
               <View style={styles.typeOptionContent}>
                 <Text style={[styles.typeTitle, { color: theme.colors.text }]}>
                   Weekly Schedule
@@ -89,10 +89,10 @@ export default function ProgramDetail({ route, navigation }) {
               </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.typeOption}
+              style={[styles.typeOption, { backgroundColor: theme.colors.background }]}
               onPress={() => handleTypeSelect('calendar')}
             >
-              <Ionicons name="today-outline" size={24} color="#00B5E0" />
+              <Ionicons name="today-outline" size={24} color={theme.colors.primary} />
               <View style={styles.typeOptionContent}>
                 <Text style={[styles.typeTitle, { color: theme.colors.text }]}>
                   Calendar Based

@@ -14,7 +14,7 @@ import { addProgramDayItem, getProgramDayItems } from '../firebase/programs';
 import { auth } from '../config/firebase';
 
 export default function ProgramDayEdit({ route, navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const { program, day, date, type } = route.params;
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,14 +120,10 @@ export default function ProgramDayEdit({ route, navigation }) {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          {type === 'weekly' ? day : new Date(date).toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
+          Edit Day
         </Text>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Add items to this day
+          Add or remove items for this day
         </Text>
       </View>
 
@@ -140,7 +136,7 @@ export default function ProgramDayEdit({ route, navigation }) {
             </Text>
             <ScrollView style={styles.selectedItems}>
               {items.map((item, index) => (
-                <View key={index} style={[styles.selectedItemCard, { backgroundColor: '#2C2C2E' }]}>
+                <View key={index} style={[styles.selectedItemCard, { backgroundColor: theme.colors.surface }]}>
                   <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{item.title}</Text>
                   <Text style={[styles.itemType, { color: theme.colors.textSecondary }]}>{item.type}</Text>
                 </View>
@@ -158,13 +154,13 @@ export default function ProgramDayEdit({ route, navigation }) {
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
-                style={[styles.categoryCard, { backgroundColor: '#2C2C2E' }]}
+                style={[styles.categoryCard, { backgroundColor: theme.colors.surface }]}
                 onPress={() => handleCategoryPress(category)}
               >
                 <Ionicons 
                   name={category.icon} 
                   size={24} 
-                  color="#00B5E0" 
+                  color={theme.colors.primary} 
                   style={styles.categoryIcon}
                 />
                 <View style={styles.categoryContent}>

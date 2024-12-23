@@ -12,11 +12,14 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { getExercises } from '../firebase/exercises';
 import { useTheme } from '../theme/ThemeContext';
+import ActivityMetricsForm from './ActivityMetricsForm';
 
 export default function Exercises({ navigation, route }) {
   const theme = useTheme();
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showMetricsForm, setShowMetricsForm] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState(null);
   const isSelectionMode = route.params?.mode === 'selection';
   const onExerciseSelect = route.params?.onExerciseSelect;
   const selectedDate = route.params?.selectedDate;
@@ -42,14 +45,17 @@ export default function Exercises({ navigation, route }) {
     }
   };
 
-  const handleAddPress = async (exercise) => {
-    console.log('Add button pressed', { exercise, isSelectionMode, onExerciseSelect, selectedDate });
+  const handleAddPress = (exercise) => {
     if (isSelectionMode && onExerciseSelect) {
-      try {
-        await onExerciseSelect(exercise);
-      } catch (error) {
-        console.error('Error in handleAddPress:', error);
-      }
+      setSelectedExercise({ ...exercise, type: 'exercise' });
+      setShowMetricsForm(true);
+    }
+  };
+
+  const handleMetricsSubmit = (metrics) => {
+    if (onExerciseSelect && selectedExercise) {
+      onExerciseSelect({ ...selectedExercise, metrics });
+      setShowMetricsForm(false);
     }
   };
 
@@ -112,6 +118,13 @@ export default function Exercises({ navigation, route }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <ActivityMetricsForm
+        visible={showMetricsForm}
+        onClose={() => setShowMetricsForm(false)}
+        onSubmit={handleMetricsSubmit}
+        activity={selectedExercise}
+      />
     </View>
   );
 }

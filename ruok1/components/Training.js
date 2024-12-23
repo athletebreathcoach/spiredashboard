@@ -339,14 +339,38 @@ export default function Training({ navigation, route }) {
                           </Text>
                         </View>
                       ) : (
-                        <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                          {exercise.sets}x{exercise.reps}
-                        </Text>
-                      )}
-                      {exercise.description && (
-                        <Text style={[styles.exerciseDescription, { color: theme.colors.textSecondary }]}>
-                          {exercise.description}
-                        </Text>
+                        <View style={styles.exerciseMetricsContainer}>
+                          {exercise.metrics?.sets && exercise.metrics?.reps && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                              {exercise.metrics.sets} × {exercise.metrics.reps}
+                            </Text>
+                          )}
+                          {exercise.metrics?.weights && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                              {exercise.metrics.weights}kg
+                            </Text>
+                          )}
+                          {exercise.metrics?.rir && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                              RIR: {exercise.metrics.rir}
+                            </Text>
+                          )}
+                          {exercise.metrics?.time && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                              {exercise.metrics.time}
+                            </Text>
+                          )}
+                          {exercise.metrics?.distance && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                              {exercise.metrics.distance}km
+                            </Text>
+                          )}
+                          {exercise.metrics?.oneRmPercentage && (
+                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                              {exercise.metrics.oneRmPercentage}% 1RM
+                            </Text>
+                          )}
+                        </View>
                       )}
                     </View>
                     <TouchableOpacity
@@ -549,5 +573,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  exerciseMetricsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  exerciseMetrics: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    backgroundColor: 'rgba(0, 181, 224, 0.1)',
+    paddingHorizontal: Layout.spacing.small,
+    paddingVertical: 4,
+    borderRadius: Layout.borderRadius.small,
   },
 }); 

@@ -39,7 +39,7 @@ const categories = [
 ];
 
 export default function AddSectionItem({ navigation, route }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   const handleSelectItem = (item) => {
@@ -62,10 +62,10 @@ export default function AddSectionItem({ navigation, route }) {
           {categories.map((category) => (
             <TouchableOpacity
               key={category.title}
-              style={[styles.categoryCard, { backgroundColor: '#2C2C2E' }]}
+              style={[styles.categoryCard, { backgroundColor: theme.colors.surface }]}
               onPress={() => setSelectedCategory(category)}
             >
-              <Ionicons name={category.icon} size={24} color="#00B5E0" />
+              <Ionicons name={category.icon} size={24} color={theme.colors.primary} />
               <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>
                 {category.title}
               </Text>
@@ -78,38 +78,41 @@ export default function AddSectionItem({ navigation, route }) {
           ))}
         </ScrollView>
       ) : (
-        // Show items in selected category
-        <ScrollView>
+        // Show items for selected category
+        <View>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { backgroundColor: theme.colors.surface }]}
             onPress={() => setSelectedCategory(null)}
           >
-            <Ionicons name="chevron-back" size={24} color="#00B5E0" />
-            <Text style={[styles.backText, { color: '#00B5E0' }]}>Categories</Text>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.primary} />
+            <Text style={[styles.backButtonText, { color: theme.colors.text }]}>
+              Back to Categories
+            </Text>
           </TouchableOpacity>
-
-          {selectedCategory.items.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.itemCard, { backgroundColor: '#2C2C2E' }]}
-              onPress={() => handleSelectItem(item)}
-            >
-              <View style={styles.itemContent}>
-                <Text style={[styles.itemTitle, { color: theme.colors.text }]}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.itemDuration, { color: '#00B5E0' }]}>
-                  {item.duration}
-                </Text>
-              </View>
-              <Ionicons 
-                name="add-circle-outline" 
-                size={24} 
-                color="#00B5E0" 
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          <ScrollView>
+            {selectedCategory.items.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => handleSelectItem(item)}
+              >
+                <View style={styles.itemContent}>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.itemDescription, { color: theme.colors.textSecondary }]}>
+                    {item.description}
+                  </Text>
+                </View>
+                <Ionicons 
+                  name="add-circle-outline" 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Layout.spacing.large,
   },
-  backText: {
+  backButtonText: {
     fontSize: 17,
     fontFamily: Typography.fonts.regular,
     marginLeft: Layout.spacing.small,
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.regular,
     marginBottom: 4,
   },
-  itemDuration: {
+  itemDescription: {
     fontSize: 15,
     fontFamily: Typography.fonts.regular,
   },

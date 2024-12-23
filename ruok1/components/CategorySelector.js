@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,7 @@ import { scheduleGuidedSession } from '../firebase/guidedSessions';
 import { scheduleExercise } from '../firebase/scheduledExercises';
 import { scheduleHabit, scheduleTask } from '../firebase/scheduledExercises';
 import { auth } from '../config/firebase';
+import ActivityMetricsForm from './ActivityMetricsForm';
 
 const categories = [
   {
@@ -55,9 +56,11 @@ const categories = [
 ];
 
 export default function CategorySelector({ navigation, route }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const selectedDate = route.params?.selectedDate;
   const selectedClient = route.params?.selectedClient;
+  const [showMetricsForm, setShowMetricsForm] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   console.log('CategorySelector received:', {
     selectedClient,
@@ -66,6 +69,23 @@ export default function CategorySelector({ navigation, route }) {
     isCoachId: selectedClient?.id === auth.currentUser.uid,
     currentUserId: auth.currentUser.uid
   });
+
+  const handleMetricsSubmit = async (metrics) => {
+    try {
+      if (selectedActivity.type === 'exercise') {
+        await scheduleExercise(
+          selectedClient?.id || auth.currentUser.uid,
+          selectedActivity.id,
+          selectedDate,
+          { metrics }
+        );
+      }
+      setShowMetricsForm(false);
+      navigation.navigate('Training');
+    } catch (error) {
+      console.error('Error scheduling activity with metrics:', error);
+    }
+  };
 
   const handleCategoryPress = (category) => {
     if (category.navigateTo === 'GuidedSessions') {
@@ -94,13 +114,13 @@ export default function CategorySelector({ navigation, route }) {
       navigation.navigate(category.navigateTo, { 
         mode: 'selection',
         selectedDate,
-        onExerciseSelect: async (exercise) => {
+        onExerciseSelect: async (exerciseWithMetrics) => {
           try {
-            console.log('Scheduling exercise:', exercise.id, 'for date:', selectedDate);
             await scheduleExercise(
               selectedClient?.id || auth.currentUser.uid,
-              exercise.id,
-              selectedDate
+              exerciseWithMetrics.id,
+              selectedDate,
+              { metrics: exerciseWithMetrics.metrics }
             );
             navigation.navigate('Training');
           } catch (error) {
@@ -146,38 +166,52 @@ export default function CategorySelector({ navigation, route }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme?.colors?.background }]}>
-      <Text style={[styles.title, { color: theme?.colors?.text }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         Add to Schedule
       </Text>
-      <Text style={[styles.subtitle, { color: theme?.colors?.textSecondary }]}>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
         Select a category to add to your schedule
       </Text>
 
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
         {categories.map((category) => (
           <TouchableOpacity
             key={category.id}
-            style={[styles.categoryCard, { backgroundColor: theme?.colors?.surface }]}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
             onPress={() => handleCategoryPress(category)}
           >
-            <View style={styles.categoryIcon}>
-              <Ionicons name={category.icon} size={24} color={theme?.colors?.primary} />
+            <View style={styles.cardContent}>
+              <Ionicons 
+                name={category.icon} 
+                size={24} 
+                color={theme.colors.primary} 
+                style={styles.cardIcon}
+              />
+              <View style={styles.cardTextContainer}>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                  {category.title}
+                </Text>
+                <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
+                  {category.description || `Add ${category.title.toLowerCase()} to your schedule`}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.categoryTitle, { color: theme?.colors?.text }]}>
-              {category.title}
-            </Text>
-            <Ionicons 
-              name="chevron-forward" 
-              size={24} 
-              color={theme?.colors?.textSecondary} 
-            />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <ActivityMetricsForm
+        visible={showMetricsForm}
+        onClose={() => setShowMetricsForm(false)}
+        onSubmit={handleMetricsSubmit}
+        activity={selectedActivity}
+      />
     </View>
   );
 }
@@ -200,24 +234,35 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  categoryCard: {
+  scrollContent: {
+    paddingBottom: Layout.spacing.large,
+  },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: Layout.spacing.large,
     borderRadius: Layout.borderRadius.medium,
     marginBottom: Layout.spacing.medium,
   },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  cardContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryTitle: {
     flex: 1,
+  },
+  cardIcon: {
+    marginRight: Layout.spacing.medium,
+  },
+  cardTextContainer: {
+    flex: 1,
+  },
+  cardTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.medium,
-    marginLeft: Layout.spacing.medium,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  cardDescription: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
   },
 }); 
