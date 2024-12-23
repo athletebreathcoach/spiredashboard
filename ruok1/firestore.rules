@@ -10,6 +10,10 @@ service cloud.firestore {
       return isAuthenticated() && exists(/databases/$(database)/documents/coaches/$(request.auth.uid));
     }
 
+    function isUserOrCoach(userId) {
+      return request.auth.uid == userId || isCoach();
+    }
+
     // Give users full access to all their data and subcollections
     match /users/{userId}/{document=**} {
       allow read: if isAuthenticated() && (
@@ -23,6 +27,29 @@ service cloud.firestore {
     match /users/{userId}/training/{date} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isAuthenticated() && isCoach();
+    }
+
+    // Rules for scheduled exercises root collection
+    match /scheduledExercises/{exerciseId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||  // User can read their own scheduled exercises
+        isCoach()                                    // Coaches can read all scheduled exercises
+      );
+      
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||  // User can create their own scheduled exercises
+        (isCoach() && request.resource.data.createdBy == request.auth.uid)  // Coaches can create exercises for their clients
+      );
+      
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||  // User can update their own scheduled exercises
+        isCoach()                                    // Coaches can update their clients' scheduled exercises
+      );
+      
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||  // User can delete their own scheduled exercises
+        isCoach()                                    // Coaches can delete their clients' scheduled exercises
+      );
     }
 
     // Global collections that everyone can read

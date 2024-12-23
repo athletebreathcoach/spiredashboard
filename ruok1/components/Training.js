@@ -4,26 +4,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getTodaysExercises, getExercisesForDate } from '../firebase/programs';
-import { auth } from '../config/firebase';
+import { getScheduledExercises } from '../firebase/scheduledExercises';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import ClientSelector from './ClientSelector';
 
 const { width } = Dimensions.get('window');
-const DAY_WIDTH = width / 7; // Width for each day button
+const DAY_WIDTH = width / 7;
+
+const defaultTheme = {
+  colors: {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#8E8E93',
+    border: '#38383A',
+    primary: '#00B5E0'
+  }
+};
 
 export default function Training({ navigation }) {
-  const theme = useTheme();
+  const { theme = defaultTheme } = useTheme();
   const [exercises, setExercises] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekDates, setWeekDates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isCoach, setIsCoach] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
 
   useEffect(() => {
+    checkIfCoach();
     generateWeekDates();
   }, []);
 
   useEffect(() => {
     loadExercisesForDate(selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, selectedClient]);
+
+  const checkIfCoach = async () => {
+    try {
+      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+      setIsCoach(coachDoc.exists());
+    } catch (error) {
+      console.error('Error checking coach status:', error);
+    }
+  };
 
   const generateWeekDates = () => {
     const dates = [];
@@ -58,7 +83,14 @@ export default function Training({ navigation }) {
   const loadExercisesForDate = async (date) => {
     try {
       setLoading(true);
-      const exercisesForDate = await getExercisesForDate(auth.currentUser.uid, date);
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const userId = selectedClient?.id || auth.currentUser.uid;
+      const exercisesForDate = await getScheduledExercises(userId, startOfDay, endOfDay);
       setExercises(exercisesForDate);
     } catch (error) {
       console.error('Error loading exercises:', error);
@@ -67,13 +99,33 @@ export default function Training({ navigation }) {
     }
   };
 
+  const handleClientSelect = (client) => {
+    setSelectedClient(client);
+  };
+
+  const handleAddExercise = () => {
+    navigation.navigate('Exercises', { 
+      selectionMode: true,
+      userId: selectedClient?.id || auth.currentUser.uid,
+      date: selectedDate
+    });
+  };
+
   return (
-    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Client Selector for Coaches */}
+      {isCoach && (
+        <ClientSelector
+          onClientSelect={handleClientSelect}
+          selectedClientId={selectedClient?.id}
+        />
+      )}
+
       {/* Week Selector */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        style={[styles.weekSelector, theme?.colors?.border && { borderBottomColor: theme.colors.border }]}
+        style={[styles.weekSelector, { borderBottomColor: theme.colors.border }]}
         contentContainerStyle={styles.weekSelectorContent}
       >
         {weekDates.map((date, index) => {
@@ -93,14 +145,14 @@ export default function Training({ navigation }) {
             >
               <Text style={[
                 styles.dayText,
-                theme?.colors?.textSecondary && { color: theme.colors.textSecondary },
+                { color: theme.colors.textSecondary },
                 (isSelected || today) && { color: '#00B5E0' }
               ]}>
                 {formattedDate.day}
               </Text>
               <Text style={[
                 styles.dateText,
-                theme?.colors?.text && { color: theme.colors.text },
+                { color: theme.colors.text },
                 (isSelected || today) && { color: '#00B5E0' }
               ]}>
                 {formattedDate.date}
@@ -113,43 +165,46 @@ export default function Training({ navigation }) {
         })}
       </ScrollView>
 
-      <Text style={[styles.title, theme?.colors?.text && { color: theme.colors.text }]}>Today's Training</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        {selectedClient ? `${selectedClient.name}'s Training` : "Today's Training"}
+      </Text>
       
       <ScrollView style={styles.scrollView}>
         {loading ? (
-          <Text style={[styles.emptyText, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             Loading...
           </Text>
         ) : exercises.length > 0 ? (
-          exercises.map((exercise, index) => (
+          exercises.map((exercise) => (
             <TouchableOpacity
-              key={index}
+              key={exercise.id}
               style={[styles.exerciseCard, { backgroundColor: '#2C2C2E' }]}
+              onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
             >
               <Ionicons 
-                name={exercise.icon} 
+                name={exercise.icon || 'barbell-outline'} 
                 size={24} 
                 color="#00B5E0" 
                 style={styles.exerciseIcon}
               />
               <View style={styles.exerciseContent}>
-                <Text style={[styles.exerciseTitle, theme?.colors?.text && { color: theme.colors.text }]}>
-                  {exercise.title}
+                <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+                  {exercise.exerciseTitle}
                 </Text>
-                <Text style={[styles.exerciseType, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
-                  {exercise.type}
+                <Text style={[styles.exerciseType, { color: theme.colors.textSecondary }]}>
+                  {exercise.status}
                 </Text>
               </View>
               <TouchableOpacity
                 style={styles.startButton}
-                onPress={() => {/* Handle start */}}
+                onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
               >
-                <Ionicons name="play-circle" size={32} color="#00B5E0" />
+                <Ionicons name="chevron-forward" size={24} color="#00B5E0" />
               </TouchableOpacity>
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={[styles.emptyText, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             No exercises scheduled for {selectedDate.toLocaleDateString()}
           </Text>
         )}
@@ -157,8 +212,8 @@ export default function Training({ navigation }) {
 
       {/* Add Exercise Button */}
       <TouchableOpacity 
-        style={[styles.addButton, theme?.colors?.background && { backgroundColor: theme.colors.background }]}
-        onPress={() => navigation.navigate('Exercises', { selectionMode: true })}
+        style={[styles.addButton, { backgroundColor: theme.colors.background }]}
+        onPress={handleAddExercise}
       >
         <Ionicons name="add-circle" size={32} color="#00B5E0" />
       </TouchableOpacity>
