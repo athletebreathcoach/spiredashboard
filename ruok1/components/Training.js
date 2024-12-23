@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
@@ -21,6 +21,54 @@ export default function Training({ navigation }) {
   const [isCoach, setIsCoach] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const { dx, dy } = gestureState;
+        return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10;
+      },
+      onMoveShouldSetPanResponderCapture: () => false,
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 50) {
+          // Find current date index in weekDates
+          const currentIndex = weekDates.findIndex(
+            date => date.toDateString() === selectedDate.toDateString()
+          );
+          
+          if (currentIndex !== -1) {
+            let newIndex;
+            if (gestureState.dx > 0) {
+              // Swipe right - go to previous day
+              newIndex = currentIndex - 1;
+              if (newIndex < 0) {
+                // If we're at the start of the week, generate new week dates
+                const newDate = new Date(weekDates[0]);
+                newDate.setDate(newDate.getDate() - 7);
+                generateWeekDates(newDate);
+                setSelectedDate(newDate);
+                return;
+              }
+            } else {
+              // Swipe left - go to next day
+              newIndex = currentIndex + 1;
+              if (newIndex >= weekDates.length) {
+                // If we're at the end of the week, generate new week dates
+                const newDate = new Date(weekDates[6]);
+                newDate.setDate(newDate.getDate() + 1);
+                generateWeekDates(newDate);
+                setSelectedDate(newDate);
+                return;
+              }
+            }
+            setSelectedDate(weekDates[newIndex]);
+          }
+        }
+      },
+    })
+  ).current;
+
   useEffect(() => {
     checkIfCoach();
     generateWeekDates();
@@ -39,20 +87,20 @@ export default function Training({ navigation }) {
     }
   };
 
-  const generateWeekDates = () => {
+  const generateWeekDates = (baseDate = new Date()) => {
     const dates = [];
-    const today = new Date();
-    const day = today.getDay();
+    const date = new Date(baseDate);
+    const day = date.getDay();
     
     // Get Sunday of current week
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - day);
+    const sunday = new Date(date);
+    sunday.setDate(date.getDate() - day);
 
     // Generate array of dates for the week
     for (let i = 0; i < 7; i++) {
-      const date = new Date(sunday);
-      date.setDate(sunday.getDate() + i);
-      dates.push(date);
+      const newDate = new Date(sunday);
+      newDate.setDate(sunday.getDate() + i);
+      dates.push(newDate);
     }
     setWeekDates(dates);
   };
@@ -126,7 +174,10 @@ export default function Training({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View 
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      {...panResponder.panHandlers}
+    >
       {/* Client Selector for Coaches */}
       {isCoach && (
         <ClientSelector
