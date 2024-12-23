@@ -1,61 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { getGuidedSessions } from '../firebase/guidedSessions';
 
-const sessions = [
-  {
-    id: 1,
-    title: 'Box Breathing',
-    category: 'Relaxation',
-    description: 'Guided box breathing session',
-    duration: '10 min',
-    icon: 'square-outline',
-    color: '#4A90E2',
-  },
-  {
-    id: 2,
-    title: 'Deep Calm',
-    category: 'Relaxation',
-    description: 'Deep relaxation practice',
-    duration: '15 min',
-    icon: 'water-outline',
-    color: '#FF9500',
-  },
-  {
-    id: 3,
-    title: 'Power Breathing',
-    category: 'Performance',
-    description: 'High-intensity breath work',
-    duration: '20 min',
-    icon: 'flash-outline',
-    color: '#FF3B30',
-  },
-  {
-    id: 4,
-    title: 'Sleep Prep',
-    category: 'Recovery',
-    description: 'Evening wind-down routine',
-    duration: '15 min',
-    icon: 'moon-outline',
-    color: '#5856D6',
-  },
-];
+export default function GuidedSessions({ navigation, route }) {
+  const { theme } = useTheme();
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isSelectionMode = route.params?.mode === 'selection';
+  const onSessionSelect = route.params?.onSessionSelect;
 
-export default function GuidedSessions({ navigation }) {
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      const sessionsData = await getGuidedSessions();
+      setSessions(sessionsData);
+    } catch (error) {
+      console.error('Error loading guided sessions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSessionPress = (session) => {
+    if (isSelectionMode && onSessionSelect) {
+      onSessionSelect(session);
+      navigation.goBack();
+    } else {
+      navigation.navigate('SessionDetail', { session });
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         Guided Sessions
       </Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
         Follow along with guided breathing practices
       </Text>
 
@@ -67,20 +69,24 @@ export default function GuidedSessions({ navigation }) {
         {sessions.map((session) => (
           <TouchableOpacity
             key={session.id}
-            style={[styles.card, { backgroundColor: session.color }]}
-            onPress={() => navigation.navigate('SessionDetail', { session })}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+            onPress={() => handleSessionPress(session)}
           >
             <View style={styles.cardHeader}>
-              <Ionicons name={session.icon} size={24} color="#FFFFFF" />
-              <Text style={styles.cardTitle}>{session.title}</Text>
+              <Ionicons name="play-circle-outline" size={24} color={theme.colors.primary} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{session.title}</Text>
             </View>
-            <Text style={styles.cardDescription}>{session.description}</Text>
+            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
+              {session.description}
+            </Text>
             <View style={styles.cardFooter}>
-              <Text style={styles.cardCategory}>#{session.category}</Text>
               <View style={styles.durationContainer}>
-                <Ionicons name="time-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.duration}>{session.duration}</Text>
+                <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
+                <Text style={[styles.duration, { color: theme.colors.text }]}>{session.duration}</Text>
               </View>
+              {isSelectionMode && (
+                <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
+              )}
             </View>
           </TouchableOpacity>
         ))}
@@ -93,19 +99,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.large,
-    backgroundColor: '#1C1C1E',
   },
   title: {
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
     marginBottom: Layout.spacing.small,
-    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
-    color: '#8E8E93',
   },
   scrollView: {
     flex: 1,
@@ -126,25 +129,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.bold,
-    color: '#FFFFFF',
     marginLeft: Layout.spacing.medium,
   },
   cardDescription: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
     marginBottom: Layout.spacing.medium,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  cardCategory: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
-    opacity: 0.8,
   },
   durationContainer: {
     flexDirection: 'row',
@@ -153,7 +148,6 @@ const styles = StyleSheet.create({
   duration: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
     marginLeft: Layout.spacing.small,
   },
 }); 
