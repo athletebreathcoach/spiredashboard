@@ -96,6 +96,13 @@ export default function Training({ navigation, route }) {
   }, []);
 
   useEffect(() => {
+    // Initialize selectedClient as "My Training" for coaches
+    if (isCoach) {
+      setSelectedClient({ id: auth.currentUser.uid, name: 'My Training' });
+    }
+  }, [isCoach]);
+
+  useEffect(() => {
     loadExercisesForDate(selectedDate);
   }, [selectedDate, selectedClient]);
 
@@ -158,12 +165,26 @@ export default function Training({ navigation, route }) {
   };
 
   const handleClientSelect = (client) => {
+    console.log('Selected client in handleClientSelect:', {
+      client,
+      clientId: client?.id,
+      clientName: client?.name,
+      isCoachId: client?.id === auth.currentUser.uid
+    });
     setSelectedClient(client);
   };
 
   const handleAddExercise = () => {
+    console.log('Selected client in handleAddExercise:', {
+      selectedClient,
+      selectedClientId: selectedClient?.id,
+      selectedClientName: selectedClient?.name,
+      isCoachId: selectedClient?.id === auth.currentUser.uid,
+      currentUserId: auth.currentUser.uid
+    });
     navigation.navigate('CategorySelector', {
       selectedDate,
+      selectedClient,
     });
   };
 

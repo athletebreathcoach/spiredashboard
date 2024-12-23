@@ -57,16 +57,30 @@ const categories = [
 export default function CategorySelector({ navigation, route }) {
   const { theme } = useTheme();
   const selectedDate = route.params?.selectedDate;
+  const selectedClient = route.params?.selectedClient;
+
+  console.log('CategorySelector received:', {
+    selectedClient,
+    selectedClientId: selectedClient?.id,
+    selectedClientName: selectedClient?.name,
+    isCoachId: selectedClient?.id === auth.currentUser.uid,
+    currentUserId: auth.currentUser.uid
+  });
 
   const handleCategoryPress = (category) => {
     if (category.navigateTo === 'GuidedSessions') {
+      console.log('Scheduling for client:', {
+        selectedClient,
+        selectedClientId: selectedClient?.id,
+        selectedClientName: selectedClient?.name
+      });
       navigation.navigate(category.navigateTo, { 
         mode: 'selection',
         selectedDate,
         onSessionSelect: async (session) => {
           try {
             await scheduleGuidedSession(
-              auth.currentUser.uid,
+              selectedClient?.id || auth.currentUser.uid,
               session.id,
               selectedDate
             );
@@ -84,7 +98,7 @@ export default function CategorySelector({ navigation, route }) {
           try {
             console.log('Scheduling exercise:', exercise.id, 'for date:', selectedDate);
             await scheduleExercise(
-              auth.currentUser.uid,
+              selectedClient?.id || auth.currentUser.uid,
               exercise.id,
               selectedDate
             );
@@ -103,13 +117,13 @@ export default function CategorySelector({ navigation, route }) {
           try {
             if (item.type === 'habit') {
               await scheduleHabit(
-                auth.currentUser.uid,
+                selectedClient?.id || auth.currentUser.uid,
                 item.id,
                 selectedDate
               );
             } else {
               await scheduleTask(
-                auth.currentUser.uid,
+                selectedClient?.id || auth.currentUser.uid,
                 item.id,
                 selectedDate
               );
