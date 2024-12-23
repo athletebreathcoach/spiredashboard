@@ -71,45 +71,70 @@ export const unsaveExercise = async (userId, savedId) => {
 // Get all exercises with their references
 export const getExercises = async () => {
   try {
+    // Get all exercises
     const exercisesRef = collection(db, 'exercises');
-    const snapshot = await getDocs(exercisesRef);
-    const exercises = [];
-    
-    for (const doc of snapshot.docs) {
-      const exercise = {
-        id: doc.id,
-        ...doc.data()
-      };
-      
-      // Get the referenced documents
-      const typeDoc = await getDoc(exercise.type.ref);
-      const muscleGroupDoc = await getDoc(exercise.primaryMuscleGroup.ref);
-      
-      // Add the referenced data
-      exercise.type = {
-        ...exercise.type,
-        ...typeDoc.data()
-      };
-      exercise.primaryMuscleGroup = {
-        ...exercise.primaryMuscleGroup,
-        ...muscleGroupDoc.data()
-      };
-      
-      // Add equipment data
-      const equipmentData = {};
-      for (const [key, value] of Object.entries(exercise.equipment)) {
-        const equipDoc = await getDoc(value.ref);
-        equipmentData[key] = {
-          ...value,
-          ...equipDoc.data()
+    const exercisesSnapshot = await getDocs(exercisesRef);
+    const exercises = exercisesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // Collect all unique references
+    const refs = new Set();
+    exercises.forEach(exercise => {
+      refs.add(exercise.type.ref.path);
+      refs.add(exercise.primaryMuscleGroup.ref.path);
+      Object.values(exercise.equipment).forEach(equip => {
+        refs.add(equip.ref.path);
+      });
+    });
+
+    // Fetch all references in parallel
+    const refsData = await Promise.all(
+      Array.from(refs).map(async refPath => {
+        const docRef = doc(db, refPath);
+        const docSnap = await getDoc(docRef);
+        return {
+          path: refPath,
+          data: docSnap.data()
         };
-      }
-      exercise.equipment = equipmentData;
-      
-      exercises.push(exercise);
-    }
-    
-    return exercises;
+      })
+    );
+
+    // Create a map of reference data
+    const refsMap = new Map(
+      refsData.map(({ path, data }) => [path, data])
+    );
+
+    // Merge reference data with exercises
+    return exercises.map(exercise => {
+      const typePath = exercise.type.ref.path;
+      const muscleGroupPath = exercise.primaryMuscleGroup.ref.path;
+
+      const enrichedExercise = {
+        ...exercise,
+        type: {
+          ...exercise.type,
+          ...refsMap.get(typePath)
+        },
+        primaryMuscleGroup: {
+          ...exercise.primaryMuscleGroup,
+          ...refsMap.get(muscleGroupPath)
+        },
+        equipment: {}
+      };
+
+      // Enrich equipment data
+      Object.entries(exercise.equipment).forEach(([key, value]) => {
+        const equipPath = value.ref.path;
+        enrichedExercise.equipment[key] = {
+          ...value,
+          ...refsMap.get(equipPath)
+        };
+      });
+
+      return enrichedExercise;
+    });
   } catch (error) {
     console.error('Error fetching exercises:', error);
     throw error;
