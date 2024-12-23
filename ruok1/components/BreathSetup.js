@@ -16,7 +16,7 @@ const CONTAINER_PADDING = height * 0.02;
 const ITEM_SPACING = height * 0.012;
 
 export default function BreathSetup({ onStart, initialSettings }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [settings, setSettings] = useState(initialSettings || {
     inhaleTime: 4,
     inhaleHoldTime: 4,
@@ -118,77 +118,57 @@ export default function BreathSetup({ onStart, initialSettings }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Default colors to use when theme isn't ready
-  const defaultColors = {
-    background: '#000000',
-    surface: '#1C1C1E',
-    text: '#FFFFFF',
-    textSecondary: '#A0A0A0',
-    primary: '#00B5E0',
-  };
-
-  // Use theme colors if available, otherwise fall back to defaults
-  const colors = {
-    background: theme?.colors?.background || defaultColors.background,
-    surface: theme?.colors?.surface || defaultColors.surface,
-    text: theme?.colors?.text || defaultColors.text,
-    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
-    primary: theme?.colors?.primary || defaultColors.primary,
-  };
-
   const TimeControl = ({ label, value, onIncrement, onDecrement, style, textColor }) => (
     <View style={[styles.timerContainer, style]}>
-      <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.timerLabel, { color: theme.colors.text }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
           onPress={onDecrement}
         >
-          <Ionicons name="remove" size={20} color={colors.primary} />
+          <Ionicons name="remove" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
         
-        <Text style={[styles.timerValue, { color: textColor }]}>
-          {formatTime(value)}
-        </Text>
+        <Text style={[styles.timerValue, { color: theme.colors.text }]}>{value}s</Text>
         
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
           onPress={onIncrement}
         >
-          <Ionicons name="add" size={20} color={colors.primary} />
+          <Ionicons name="add" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  const TimerControl = ({ label, value, settingKey, style, textColor }) => (
-    <View style={[styles.timerContainer, style]}>
-      <Text style={[styles.timerLabel, { color: textColor }]}>{label}</Text>
+  const TimerControl = ({ label, value, settingKey, style }) => (
+    <View style={[styles.timerContainer, { backgroundColor: theme.colors.surface }]}>
+      <Text style={[styles.timerLabel, { color: theme.colors.text }]}>{label}</Text>
       <View style={styles.controlRow}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: theme.colors.background }]}
           onPress={() => decrement(settingKey)}
         >
-          <Ionicons name="remove" size={20} color={colors.primary} />
+          <Ionicons name="remove" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
         
-        <Text style={[styles.timerValue, { color: textColor }]}>{value}s</Text>
+        <Text style={[styles.timerValue, { color: theme.colors.text }]}>{value}s</Text>
         
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: colors.surface }]}
+          style={[styles.controlButton, { backgroundColor: theme.colors.background }]}
           onPress={() => increment(settingKey)}
         >
-          <Ionicons name="add" size={20} color={colors.primary} />
+          <Ionicons name="add" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Breathing Pattern</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Breathing Pattern</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Customize your breathing exercise
         </Text>
       </View>
@@ -205,52 +185,41 @@ export default function BreathSetup({ onStart, initialSettings }) {
             const newTime = Math.max(getRoundTime(), settings.totalTime - getRoundTime());
             updateRoundsFromTime(newTime);
           }}
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
+          style={{ backgroundColor: theme.colors.surface }}
         />
 
         <TimerControl 
           label="Inhale" 
           value={settings.inhaleTime}
           settingKey="inhaleTime"
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.inhaleHoldTime}
           settingKey="inhaleHoldTime"
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
         />
         <TimerControl 
           label="Exhale" 
           value={settings.exhaleTime}
           settingKey="exhaleTime"
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
         />
         <TimerControl 
           label="Hold" 
           value={settings.exhaleHoldTime}
           settingKey="exhaleHoldTime"
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
         />
         <TimerControl 
           label="Rounds" 
           value={settings.rounds}
           settingKey="rounds"
-          style={{ backgroundColor: colors.surface }}
-          textColor={colors.text}
         />
       </View>
 
       <TouchableOpacity 
-        style={[styles.button, { backgroundColor: colors.primary }]}
+        style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onStart(settings)}
       >
-        <Text style={styles.buttonText}>Begin</Text>
+        <Text style={[styles.buttonText, { color: theme.colors.background }]}>Begin</Text>
       </TouchableOpacity>
     </View>
   );
@@ -285,7 +254,6 @@ const styles = StyleSheet.create({
     paddingBottom: ITEM_SPACING * 4,
   },
   timerContainer: {
-    backgroundColor: '#111111',
     borderRadius: Layout.borderRadius.medium,
     padding: Layout.spacing.medium,
     minHeight: Layout.minTouchSize * 0.9,
@@ -307,7 +275,6 @@ const styles = StyleSheet.create({
     width: Layout.minTouchSize * 0.8,
     height: Layout.minTouchSize * 0.8,
     borderRadius: (Layout.minTouchSize * 0.8) / 2,
-    backgroundColor: '#222222',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -327,7 +294,6 @@ const styles = StyleSheet.create({
     right: CONTAINER_PADDING,
   },
   buttonText: {
-    color: '#FFFFFF',
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
     letterSpacing: 0.5,

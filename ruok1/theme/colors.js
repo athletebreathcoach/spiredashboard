@@ -16,6 +16,11 @@ export const lightColors = {
   messageTextOther: '#000000',
   searchBackground: '#F2F2F7',
   divider: '#2C2C2E',
+  breathing: {
+    inhale: '#00B5E0',
+    hold: '#33C3E6',
+    exhale: '#17A2B8'
+  }
 };
 
 export const darkColors = {
@@ -36,6 +41,11 @@ export const darkColors = {
   messageTextOther: '#FFFFFF',
   searchBackground: '#2C2C2E',
   divider: '#2C2C2E',
+  breathing: {
+    inhale: '#00B5E0',
+    hold: '#33C3E6',
+    exhale: '#17A2B8'
+  }
 };
 
 export const purpleColors = {
@@ -56,6 +66,11 @@ export const purpleColors = {
   messageTextOther: '#2D3436',
   searchBackground: '#F8F7FC',
   divider: '#DFE6E9',
+  breathing: {
+    inhale: '#6C5CE7',
+    hold: '#A29BFE',
+    exhale: '#8B7FFF'
+  }
 };
 
 export const darkPurpleColors = {
@@ -76,6 +91,11 @@ export const darkPurpleColors = {
   messageTextOther: '#FFFFFF',
   searchBackground: '#2D2D44',
   divider: '#3F3F5F',
+  breathing: {
+    inhale: '#6C5CE7',
+    hold: '#A29BFE',
+    exhale: '#8B7FFF'
+  }
 };
 
 export const forestColors = {
@@ -96,6 +116,11 @@ export const forestColors = {
   messageTextOther: '#2C3E50',
   searchBackground: '#F5F5F5',
   divider: '#E0E0E0',
+  breathing: {
+    inhale: '#2F5233',
+    hold: '#4A7856',
+    exhale: '#27AE60'
+  }
 };
 
 export const darkForestColors = {
@@ -116,4 +141,9 @@ export const darkForestColors = {
   messageTextOther: '#FFFFFF',
   searchBackground: '#2C2C2C',
   divider: '#404040',
+  breathing: {
+    inhale: '#4A7856',
+    hold: '#2F5233',
+    exhale: '#27AE60'
+  }
 }; 
