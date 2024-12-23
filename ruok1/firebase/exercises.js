@@ -66,4 +66,52 @@ export const unsaveExercise = async (userId, savedId) => {
     console.error('Error removing saved exercise:', error);
     throw error;
   }
+};
+
+// Get all exercises with their references
+export const getExercises = async () => {
+  try {
+    const exercisesRef = collection(db, 'exercises');
+    const snapshot = await getDocs(exercisesRef);
+    const exercises = [];
+    
+    for (const doc of snapshot.docs) {
+      const exercise = {
+        id: doc.id,
+        ...doc.data()
+      };
+      
+      // Get the referenced documents
+      const typeDoc = await getDoc(exercise.type.ref);
+      const muscleGroupDoc = await getDoc(exercise.primaryMuscleGroup.ref);
+      
+      // Add the referenced data
+      exercise.type = {
+        ...exercise.type,
+        ...typeDoc.data()
+      };
+      exercise.primaryMuscleGroup = {
+        ...exercise.primaryMuscleGroup,
+        ...muscleGroupDoc.data()
+      };
+      
+      // Add equipment data
+      const equipmentData = {};
+      for (const [key, value] of Object.entries(exercise.equipment)) {
+        const equipDoc = await getDoc(value.ref);
+        equipmentData[key] = {
+          ...value,
+          ...equipDoc.data()
+        };
+      }
+      exercise.equipment = equipmentData;
+      
+      exercises.push(exercise);
+    }
+    
+    return exercises;
+  } catch (error) {
+    console.error('Error fetching exercises:', error);
+    throw error;
+  }
 }; 

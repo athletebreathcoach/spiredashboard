@@ -374,6 +374,17 @@ function AuthenticatedStack({ user }) {
         }}
       />
       <Stack.Screen 
+        name="ExerciseDetail" 
+        component={ExerciseDetail}
+        options={{
+          title: 'Exercise Details',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
         name="BreathingTests" 
         component={BreathingTests}
         options={{

@@ -4,14 +4,11 @@ import {
   View,
   Text,
   ScrollView,
-  Dimensions,
 } from 'react-native';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-
-const { width } = Dimensions.get('window');
+import YoutubePlayer from "react-native-youtube-iframe";
 
 export default function ExerciseDetail({ route }) {
   const { theme } = useTheme();
@@ -35,40 +32,59 @@ export default function ExerciseDetail({ route }) {
     primary: theme?.colors?.primary || defaultColors.primary
   };
 
-  // YouTube video ID for bench press tutorial
-  const videoId = "vcBig73ojF0";
-
-  const instructions = [
-    "1. Lie on a flat bench with your feet flat on the floor",
-    "2. Grip the barbell slightly wider than shoulder-width",
-    "3. Unrack the bar and lower it to your mid-chest",
-    "4. Keep your elbows at about a 45-degree angle to your body",
-    "5. Touch the bar to your chest while maintaining control",
-    "6. Press the bar back up to the starting position",
-  ];
-
-  const tips = [
-    "Keep your wrists straight",
-    "Maintain a tight core throughout the movement",
-    "Drive your feet into the ground for stability",
-    "Keep your shoulder blades retracted",
-  ];
-
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.text }]}>{exercise.title}</Text>
       
-      <View style={styles.videoContainer}>
-        <YoutubePlayer
-          height={220}
-          videoId={videoId}
-          play={false}
-        />
+      {exercise.videoId && (
+        <View style={styles.videoContainer}>
+          <YoutubePlayer
+            height={220}
+            videoId={exercise.videoId}
+            play={false}
+          />
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Type & Target</Text>
+        <View style={styles.tags}>
+          <View style={[styles.tag, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.tagText, { color: colors.primary }]}>
+              {exercise.type.name}
+            </Text>
+          </View>
+          <View style={[styles.tag, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.tagText, { color: colors.primary }]}>
+              {exercise.primaryMuscleGroup.name}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Equipment Needed</Text>
+        <View style={styles.tags}>
+          {Object.values(exercise.equipment).map((equip) => (
+            <View key={equip.id} style={[styles.tag, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.tagText, { color: colors.primary }]}>
+                {equip.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
+          {exercise.description}
+        </Text>
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Instructions</Text>
-        {instructions.map((instruction, index) => (
+        {exercise.instructions.map((instruction, index) => (
           <Text key={index} style={[styles.instruction, { color: colors.textSecondary }]}>
             {instruction}
           </Text>
@@ -77,7 +93,7 @@ export default function ExerciseDetail({ route }) {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Pro Tips</Text>
-        {tips.map((tip, index) => (
+        {exercise.tips.map((tip, index) => (
           <Text key={index} style={[styles.tip, { color: colors.textSecondary }]}>
             • {tip}
           </Text>
@@ -109,6 +125,25 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.semibold,
     marginBottom: Layout.spacing.medium,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+  },
+  tagText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  description: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    lineHeight: 24,
   },
   instruction: {
     fontSize: Layout.text.medium,
