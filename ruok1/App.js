@@ -83,8 +83,8 @@ function TabNavigator() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarStyle: {
-          backgroundColor: '#1C1C1E',
-          borderTopColor: 'rgba(0, 0, 0, 0.3)',
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
           borderTopWidth: 1,
           height: 90,
           paddingBottom: 40,
@@ -94,24 +94,27 @@ function TabNavigator() {
           left: 0,
           right: 0,
         },
-        tabBarActiveTintColor: theme?.colors?.primary || '#6C5CE7',
-        tabBarInactiveTintColor: theme?.colors?.textSecondary || '#A0A0A0',
-        headerStyle: theme?.colors?.background ? {
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+        headerStyle: {
           backgroundColor: theme.colors.background,
-        } : undefined,
-        headerTintColor: theme?.colors?.text,
+          shadowColor: 'transparent',
+          elevation: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: theme.colors.text,
       })}
     >
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
         options={{
-          headerStyle: theme?.colors?.background ? {
+          headerStyle: {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          } : undefined,
+          },
           headerRight: () => null
         }}
       />
@@ -119,12 +122,12 @@ function TabNavigator() {
         name="Training" 
         component={Training}
         options={{
-          headerStyle: theme?.colors?.background ? {
+          headerStyle: {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          } : undefined,
+          },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'barbell' : 'barbell-outline'} 
@@ -138,12 +141,12 @@ function TabNavigator() {
         name="Search" 
         component={Search}
         options={{
-          headerStyle: theme?.colors?.background ? {
+          headerStyle: {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          } : undefined,
+          },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'search' : 'search-outline'} 
@@ -157,12 +160,12 @@ function TabNavigator() {
         name="Community" 
         component={Community}
         options={{
-          headerStyle: theme?.colors?.background ? {
+          headerStyle: {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          } : undefined,
+          },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons 
               name={focused ? 'people' : 'people-outline'} 
@@ -176,12 +179,12 @@ function TabNavigator() {
         name="Profile" 
         component={Profile}
         options={({ navigation }) => ({
-          headerStyle: theme?.colors?.background ? {
+          headerStyle: {
             backgroundColor: theme.colors.background,
             shadowColor: 'transparent',
             elevation: 0,
             borderBottomWidth: 0,
-          } : undefined,
+          },
           headerRight: () => (
             <TouchableOpacity
               onPress={() => navigation.navigate('Settings')}
@@ -190,7 +193,7 @@ function TabNavigator() {
               <Ionicons 
                 name="settings-outline" 
                 size={24} 
-                color={theme?.colors?.text || '#FFFFFF'}
+                color={theme.colors.text}
               />
             </TouchableOpacity>
           ),

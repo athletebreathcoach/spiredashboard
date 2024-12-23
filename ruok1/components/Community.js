@@ -112,7 +112,9 @@ export default function Community() {
           if (!coachData) {
             return (
               <View style={styles.clientList}>
-                <Text style={styles.noClientsText}>No coach assigned</Text>
+                <Text style={[styles.noClientsText, { color: theme.colors.textSecondary }]}>
+                  No coach assigned
+                </Text>
               </View>
             );
           }
@@ -129,21 +131,29 @@ export default function Community() {
           />;
         }
         return (
-          <View style={styles.clientList}>
-            <Text style={styles.clientListTitle}>Select a Client</Text>
+          <View style={[styles.clientList, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.clientListTitle, { color: theme.colors.text }]}>
+              Select a Client
+            </Text>
             <ScrollView>
               {clients.map((client) => (
                 <TouchableOpacity
                   key={client.id}
-                  style={styles.clientItem}
+                  style={[styles.clientItem, { backgroundColor: theme.colors.surface }]}
                   onPress={() => handleClientSelect(client)}
                 >
-                  <Text style={styles.clientName}>{client.name}</Text>
-                  <Text style={styles.clientEmail}>{client.email}</Text>
+                  <Text style={[styles.clientName, { color: theme.colors.text }]}>
+                    {client.name}
+                  </Text>
+                  <Text style={[styles.clientEmail, { color: theme.colors.textSecondary }]}>
+                    {client.email}
+                  </Text>
                 </TouchableOpacity>
               ))}
               {clients.length === 0 && (
-                <Text style={styles.noClientsText}>No clients found</Text>
+                <Text style={[styles.noClientsText, { color: theme.colors.textSecondary }]}>
+                  No clients found
+                </Text>
               )}
             </ScrollView>
           </View>
@@ -154,19 +164,20 @@ export default function Community() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.tabBar, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.tabBar, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity 
           style={[
             styles.tab, 
             activeTab === 'forum' && styles.activeTab,
-            activeTab === 'forum' && { borderBottomColor: theme?.colors?.primary }
+            activeTab === 'forum' && { borderBottomColor: theme.colors.primary }
           ]}
           onPress={() => setActiveTab('forum')}
         >
           <Text style={[
             styles.tabText, 
-            activeTab === 'forum' && { color: theme?.colors?.primary }
+            { color: theme.colors.textSecondary },
+            activeTab === 'forum' && { color: theme.colors.primary }
           ]}>
             Forum
           </Text>
@@ -175,13 +186,14 @@ export default function Community() {
           style={[
             styles.tab, 
             activeTab === 'chat' && styles.activeTab,
-            activeTab === 'chat' && { borderBottomColor: theme?.colors?.primary }
+            activeTab === 'chat' && { borderBottomColor: theme.colors.primary }
           ]}
           onPress={handleChatTab}
         >
           <Text style={[
             styles.tabText, 
-            activeTab === 'chat' && { color: theme?.colors?.primary }
+            { color: theme.colors.textSecondary },
+            activeTab === 'chat' && { color: theme.colors.primary }
           ]}>
             Chat
           </Text>
@@ -197,12 +209,10 @@ export default function Community() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   tab: {
     flex: 1,
@@ -217,7 +227,6 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
-    color: '#8E8E93',
   },
   content: {
     flex: 1,
@@ -229,11 +238,9 @@ const styles = StyleSheet.create({
   clientListTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.medium,
-    color: '#FFFFFF',
     marginBottom: 16,
   },
   clientItem: {
-    backgroundColor: '#1C1C1E',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -241,16 +248,13 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
-    color: '#FFFFFF',
     marginBottom: 4,
   },
   clientEmail: {
     fontSize: Layout.text.small,
-    color: '#8E8E93',
   },
   noClientsText: {
     fontSize: Layout.text.medium,
-    color: '#8E8E93',
     textAlign: 'center',
     marginTop: 24,
   },

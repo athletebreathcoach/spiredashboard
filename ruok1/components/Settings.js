@@ -11,24 +11,6 @@ export default function Settings({ navigation }) {
   const theme = useTheme();
   const isAuthenticated = auth.currentUser != null;
 
-  // Default colors to use when theme isn't ready
-  const defaultColors = {
-    background: '#000000',
-    surface: '#1C1C1E',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    primary: '#00B5E0'
-  };
-
-  // Use theme colors if available, otherwise fall back to defaults
-  const colors = {
-    background: theme?.colors?.background || defaultColors.background,
-    surface: theme?.colors?.surface || defaultColors.surface,
-    text: theme?.colors?.text || defaultColors.text,
-    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
-    primary: theme?.colors?.primary || defaultColors.primary
-  };
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -88,8 +70,13 @@ export default function Settings({ navigation }) {
         { 
           icon: 'color-palette-outline', 
           label: 'Theme',
-          value: theme?.name === 'dark' ? 'Dark' : 'Light',
-          onPress: theme?.toggleTheme
+          value: theme?.themeMode === 'system' ? 'System' : theme?.isDark ? 'Dark' : 'Light',
+          onPress: () => {
+            // Cycle through theme modes: system -> light -> dark -> system
+            const nextMode = theme?.themeMode === 'system' ? 'light' : 
+                           theme?.themeMode === 'light' ? 'dark' : 'system';
+            theme?.setTheme(nextMode);
+          }
         },
         { 
           icon: 'notifications-outline', 
@@ -143,12 +130,12 @@ export default function Settings({ navigation }) {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <Ionicons name="chevron-back" size={28} color={colors.primary} />
+        <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
       </TouchableOpacity>
       <ScrollView 
         style={styles.scrollView}
@@ -157,18 +144,18 @@ export default function Settings({ navigation }) {
         {sections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
             {section.title && (
-              <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.primary }]}>
                 {section.title}
               </Text>
             )}
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
                   key={itemIndex}
                   style={[
                     styles.item,
                     itemIndex < section.items.length - 1 && styles.itemBorder,
-                    { borderBottomColor: 'rgba(255,255,255,0.1)' }
+                    { borderBottomColor: theme.colors.border }
                   ]}
                   onPress={item.onPress}
                 >
@@ -176,23 +163,23 @@ export default function Settings({ navigation }) {
                     <Ionicons 
                       name={item.icon} 
                       size={22} 
-                      color={colors.primary}
+                      color={theme.colors.primary}
                       style={styles.itemIcon} 
                     />
-                    <Text style={[styles.itemLabel, { color: colors.text }]}>
+                    <Text style={[styles.itemLabel, { color: theme.colors.text }]}>
                       {item.label}
                     </Text>
                   </View>
                   <View style={styles.itemRight}>
                     {item.value && (
-                      <Text style={[styles.itemValue, { color: colors.textSecondary }]}>
+                      <Text style={[styles.itemValue, { color: theme.colors.textSecondary }]}>
                         {item.value}
                       </Text>
                     )}
                     <Ionicons 
                       name="chevron-forward" 
                       size={20} 
-                      color={colors.textSecondary}
+                      color={theme.colors.textSecondary}
                       style={styles.chevron}
                     />
                   </View>

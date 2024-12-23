@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
 import { auth, db } from '../config/firebase';
 import { 
   collection,
@@ -24,6 +25,7 @@ import {
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function Chat({ navigation, route, hideHeader }) {
+  const theme = useTheme();
   const [messages, setMessages] = useState([]);
   const { client } = route.params || {};
 
@@ -72,14 +74,14 @@ export default function Chat({ navigation, route, hideHeader }) {
         {...props}
         wrapperStyle={{
           right: {
-            backgroundColor: '#00B5E0',
+            backgroundColor: theme.colors.messageBubbleOwn,
             borderRadius: 20,
             paddingHorizontal: 12,
             paddingVertical: 8,
             marginVertical: 3,
           },
           left: {
-            backgroundColor: '#1C1C1E',
+            backgroundColor: theme.colors.messageBubbleOther,
             borderRadius: 20,
             paddingHorizontal: 12,
             paddingVertical: 8,
@@ -88,11 +90,11 @@ export default function Chat({ navigation, route, hideHeader }) {
         }}
         textStyle={{
           right: {
-            color: '#FFFFFF',
+            color: theme.colors.messageTextOwn,
             fontSize: 16,
           },
           left: {
-            color: '#FFFFFF',
+            color: theme.colors.messageTextOther,
             fontSize: 16,
           },
         }}
@@ -105,7 +107,7 @@ export default function Chat({ navigation, route, hideHeader }) {
       <InputToolbar
         {...props}
         containerStyle={{
-          backgroundColor: '#000000',
+          backgroundColor: theme.colors.background,
           borderTopWidth: 0,
           padding: 8,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
@@ -121,17 +123,17 @@ export default function Chat({ navigation, route, hideHeader }) {
       <Composer
         {...props}
         textInputStyle={{
-          backgroundColor: '#1C1C1E',
+          backgroundColor: theme.colors.surface,
           borderRadius: 20,
           paddingHorizontal: 15,
           paddingTop: 10,
           paddingBottom: 10,
           marginLeft: 0,
           marginRight: 4,
-          color: '#FFFFFF',
+          color: theme.colors.text,
           fontSize: 16,
         }}
-        placeholderTextColor="#8E8E93"
+        placeholderTextColor={theme.colors.textSecondary}
         placeholder="Message..."
       />
     );
@@ -141,7 +143,7 @@ export default function Chat({ navigation, route, hideHeader }) {
     return (
       <Send {...props} containerStyle={{ justifyContent: 'center', height: 44, marginRight: 4 }}>
         <View style={{ padding: 8 }}>
-          <Ionicons name="send" size={24} color="#00B5E0" />
+          <Ionicons name="send" size={24} color={theme.colors.primary} />
         </View>
       </Send>
     );
@@ -152,7 +154,7 @@ export default function Chat({ navigation, route, hideHeader }) {
       <Day
         {...props}
         textStyle={{
-          color: '#8E8E93',
+          color: theme.colors.textSecondary,
           fontSize: 12,
           fontWeight: '500',
         }}
@@ -161,14 +163,16 @@ export default function Chat({ navigation, route, hideHeader }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {!hideHeader && (
         <SafeAreaView>
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color="#6C5CE7" />
+              <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{client?.name || 'Chat'}</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+              {client?.name || 'Chat'}
+            </Text>
             <View style={styles.headerRight} />
           </View>
         </SafeAreaView>
@@ -193,12 +197,12 @@ export default function Chat({ navigation, route, hideHeader }) {
         maxComposerHeight={80}
         minInputToolbarHeight={44}
         listViewProps={{
-          style: { backgroundColor: '#000000' },
+          style: { backgroundColor: theme.colors.background },
           contentContainerStyle: { paddingBottom: 8 },
         }}
         timeTextStyle={{
-          right: { color: 'rgba(255,255,255,0.5)' },
-          left: { color: 'rgba(255,255,255,0.5)' },
+          right: { color: theme.colors.textSecondary },
+          left: { color: theme.colors.textSecondary },
         }}
         dateFormat="MMM D, YYYY"
         timeFormat="h:mm A"
@@ -213,7 +217,6 @@ export default function Chat({ navigation, route, hideHeader }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -221,7 +224,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#2C2C2E',
   },
   backButton: {
     padding: 8,
@@ -231,7 +233,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '600',
-    color: '#FFFFFF',
     textAlign: 'center',
     marginHorizontal: 16,
   },

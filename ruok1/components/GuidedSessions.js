@@ -14,7 +14,7 @@ import Typography from '../constants/Typography';
 import { getGuidedSessions } from '../firebase/guidedSessions';
 
 export default function GuidedSessions({ navigation, route }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const isSelectionMode = route.params?.mode === 'selection';
@@ -46,18 +46,18 @@ export default function GuidedSessions({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={[styles.container, { backgroundColor: theme?.colors?.background ?? '#000000' }]}>
+        <ActivityIndicator size="large" color={theme?.colors?.primary ?? '#00B5E0'} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
+    <View style={[styles.container, { backgroundColor: theme?.colors?.background ?? '#000000' }]}>
+      <Text style={[styles.title, { color: theme?.colors?.text ?? '#FFFFFF' }]}>
         Guided Sessions
       </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+      <Text style={[styles.subtitle, { color: theme?.colors?.textSecondary ?? '#A0A0A0' }]}>
         Follow along with guided breathing practices
       </Text>
 
@@ -69,23 +69,23 @@ export default function GuidedSessions({ navigation, route }) {
         {sessions.map((session) => (
           <TouchableOpacity
             key={session.id}
-            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+            style={[styles.card, { backgroundColor: theme?.colors?.surface ?? '#1C1C1E' }]}
             onPress={() => handleSessionPress(session)}
           >
             <View style={styles.cardHeader}>
-              <Ionicons name="play-circle-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{session.title}</Text>
+              <Ionicons name="play-circle-outline" size={24} color={theme?.colors?.primary ?? '#00B5E0'} />
+              <Text style={[styles.cardTitle, { color: theme?.colors?.text ?? '#FFFFFF' }]}>{session.title}</Text>
             </View>
-            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.cardDescription, { color: theme?.colors?.textSecondary ?? '#A0A0A0' }]}>
               {session.description}
             </Text>
             <View style={styles.cardFooter}>
               <View style={styles.durationContainer}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.primary} />
-                <Text style={[styles.duration, { color: theme.colors.text }]}>{session.duration}</Text>
+                <Ionicons name="time-outline" size={16} color={theme?.colors?.primary ?? '#00B5E0'} />
+                <Text style={[styles.duration, { color: theme?.colors?.text ?? '#FFFFFF' }]}>{session.duration}</Text>
               </View>
               {isSelectionMode && (
-                <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
+                <Ionicons name="add-circle-outline" size={24} color={theme?.colors?.primary ?? '#00B5E0'} />
               )}
             </View>
           </TouchableOpacity>

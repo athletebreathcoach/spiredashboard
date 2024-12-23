@@ -11,8 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { getExercises } from '../firebase/exercises';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function Exercises({ navigation, route }) {
+  const theme = useTheme();
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const isSelectionMode = route.params?.mode === 'selection';
@@ -44,18 +46,18 @@ export default function Exercises({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#00B5E0" />
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         {isSelectionMode ? 'Add Exercise' : 'Exercises'}
       </Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
         {isSelectionMode ? 'Select an exercise to add to schedule' : 'Choose an exercise to begin your workout'}
       </Text>
 
@@ -67,22 +69,22 @@ export default function Exercises({ navigation, route }) {
         {exercises.map((exercise) => (
           <TouchableOpacity
             key={exercise.id}
-            style={[styles.card, { backgroundColor: '#2C2C2E' }]}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
             onPress={() => handleExercisePress(exercise)}
           >
             <View style={styles.cardContent}>
               <View style={styles.cardHeader}>
-                <Ionicons name="barbell-outline" size={24} color="#00B5E0" />
-                <Text style={styles.cardTitle}>{exercise.title}</Text>
+                <Ionicons name="barbell-outline" size={24} color={theme.colors.primary} />
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{exercise.title}</Text>
               </View>
               <View style={styles.cardDetails}>
-                <Text style={styles.cardType}>{exercise.type.name}</Text>
-                <Text style={styles.cardCategory}>#{exercise.primaryMuscleGroup.name}</Text>
+                <Text style={[styles.cardType, { color: theme.colors.textSecondary }]}>{exercise.type.name}</Text>
+                <Text style={[styles.cardCategory, { color: theme.colors.primary }]}>#{exercise.primaryMuscleGroup.name}</Text>
               </View>
               <View style={styles.equipmentContainer}>
                 {Object.values(exercise.equipment).map((equip) => (
-                  <View key={equip.id} style={styles.equipmentTag}>
-                    <Text style={styles.equipmentText}>{equip.name}</Text>
+                  <View key={equip.id} style={[styles.equipmentTag, { backgroundColor: theme.colors.border }]}>
+                    <Text style={[styles.equipmentText, { color: theme.colors.text }]}>{equip.name}</Text>
                   </View>
                 ))}
               </View>
@@ -94,7 +96,7 @@ export default function Exercises({ navigation, route }) {
                   style={styles.addButton}
                   onPress={() => handleExercisePress(exercise)}
                 >
-                  <Ionicons name="add-circle" size={32} color="#00B5E0" />
+                  <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -109,7 +111,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.large,
-    backgroundColor: '#1C1C1E',
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -119,13 +120,11 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
     marginBottom: Layout.spacing.small,
-    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
-    color: '#8E8E93',
   },
   scrollView: {
     flex: 1,
@@ -151,7 +150,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.bold,
-    color: '#FFFFFF',
     marginLeft: Layout.spacing.medium,
   },
   cardDetails: {
@@ -162,13 +160,11 @@ const styles = StyleSheet.create({
   cardType: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#8E8E93',
     marginRight: Layout.spacing.medium,
   },
   cardCategory: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#00B5E0',
   },
   equipmentContainer: {
     flexDirection: 'row',
@@ -176,7 +172,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   equipmentTag: {
-    backgroundColor: '#3A3A3C',
     paddingHorizontal: Layout.spacing.small,
     paddingVertical: 4,
     borderRadius: Layout.borderRadius.small,
@@ -184,7 +179,6 @@ const styles = StyleSheet.create({
   equipmentText: {
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
   },
   addButtonContainer: {
     marginLeft: Layout.spacing.medium,

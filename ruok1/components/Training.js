@@ -12,19 +12,8 @@ import ClientSelector from './ClientSelector';
 const { width } = Dimensions.get('window');
 const DAY_WIDTH = width / 7;
 
-const defaultTheme = {
-  colors: {
-    background: '#000000',
-    surface: '#1C1C1E',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    border: '#38383A',
-    primary: '#00B5E0'
-  }
-};
-
 export default function Training({ navigation }) {
-  const { theme = defaultTheme } = useTheme();
+  const theme = useTheme();
   const [exercises, setExercises] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekDates, setWeekDates] = useState([]);
@@ -160,7 +149,7 @@ export default function Training({ navigation }) {
               key={index}
               style={[
                 styles.dayButton,
-                isSelected && [styles.selectedDay, { borderBottomColor: '#00B5E0' }],
+                isSelected && [styles.selectedDay, { borderBottomColor: theme.colors.primary }],
                 { width: DAY_WIDTH }
               ]}
               onPress={() => setSelectedDate(date)}
@@ -168,19 +157,19 @@ export default function Training({ navigation }) {
               <Text style={[
                 styles.dayText,
                 { color: theme.colors.textSecondary },
-                (isSelected || today) && { color: '#00B5E0' }
+                (isSelected || today) && { color: theme.colors.primary }
               ]}>
                 {formattedDate.day}
               </Text>
               <Text style={[
                 styles.dateText,
                 { color: theme.colors.text },
-                (isSelected || today) && { color: '#00B5E0' }
+                (isSelected || today) && { color: theme.colors.primary }
               ]}>
                 {formattedDate.date}
               </Text>
               {today && (
-                <View style={styles.todayDot} />
+                <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
               )}
             </TouchableOpacity>
           );
@@ -206,17 +195,17 @@ export default function Training({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={exercise.id}
-                    style={[styles.exerciseCard, { backgroundColor: '#2C2C2E' }]}
+                    style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
                     onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
                   >
-                    <View style={styles.exerciseIdContainer}>
-                      <Text style={styles.exerciseId}>{exerciseId}</Text>
+                    <View style={[styles.exerciseIdContainer, { backgroundColor: theme.colors.border }]}>
+                      <Text style={[styles.exerciseId, { color: theme.colors.text }]}>{exerciseId}</Text>
                     </View>
                     <View style={styles.exerciseContent}>
                       <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
                         {exercise.exerciseTitle}
                       </Text>
-                      <Text style={[styles.exerciseMetrics, { color: '#00B5E0' }]}>
+                      <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
                         {exercise.sets}x{exercise.reps}
                       </Text>
                       {exercise.description && (
@@ -229,7 +218,7 @@ export default function Training({ navigation }) {
                       style={styles.deleteButton}
                       onPress={() => handleDeleteExercise(exercise.id)}
                     >
-                      <Ionicons name="trash-outline" size={24} color="#00B5E0" />
+                      <Ionicons name="trash-outline" size={24} color={theme.colors.primary} />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );
@@ -248,10 +237,10 @@ export default function Training({ navigation }) {
               No exercises scheduled for {selectedDate.toLocaleDateString()}
             </Text>
             <TouchableOpacity
-              style={[styles.addFirstButton, { backgroundColor: '#00B5E0' }]}
+              style={[styles.addFirstButton, { backgroundColor: theme.colors.primary }]}
               onPress={handleAddExercise}
             >
-              <Text style={styles.addFirstButtonText}>Add First Exercise</Text>
+              <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>Add First Exercise</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -259,10 +248,10 @@ export default function Training({ navigation }) {
 
       {/* Floating Action Button */}
       <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: '#00B5E0' }]}
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={handleAddExercise}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Ionicons name="add" size={24} color={theme.colors.background} />
       </TouchableOpacity>
     </View>
   );
@@ -295,13 +284,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#38383A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Layout.spacing.medium,
   },
   exerciseId: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontFamily: Typography.fonts.medium,
   },
@@ -360,14 +347,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00B5E0',
     marginTop: 4,
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 17,
     fontFamily: Typography.fonts.regular,
-    color: '#8E8E93',
     marginBottom: Layout.spacing.large,
   },
   emptyContainer: {
@@ -383,7 +368,6 @@ const styles = StyleSheet.create({
     borderRadius: Layout.borderRadius.large,
   },
   addFirstButtonText: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontFamily: Typography.fonts.medium,
   },

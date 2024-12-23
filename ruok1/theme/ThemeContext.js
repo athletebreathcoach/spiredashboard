@@ -7,7 +7,7 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const deviceColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', or 'system'
+  const [themeMode, setThemeMode] = useState('light'); // Default to light mode
 
   useEffect(() => {
     loadThemePreference();

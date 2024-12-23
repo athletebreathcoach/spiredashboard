@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import LungsIcon from './LungsIcon';
+import { useTheme } from '../theme/ThemeContext';
 import { auth, db } from '../config/firebase';
 import {
   collection,
@@ -41,6 +42,7 @@ const debounce = (func, wait) => {
 };
 
 export default function Forum() {
+  const theme = useTheme();
   const [posts, setPosts] = useState([]);
   const [newPost, setNewPost] = useState('');
   const [loading, setLoading] = useState(true);
@@ -499,29 +501,30 @@ export default function Forum() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00B5E0" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TouchableOpacity 
-        style={styles.compactPostInput}
+        style={[styles.compactPostInput, { backgroundColor: theme.colors.surface }]}
         onPress={openPostModal}
       >
         <View style={styles.compactInputRow}>
           <View style={[
             styles.coachAvatar,
             !isCoach && styles.clientAvatar,
-            styles.smallAvatar
+            styles.smallAvatar,
+            { backgroundColor: isCoach ? theme.colors.primary : '#FF9500' }
           ]}>
-            <Text style={styles.coachInitials}>
+            <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
               {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
             </Text>
           </View>
-          <Text style={styles.placeholderText}>
+          <Text style={[styles.placeholderText, { color: theme.colors.textSecondary }]}>
             Write something
           </Text>
         </View>
@@ -537,23 +540,26 @@ export default function Forum() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalContainer}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
               <TouchableOpacity 
                 style={styles.closeButton} 
                 onPress={closePostModal}
               >
-                <Ionicons name="close" size={24} color="#8E8E93" />
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.postButton,
-                  { opacity: newPost.trim() && !submitting ? 1 : 0.5 }
+                  { 
+                    backgroundColor: theme.colors.primary,
+                    opacity: newPost.trim() && !submitting ? 1 : 0.5 
+                  }
                 ]}
                 onPress={handlePost}
                 disabled={!newPost.trim() || submitting}
               >
-                <Text style={styles.postButtonText}>
+                <Text style={[styles.postButtonText, { color: theme.colors.background }]}>
                   {submitting ? 'Posting...' : 'Post'}
                 </Text>
               </TouchableOpacity>
@@ -562,18 +568,25 @@ export default function Forum() {
               <View style={styles.userInfo}>
                 <View style={[
                   styles.coachAvatar,
-                  !isCoach && styles.clientAvatar
+                  !isCoach && styles.clientAvatar,
+                  { backgroundColor: isCoach ? theme.colors.primary : '#FF9500' }
                 ]}>
-                  <Text style={styles.coachInitials}>
+                  <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
                     {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
                   </Text>
                 </View>
-                <Text style={styles.userName}>
+                <Text style={[styles.userName, { color: theme.colors.text }]}>
                   {auth.currentUser.email?.split('@')[0] || 'Anonymous'}
                 </Text>
               </View>
               <TextInput
-                style={[styles.modalInput, { height: Math.max(100, inputHeight) }]}
+                style={[
+                  styles.modalInput,
+                  { 
+                    height: Math.max(100, inputHeight),
+                    color: theme.colors.text
+                  }
+                ]}
                 value={newPost}
                 onChangeText={handleTextChange}
                 onContentSizeChange={(event) => {
@@ -582,7 +595,7 @@ export default function Forum() {
                 placeholder={isCoach 
                   ? "Share an update with your clients..."
                   : "Share your thoughts..."}
-                placeholderTextColor="#8E8E93"
+                placeholderTextColor={theme.colors.textSecondary}
                 multiline
                 maxLength={1000}
                 autoFocus
@@ -594,7 +607,167 @@ export default function Forum() {
 
       <FlatList
         data={posts}
-        renderItem={renderPost}
+        renderItem={({ item }) => (
+          <View style={[
+            styles.postContainer,
+            { backgroundColor: theme.colors.surface },
+            item.isCoachPost && [
+              styles.coachPostContainer,
+              { borderLeftColor: theme.colors.primary }
+            ]
+          ]}>
+            <View style={styles.postHeader}>
+              <View style={styles.coachInfo}>
+                <View style={[
+                  styles.coachAvatar,
+                  !item.isCoachPost && styles.clientAvatar,
+                  { backgroundColor: item.isCoachPost ? theme.colors.primary : '#FF9500' }
+                ]}>
+                  <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
+                    {(item.authorName || 'Anonymous').substring(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={[styles.coachName, { color: theme.colors.text }]}>
+                    {item.authorName || 'Anonymous'}
+                  </Text>
+                  <Text style={[styles.roleText, { color: theme.colors.textSecondary }]}>
+                    {item.isCoachPost ? 'Coach' : 'Client'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.postActions}>
+                <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+                  {formatDate(item.timestamp)}
+                </Text>
+                {((isCoach && item.authorId === auth.currentUser.uid) || 
+                  (!isCoach && item.authorId === auth.currentUser.uid)) && (
+                  <TouchableOpacity 
+                    style={styles.deleteButton}
+                    onPress={() => deletePost(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            <Text style={[styles.postText, { color: theme.colors.text }]}>{item.text}</Text>
+            <View style={[styles.postFooter, { borderTopColor: theme.colors.border }]}>
+              <View style={styles.footerActions}>
+                <TouchableOpacity 
+                  style={styles.likeButton} 
+                  onPress={() => toggleLike(item.id)}
+                >
+                  <LungsIcon 
+                    size={24} 
+                    color={item.likes?.includes(auth.currentUser.uid) ? theme.colors.primary : theme.colors.textSecondary} 
+                  />
+                  {item.likes?.length > 0 && (
+                    <Text style={[styles.likeCount, { color: theme.colors.textSecondary }]}>
+                      {item.likes.length}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.commentButton}
+                  onPress={() => setShowComments(prev => ({
+                    ...prev,
+                    [item.id]: !prev[item.id]
+                  }))}
+                >
+                  <Ionicons 
+                    name={item.comments?.length > 0 ? "chatbubble" : "chatbubble-outline"} 
+                    size={20} 
+                    color={theme.colors.textSecondary} 
+                  />
+                  {item.comments?.length > 0 && (
+                    <Text style={[styles.commentCount, { color: theme.colors.textSecondary }]}>
+                      {item.comments.length}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {showComments[item.id] && (
+              <View style={[styles.commentsSection, { borderTopColor: theme.colors.border }]}>
+                <View style={styles.commentInput}>
+                  <TextInput
+                    style={[
+                      styles.commentTextInput,
+                      { 
+                        backgroundColor: theme.colors.surface,
+                        color: theme.colors.text
+                      }
+                    ]}
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    placeholder="Write a comment..."
+                    placeholderTextColor={theme.colors.textSecondary}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.commentSubmitButton,
+                      { 
+                        backgroundColor: theme.colors.primary,
+                        opacity: newComment.trim() && !submittingComment ? 1 : 0.5 
+                      }
+                    ]}
+                    onPress={() => addComment(item.id)}
+                    disabled={!newComment.trim() || submittingComment}
+                  >
+                    <Ionicons name="send" size={20} color={theme.colors.background} />
+                  </TouchableOpacity>
+                </View>
+                {item.comments && item.comments.length > 0 ? (
+                  item.comments.map(comment => (
+                    <View key={comment.id} style={[styles.commentContainer, { borderBottomColor: theme.colors.border }]}>
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAuthorInfo}>
+                          <View style={[
+                            styles.commentAvatar,
+                            { backgroundColor: comment.isCoach ? theme.colors.primary : '#FF9500' }
+                          ]}>
+                            <Text style={[styles.commentInitials, { color: theme.colors.text }]}>
+                              {(comment.userEmail?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text style={[styles.commentAuthorName, { color: theme.colors.text }]}>
+                              {comment.userEmail?.split('@')[0] || 'Anonymous'}
+                            </Text>
+                            <Text style={[styles.commentRole, { color: theme.colors.textSecondary }]}>
+                              {comment.isCoach ? 'Coach' : 'Client'}
+                            </Text>
+                          </View>
+                        </View>
+                        {comment.userId === auth.currentUser.uid && (
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => deleteComment(item.id, comment.id)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={[styles.commentText, { color: theme.colors.text }]}>
+                        {comment.text}
+                      </Text>
+                      <Text style={[styles.commentTimestamp, { color: theme.colors.textSecondary }]}>
+                        {formatDate(comment.timestamp)}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.noCommentsText, { color: theme.colors.textSecondary }]}>
+                    No comments yet
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.postsList}
         showsVerticalScrollIndicator={false}
@@ -611,37 +784,30 @@ export default function Forum() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
   },
   createPostContainer: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   input: {
-    backgroundColor: '#1C1C1E',
     borderRadius: 12,
     padding: 16,
-    color: '#FFFFFF',
     fontSize: 16,
     minHeight: 100,
     textAlignVertical: 'top',
   },
   postButton: {
-    backgroundColor: '#00B5E0',
     borderRadius: 20,
     padding: 12,
     alignItems: 'center',
     marginTop: 12,
   },
   postButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -649,7 +815,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   postContainer: {
-    backgroundColor: '#1C1C1E',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -668,28 +833,23 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#00B5E0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   coachInitials: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   coachName: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   timestamp: {
-    color: '#8E8E93',
     fontSize: 14,
     marginRight: 5,
   },
   postText: {
-    color: '#FFFFFF',
     fontSize: 16,
     lineHeight: 24,
   },
@@ -703,13 +863,11 @@ const styles = StyleSheet.create({
   },
   coachPostContainer: {
     borderLeftWidth: 3,
-    borderLeftColor: '#00B5E0',
   },
   clientAvatar: {
     backgroundColor: '#FF9500',
   },
   roleText: {
-    color: '#8E8E93',
     fontSize: 12,
     marginTop: 2,
   },
@@ -719,7 +877,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
   },
   likeButton: {
     flexDirection: 'row',
@@ -728,11 +885,9 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   likeCount: {
-    color: '#8E8E93',
     fontSize: 14,
   },
   compactPostInput: {
-    backgroundColor: '#1C1C1E',
     borderRadius: 25,
     marginHorizontal: 16,
     marginVertical: 8,
@@ -749,7 +904,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   placeholderText: {
-    color: '#FFFFFF',
     fontSize: 16,
   },
   modalContainer: {
@@ -758,7 +912,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#000000',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     minHeight: 300,
@@ -770,7 +923,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   closeButton: {
     padding: 8,
@@ -784,13 +936,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   userName: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
   },
   modalInput: {
-    color: '#FFFFFF',
     fontSize: 16,
     textAlignVertical: 'top',
     paddingTop: 0,
@@ -798,7 +948,6 @@ const styles = StyleSheet.create({
   commentContainer: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
   },
   commentHeader: {
     flexDirection: 'row',
@@ -819,27 +968,22 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   commentInitials: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
   commentAuthorName: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
   commentRole: {
-    color: '#8E8E93',
     fontSize: 12,
   },
   commentText: {
-    color: '#FFFFFF',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 4,
   },
   commentTimestamp: {
-    color: '#8E8E93',
     fontSize: 12,
   },
   footerActions: {
@@ -854,14 +998,12 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   commentCount: {
-    color: '#8E8E93',
     fontSize: 14,
   },
   commentsSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#2C2C2E',
   },
   commentInput: {
     flexDirection: 'row',
@@ -871,16 +1013,13 @@ const styles = StyleSheet.create({
   },
   commentTextInput: {
     flex: 1,
-    backgroundColor: '#2C2C2E',
     borderRadius: 20,
     padding: 12,
-    color: '#FFFFFF',
     fontSize: 14,
     maxHeight: 100,
     minHeight: 40,
   },
   commentSubmitButton: {
-    backgroundColor: '#00B5E0',
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -888,7 +1027,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noCommentsText: {
-    color: '#8E8E93',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12,

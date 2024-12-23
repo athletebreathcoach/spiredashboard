@@ -14,19 +14,8 @@ import Typography from '../constants/Typography';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 
-const defaultTheme = {
-  colors: {
-    background: '#000000',
-    surface: '#1C1C1E',
-    text: '#FFFFFF',
-    textSecondary: '#8E8E93',
-    border: '#38383A',
-    primary: '#00B5E0'
-  }
-};
-
 export default function ClientSelector({ onClientSelect, selectedClientId }) {
-  const { theme = defaultTheme } = useTheme();
+  const theme = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -96,7 +85,7 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
         onPress={() => setIsOpen(true)}
       >
         <View style={styles.selectorContent}>
-          <Ionicons name="person-circle-outline" size={24} color="#00B5E0" />
+          <Ionicons name="person-circle-outline" size={24} color={theme.colors.primary} />
           <Text style={[styles.selectorText, { color: theme.colors.text }]}>
             {selectedClient ? selectedClient.name : 'Select Client'}
           </Text>
@@ -110,9 +99,9 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
         animationType="slide"
         onRequestClose={() => setIsOpen(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
                 Select Client
               </Text>
@@ -136,7 +125,7 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
                     style={[
                       styles.clientItem,
                       { backgroundColor: theme.colors.surface },
-                      selectedClient?.id === auth.currentUser.uid && styles.selectedItem
+                      selectedClient?.id === auth.currentUser.uid && [styles.selectedItem, { borderColor: theme.colors.primary }]
                     ]}
                     onPress={() => handleSelect({ id: auth.currentUser.uid, name: 'My Training' })}
                   >
@@ -144,14 +133,14 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
                       <Ionicons 
                         name="calendar-outline" 
                         size={24} 
-                        color="#00B5E0" 
+                        color={theme.colors.primary} 
                       />
                       <Text style={[styles.clientName, { color: theme.colors.text }]}>
                         My Training
                       </Text>
                     </View>
                     {selectedClient?.id === auth.currentUser.uid && (
-                      <Ionicons name="checkmark-circle" size={24} color="#00B5E0" />
+                      <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
                     )}
                   </TouchableOpacity>
 
@@ -166,7 +155,7 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
                         style={[
                           styles.clientItem,
                           { backgroundColor: theme.colors.surface },
-                          selectedClient?.id === client.id && styles.selectedItem
+                          selectedClient?.id === client.id && [styles.selectedItem, { borderColor: theme.colors.primary }]
                         ]}
                         onPress={() => handleSelect(client)}
                       >
@@ -174,14 +163,14 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
                           <Ionicons 
                             name="person-circle-outline" 
                             size={24} 
-                            color="#00B5E0" 
+                            color={theme.colors.primary} 
                           />
                           <Text style={[styles.clientName, { color: theme.colors.text }]}>
                             {client.name || client.email}
                           </Text>
                         </View>
                         {selectedClient?.id === client.id && (
-                          <Ionicons name="checkmark-circle" size={24} color="#00B5E0" />
+                          <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
                         )}
                       </TouchableOpacity>
                     ))
@@ -223,7 +212,6 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     borderTopLeftRadius: 20,
@@ -236,7 +224,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Layout.spacing.large,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   modalTitle: {
     fontSize: 20,
@@ -266,7 +253,6 @@ const styles = StyleSheet.create({
     marginLeft: Layout.spacing.medium,
   },
   selectedItem: {
-    borderColor: '#00B5E0',
     borderWidth: 1,
   },
   emptyText: {
