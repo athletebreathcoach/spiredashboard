@@ -14,8 +14,10 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 
 const { width } = Dimensions.get('window');
-const CARD_MARGIN = 10;
-const CARD_WIDTH = (width - (CARD_MARGIN * 3 + Layout.spacing.large * 2)) / 2;
+const CARD_MARGIN = Layout.spacing.small;
+const CARDS_PER_ROW = 2;
+const TOTAL_MARGIN_SPACE = CARD_MARGIN * (CARDS_PER_ROW + 1);
+const CARD_WIDTH = (width - (Layout.spacing.large * 2) - TOTAL_MARGIN_SPACE) / CARDS_PER_ROW;
 
 // Combined data source from all categories
 const allItems = [
@@ -178,7 +180,6 @@ export default function Search({ navigation }) {
   const handleSearch = (text) => {
     setSearchQuery(text);
     
-    // Only update search results if there's text
     const filtered = allItems.filter(item => 
       item.title.toLowerCase().includes(text.toLowerCase()) ||
       item.category.toLowerCase().includes(text.toLowerCase()) ||
@@ -218,24 +219,24 @@ export default function Search({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.searchContainer}>
         <Ionicons 
           name="search-outline" 
           size={20} 
-          color={theme?.colors?.textSecondary} 
+          color={theme.colors.textSecondary} 
           style={styles.searchIcon}
         />
         <TextInput
           style={[
             styles.searchInput, 
-            theme?.colors && { 
+            { 
               backgroundColor: theme.colors.surface,
               color: theme.colors.text,
             }
           ]}
           placeholder="Search exercises, tests, sessions..."
-          placeholderTextColor={theme?.colors?.textSecondary}
+          placeholderTextColor={theme.colors.textSecondary}
           value={searchQuery}
           onChangeText={handleSearch}
         />
@@ -245,45 +246,43 @@ export default function Search({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {searchQuery.length > 0 ? (
-          // Show search results when there's text in search
           <View style={styles.resultsContainer}>
             {searchResults.length > 0 ? (
               searchResults.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.resultItem, { backgroundColor: item.color }]}
+                  style={[styles.resultItem, { backgroundColor: theme.colors.surface }]}
                   onPress={() => handleItemPress(item)}
                 >
-                  <Ionicons name={item.icon} size={24} color="#FFFFFF" />
+                  <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
                   <View style={styles.resultContent}>
-                    <Text style={styles.resultTitle}>{item.title}</Text>
+                    <Text style={[styles.resultTitle, { color: theme.colors.text }]}>{item.title}</Text>
                     <View style={styles.resultDetails}>
-                      <Text style={styles.resultType}>{item.type}</Text>
-                      <Text style={styles.resultCategory}>#{item.category}</Text>
+                      <Text style={[styles.resultType, { color: theme.colors.textSecondary }]}>{item.type}</Text>
+                      <Text style={[styles.resultCategory, { color: theme.colors.primary }]}>#{item.category}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={[styles.noResults, theme?.colors?.textSecondary && { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
                 No results found
               </Text>
             )}
           </View>
         ) : (
-          // Show category grid when not searching
           <View style={styles.grid}>
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
-                style={[styles.card, { backgroundColor: category.color }]}
+                style={[styles.card, { backgroundColor: theme.colors.surface }]}
                 onPress={() => handleCategoryPress(category)}
               >
                 <View style={styles.cardContent}>
                   <View style={styles.iconContainer}>
-                    <Ionicons name={category.icon} size={32} color="#FFFFFF" />
+                    <Ionicons name={category.icon} size={32} color={theme.colors.primary} />
                   </View>
-                  <Text style={styles.cardTitle}>
+                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                     {category.title}
                   </Text>
                 </View>
@@ -319,20 +318,19 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
   },
-  scrollContent: {
-    paddingBottom: Layout.spacing.large,
-  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: CARD_MARGIN,
+    justifyContent: 'space-between',
+    marginHorizontal: -CARD_MARGIN,
+    marginTop: -CARD_MARGIN,
   },
   card: {
     width: CARD_WIDTH,
     height: 120,
     borderRadius: Layout.borderRadius.medium,
     padding: Layout.spacing.medium,
-    overflow: 'hidden',
+    margin: CARD_MARGIN,
   },
   cardContent: {
     flex: 1,
@@ -345,7 +343,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.semibold,
-    color: '#FFFFFF',
     marginTop: Layout.spacing.small,
   },
   resultsContainer: {
@@ -365,7 +362,6 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     fontSize: Layout.text.medium,
-    color: '#FFFFFF',
     fontFamily: Typography.fonts.semibold,
     marginBottom: 4,
   },
@@ -375,15 +371,11 @@ const styles = StyleSheet.create({
   },
   resultType: {
     fontSize: Layout.text.small,
-    color: '#FFFFFF',
-    opacity: 0.8,
     marginRight: Layout.spacing.small,
     fontFamily: Typography.fonts.regular,
   },
   resultCategory: {
     fontSize: Layout.text.small,
-    color: '#FFFFFF',
-    opacity: 0.8,
     fontFamily: Typography.fonts.regular,
   },
   noResults: {
