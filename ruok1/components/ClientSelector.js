@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 
 const defaultTheme = {
@@ -30,6 +30,7 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadClients();
@@ -37,21 +38,48 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
 
   const loadClients = async () => {
     try {
-      const coachRef = collection(db, 'coaches', auth.currentUser.uid, 'clients');
-      const snapshot = await getDocs(coachRef);
-      const clientsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setClients(clientsData);
+      setLoading(true);
+      // First get the coach document to get the client IDs
+      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+      if (!coachDoc.exists()) {
+        console.error('Coach document not found');
+        return;
+      }
+
+      const coachData = coachDoc.data();
+      const clientIds = coachData.clients || [];
+
+      // Then fetch each client's details from the users collection
+      const clientsData = await Promise.all(
+        clientIds.map(async (clientId) => {
+          const clientDoc = await getDoc(doc(db, 'users', clientId));
+          if (clientDoc.exists()) {
+            return {
+              id: clientDoc.id,
+              ...clientDoc.data()
+            };
+          }
+          return null;
+        })
+      );
+
+      // Filter out any null values (in case a client document wasn't found)
+      const validClients = clientsData.filter(client => client !== null);
+      setClients(validClients);
 
       // If there's a selectedClientId, find and set that client
       if (selectedClientId) {
-        const client = clientsData.find(c => c.id === selectedClientId);
-        setSelectedClient(client);
+        if (selectedClientId === auth.currentUser.uid) {
+          setSelectedClient({ id: auth.currentUser.uid, name: 'My Training' });
+        } else {
+          const client = validClients.find(c => c.id === selectedClientId);
+          setSelectedClient(client);
+        }
       }
     } catch (error) {
       console.error('Error loading clients:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,31 +125,73 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
             </View>
 
             <ScrollView style={styles.clientList}>
-              {clients.map((client) => (
-                <TouchableOpacity
-                  key={client.id}
-                  style={[
-                    styles.clientItem,
-                    { backgroundColor: theme.colors.surface },
-                    selectedClient?.id === client.id && styles.selectedItem
-                  ]}
-                  onPress={() => handleSelect(client)}
-                >
-                  <View style={styles.clientInfo}>
-                    <Ionicons 
-                      name="person-circle-outline" 
-                      size={24} 
-                      color="#00B5E0" 
-                    />
-                    <Text style={[styles.clientName, { color: theme.colors.text }]}>
-                      {client.name}
+              {loading ? (
+                <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                  Loading clients...
+                </Text>
+              ) : (
+                <>
+                  {/* My Training Option */}
+                  <TouchableOpacity
+                    style={[
+                      styles.clientItem,
+                      { backgroundColor: theme.colors.surface },
+                      selectedClient?.id === auth.currentUser.uid && styles.selectedItem
+                    ]}
+                    onPress={() => handleSelect({ id: auth.currentUser.uid, name: 'My Training' })}
+                  >
+                    <View style={styles.clientInfo}>
+                      <Ionicons 
+                        name="calendar-outline" 
+                        size={24} 
+                        color="#00B5E0" 
+                      />
+                      <Text style={[styles.clientName, { color: theme.colors.text }]}>
+                        My Training
+                      </Text>
+                    </View>
+                    {selectedClient?.id === auth.currentUser.uid && (
+                      <Ionicons name="checkmark-circle" size={24} color="#00B5E0" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+
+                  {/* Client List */}
+                  {clients.length > 0 ? (
+                    clients.map((client) => (
+                      <TouchableOpacity
+                        key={client.id}
+                        style={[
+                          styles.clientItem,
+                          { backgroundColor: theme.colors.surface },
+                          selectedClient?.id === client.id && styles.selectedItem
+                        ]}
+                        onPress={() => handleSelect(client)}
+                      >
+                        <View style={styles.clientInfo}>
+                          <Ionicons 
+                            name="person-circle-outline" 
+                            size={24} 
+                            color="#00B5E0" 
+                          />
+                          <Text style={[styles.clientName, { color: theme.colors.text }]}>
+                            {client.name || client.email}
+                          </Text>
+                        </View>
+                        {selectedClient?.id === client.id && (
+                          <Ionicons name="checkmark-circle" size={24} color="#00B5E0" />
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                      No clients found
                     </Text>
-                  </View>
-                  {selectedClient?.id === client.id && (
-                    <Ionicons name="checkmark-circle" size={24} color="#00B5E0" />
                   )}
-                </TouchableOpacity>
-              ))}
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -198,5 +268,16 @@ const styles = StyleSheet.create({
   selectedItem: {
     borderColor: '#00B5E0',
     borderWidth: 1,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 17,
+    fontFamily: Typography.fonts.regular,
+    padding: Layout.spacing.large,
+  },
+  divider: {
+    height: 1,
+    marginVertical: Layout.spacing.medium,
+    opacity: 0.2,
   },
 }); 

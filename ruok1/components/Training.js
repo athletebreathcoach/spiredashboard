@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getScheduledExercises } from '../firebase/scheduledExercises';
+import { getScheduledExercises, scheduleExercise } from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
@@ -104,10 +104,22 @@ export default function Training({ navigation }) {
   };
 
   const handleAddExercise = () => {
-    navigation.navigate('Exercises', { 
-      selectionMode: true,
-      userId: selectedClient?.id || auth.currentUser.uid,
-      date: selectedDate
+    // If coach is viewing their own calendar or if user is not a coach
+    const targetUserId = selectedClient?.id || auth.currentUser.uid;
+    
+    navigation.navigate('Exercises', {
+      mode: 'selection',
+      targetUserId,
+      selectedDate,
+      onExerciseSelect: async (exercise) => {
+        try {
+          await scheduleExercise(targetUserId, exercise.id, selectedDate);
+          // Refresh the exercises list
+          loadExercisesForDate(selectedDate);
+        } catch (error) {
+          console.error('Error scheduling exercise:', error);
+        }
+      }
     });
   };
 
@@ -166,7 +178,7 @@ export default function Training({ navigation }) {
       </ScrollView>
 
       <Text style={[styles.title, { color: theme.colors.text }]}>
-        {selectedClient ? `${selectedClient.name}'s Training` : "Today's Training"}
+        {selectedClient?.name === 'My Training' ? 'My Training' : selectedClient ? `${selectedClient.name}'s Training` : "Today's Training"}
       </Text>
       
       <ScrollView style={styles.scrollView}>
@@ -204,18 +216,32 @@ export default function Training({ navigation }) {
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            No exercises scheduled for {selectedDate.toLocaleDateString()}
-          </Text>
+          <View style={styles.emptyContainer}>
+            <Ionicons 
+              name="calendar-outline" 
+              size={48} 
+              color={theme.colors.textSecondary} 
+              style={styles.emptyIcon}
+            />
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+              No exercises scheduled for {selectedDate.toLocaleDateString()}
+            </Text>
+            <TouchableOpacity
+              style={[styles.addFirstButton, { backgroundColor: '#00B5E0' }]}
+              onPress={handleAddExercise}
+            >
+              <Text style={styles.addFirstButtonText}>Add First Exercise</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
 
-      {/* Add Exercise Button */}
+      {/* Floating Action Button */}
       <TouchableOpacity 
-        style={[styles.addButton, { backgroundColor: theme.colors.background }]}
+        style={[styles.fab, { backgroundColor: '#00B5E0' }]}
         onPress={handleAddExercise}
       >
-        <Ionicons name="add-circle" size={32} color="#00B5E0" />
+        <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -303,5 +329,44 @@ const styles = StyleSheet.create({
   },
   startButton: {
     padding: Layout.spacing.small,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.spacing.large,
+  },
+  emptyIcon: {
+    marginBottom: Layout.spacing.medium,
+  },
+  addFirstButton: {
+    marginTop: Layout.spacing.large,
+    paddingVertical: Layout.spacing.small,
+    paddingHorizontal: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+  },
+  addFirstButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+  },
+  fab: {
+    position: 'absolute',
+    right: Layout.spacing.large,
+    bottom: Layout.spacing.large + 60,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
   },
 }); 

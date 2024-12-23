@@ -12,9 +12,11 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { getExercises } from '../firebase/exercises';
 
-export default function Exercises({ navigation }) {
+export default function Exercises({ navigation, route }) {
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isSelectionMode = route.params?.mode === 'selection';
+  const onExerciseSelect = route.params?.onExerciseSelect;
 
   useEffect(() => {
     loadExercises();
@@ -31,6 +33,15 @@ export default function Exercises({ navigation }) {
     }
   };
 
+  const handleExercisePress = (exercise) => {
+    if (isSelectionMode && onExerciseSelect) {
+      onExerciseSelect(exercise);
+      navigation.goBack();
+    } else {
+      navigation.navigate('ExerciseDetail', { exercise });
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -42,10 +53,10 @@ export default function Exercises({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        Exercises
+        {isSelectionMode ? 'Add Exercise' : 'Exercises'}
       </Text>
       <Text style={styles.subtitle}>
-        Choose an exercise to begin your workout
+        {isSelectionMode ? 'Select an exercise to add to schedule' : 'Choose an exercise to begin your workout'}
       </Text>
 
       <ScrollView 
@@ -57,23 +68,36 @@ export default function Exercises({ navigation }) {
           <TouchableOpacity
             key={exercise.id}
             style={[styles.card, { backgroundColor: '#2C2C2E' }]}
-            onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
+            onPress={() => handleExercisePress(exercise)}
           >
-            <View style={styles.cardHeader}>
-              <Ionicons name="barbell-outline" size={24} color="#00B5E0" />
-              <Text style={styles.cardTitle}>{exercise.title}</Text>
+            <View style={styles.cardContent}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="barbell-outline" size={24} color="#00B5E0" />
+                <Text style={styles.cardTitle}>{exercise.title}</Text>
+              </View>
+              <View style={styles.cardDetails}>
+                <Text style={styles.cardType}>{exercise.type.name}</Text>
+                <Text style={styles.cardCategory}>#{exercise.primaryMuscleGroup.name}</Text>
+              </View>
+              <View style={styles.equipmentContainer}>
+                {Object.values(exercise.equipment).map((equip) => (
+                  <View key={equip.id} style={styles.equipmentTag}>
+                    <Text style={styles.equipmentText}>{equip.name}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-            <View style={styles.cardDetails}>
-              <Text style={styles.cardType}>{exercise.type.name}</Text>
-              <Text style={styles.cardCategory}>#{exercise.primaryMuscleGroup.name}</Text>
-            </View>
-            <View style={styles.equipmentContainer}>
-              {Object.values(exercise.equipment).map((equip) => (
-                <View key={equip.id} style={styles.equipmentTag}>
-                  <Text style={styles.equipmentText}>{equip.name}</Text>
-                </View>
-              ))}
-            </View>
+
+            {isSelectionMode && (
+              <View style={styles.addButtonContainer}>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => handleExercisePress(exercise)}
+                >
+                  <Ionicons name="add-circle" size={32} color="#00B5E0" />
+                </TouchableOpacity>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -113,6 +137,11 @@ const styles = StyleSheet.create({
     padding: Layout.spacing.large,
     borderRadius: Layout.borderRadius.large,
     marginBottom: Layout.spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardContent: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -156,5 +185,12 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
     color: '#FFFFFF',
+  },
+  addButtonContainer: {
+    marginLeft: Layout.spacing.medium,
+    justifyContent: 'center',
+  },
+  addButton: {
+    padding: Layout.spacing.small,
   },
 }); 
