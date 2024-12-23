@@ -1,13 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
-import { lightColors, darkColors } from './colors';
+import { lightColors, darkColors, purpleColors, darkPurpleColors, forestColors, darkForestColors } from './colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ThemeContext = createContext();
 
+export const THEME_MODES = {
+  SYSTEM: 'system',
+  LIGHT: 'light',
+  DARK: 'dark',
+};
+
+export const THEME_VARIANTS = {
+  DEFAULT: 'default',
+  PURPLE: 'purple',
+  FOREST: 'forest',
+};
+
 export const ThemeProvider = ({ children }) => {
   const deviceColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState('light'); // Default to light mode
+  const [themeMode, setThemeMode] = useState(THEME_MODES.LIGHT);
+  const [themeVariant, setThemeVariant] = useState(THEME_VARIANTS.DEFAULT);
 
   useEffect(() => {
     loadThemePreference();
@@ -15,32 +28,50 @@ export const ThemeProvider = ({ children }) => {
 
   const loadThemePreference = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('themeMode');
-      if (savedTheme) {
-        setThemeMode(savedTheme);
-      }
+      const [savedMode, savedVariant] = await Promise.all([
+        AsyncStorage.getItem('themeMode'),
+        AsyncStorage.getItem('themeVariant'),
+      ]);
+      if (savedMode) setThemeMode(savedMode);
+      if (savedVariant) setThemeVariant(savedVariant);
     } catch (error) {
       console.error('Error loading theme preference:', error);
     }
   };
 
-  const setTheme = async (mode) => {
+  const setTheme = async (mode, variant = themeVariant) => {
     try {
-      await AsyncStorage.setItem('themeMode', mode);
+      await Promise.all([
+        AsyncStorage.setItem('themeMode', mode),
+        AsyncStorage.setItem('themeVariant', variant),
+      ]);
       setThemeMode(mode);
+      setThemeVariant(variant);
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
   };
 
-  const isDark = themeMode === 'dark' || (themeMode === 'system' && deviceColorScheme === 'dark');
-  const colors = isDark ? darkColors : lightColors;
+  const isDark = themeMode === THEME_MODES.DARK || 
+                (themeMode === THEME_MODES.SYSTEM && deviceColorScheme === 'dark');
+
+  const getThemeColors = () => {
+    switch (themeVariant) {
+      case THEME_VARIANTS.PURPLE:
+        return isDark ? darkPurpleColors : purpleColors;
+      case THEME_VARIANTS.FOREST:
+        return isDark ? darkForestColors : forestColors;
+      default:
+        return isDark ? darkColors : lightColors;
+    }
+  };
 
   const theme = {
-    colors,
+    colors: getThemeColors(),
     isDark,
     setTheme,
     themeMode,
+    themeVariant,
   };
 
   return (

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useTheme } from '../theme/ThemeContext';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { useTheme, THEME_MODES, THEME_VARIANTS } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { auth } from '../config/firebase';
-import { updatePassword, sendPasswordResetEmail, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 
 export default function Settings({ navigation }) {
   const theme = useTheme();
+  const [showThemeModal, setShowThemeModal] = useState(false);
   const isAuthenticated = auth.currentUser != null;
 
   const handleLogout = async () => {
@@ -34,6 +35,37 @@ export default function Settings({ navigation }) {
 
   const handleLogin = () => {
     navigation.navigate('Login', { fromSettings: true });
+  };
+
+  const handleThemeSelect = (mode, variant) => {
+    theme.setTheme(mode, variant);
+    setShowThemeModal(false);
+  };
+
+  const getThemeModeName = (mode) => {
+    switch (mode) {
+      case THEME_MODES.SYSTEM:
+        return 'System';
+      case THEME_MODES.LIGHT:
+        return 'Light';
+      case THEME_MODES.DARK:
+        return 'Dark';
+      default:
+        return mode;
+    }
+  };
+
+  const getThemeVariantName = (variant) => {
+    switch (variant) {
+      case THEME_VARIANTS.DEFAULT:
+        return 'Default';
+      case THEME_VARIANTS.PURPLE:
+        return 'Purple';
+      case THEME_VARIANTS.FOREST:
+        return 'Forest';
+      default:
+        return variant;
+    }
   };
 
   const sections = [
@@ -70,13 +102,8 @@ export default function Settings({ navigation }) {
         { 
           icon: 'color-palette-outline', 
           label: 'Theme',
-          value: theme?.themeMode === 'system' ? 'System' : theme?.isDark ? 'Dark' : 'Light',
-          onPress: () => {
-            // Cycle through theme modes: system -> light -> dark -> system
-            const nextMode = theme?.themeMode === 'system' ? 'light' : 
-                           theme?.themeMode === 'light' ? 'dark' : 'system';
-            theme?.setTheme(nextMode);
-          }
+          value: `${getThemeVariantName(theme.themeVariant)} - ${getThemeModeName(theme.themeMode)}`,
+          onPress: () => setShowThemeModal(true)
         },
         { 
           icon: 'notifications-outline', 
@@ -128,6 +155,22 @@ export default function Settings({ navigation }) {
       ]
     }
   ];
+
+  const ThemeOption = ({ label, isSelected, onPress }) => (
+    <TouchableOpacity
+      style={[
+        styles.themeOption,
+        { backgroundColor: theme.colors.surface },
+        isSelected && { borderColor: theme.colors.primary, borderWidth: 2 }
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.themeOptionText, { color: theme.colors.text }]}>{label}</Text>
+      {isSelected && (
+        <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -189,6 +232,71 @@ export default function Settings({ navigation }) {
           </View>
         ))}
       </ScrollView>
+
+      <Modal
+        visible={showThemeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowThemeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Choose Theme</Text>
+              <TouchableOpacity
+                onPress={() => setShowThemeModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.themeSection}>
+                <Text style={[styles.themeSectionTitle, { color: theme.colors.primary }]}>THEME MODE</Text>
+                <View style={styles.themeOptions}>
+                  <ThemeOption
+                    label="System"
+                    isSelected={theme.themeMode === THEME_MODES.SYSTEM}
+                    onPress={() => handleThemeSelect(THEME_MODES.SYSTEM, theme.themeVariant)}
+                  />
+                  <ThemeOption
+                    label="Light"
+                    isSelected={theme.themeMode === THEME_MODES.LIGHT}
+                    onPress={() => handleThemeSelect(THEME_MODES.LIGHT, theme.themeVariant)}
+                  />
+                  <ThemeOption
+                    label="Dark"
+                    isSelected={theme.themeMode === THEME_MODES.DARK}
+                    onPress={() => handleThemeSelect(THEME_MODES.DARK, theme.themeVariant)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.themeSection}>
+                <Text style={[styles.themeSectionTitle, { color: theme.colors.primary }]}>COLOR SCHEME</Text>
+                <View style={styles.themeOptions}>
+                  <ThemeOption
+                    label="Default"
+                    isSelected={theme.themeVariant === THEME_VARIANTS.DEFAULT}
+                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.DEFAULT)}
+                  />
+                  <ThemeOption
+                    label="Purple"
+                    isSelected={theme.themeVariant === THEME_VARIANTS.PURPLE}
+                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.PURPLE)}
+                  />
+                  <ThemeOption
+                    label="Forest"
+                    isSelected={theme.themeVariant === THEME_VARIANTS.FOREST}
+                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.FOREST)}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -250,5 +358,55 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginLeft: Layout.spacing.small,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: Layout.borderRadius.large,
+    borderTopRightRadius: Layout.borderRadius.large,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Layout.spacing.large,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
+  },
+  closeButton: {
+    padding: Layout.spacing.small,
+  },
+  modalBody: {
+    padding: Layout.spacing.large,
+  },
+  themeSection: {
+    marginBottom: Layout.spacing.large,
+  },
+  themeSectionTitle: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.medium,
+  },
+  themeOptions: {
+    gap: Layout.spacing.small,
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  themeOptionText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
 }); 
