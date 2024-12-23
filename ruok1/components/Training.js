@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getScheduledExercises, scheduleExercise } from '../firebase/scheduledExercises';
+import { getScheduledExercises, scheduleExercise, deleteScheduledExercise } from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
@@ -99,13 +99,30 @@ export default function Training({ navigation }) {
   };
 
   const handleDeleteExercise = async (exerciseId) => {
-    try {
-      await deleteExercise(exerciseId);
-      // Refresh the exercises list
-      loadExercisesForDate(selectedDate);
-    } catch (error) {
-      console.error('Error deleting exercise:', error);
-    }
+    Alert.alert(
+      "Delete Exercise",
+      "Are you sure you want to remove this exercise from your schedule?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteScheduledExercise(exerciseId);
+              // Refresh the exercises list
+              loadExercisesForDate(selectedDate);
+            } catch (error) {
+              console.error('Error deleting exercise:', error);
+              Alert.alert('Error', 'Failed to delete exercise. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -118,64 +135,67 @@ export default function Training({ navigation }) {
         />
       )}
 
-      {/* Week Selector */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.weekSelector}
-        contentContainerStyle={styles.weekSelectorContent}
-      >
-        {weekDates.map((date, index) => {
-          const formattedDate = formatDate(date);
-          const isSelected = date.toDateString() === selectedDate.toDateString();
-          const today = isToday(date);
-          
-          return (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dayButton,
-                isSelected && [styles.selectedDay, { borderBottomColor: theme.colors.primary }],
-                { width: DAY_WIDTH }
-              ]}
-              onPress={() => setSelectedDate(date)}
-            >
-              <Text style={[
-                styles.dayText,
-                { color: theme.colors.textSecondary },
-                (isSelected || today) && { color: theme.colors.primary }
-              ]}>
-                {formattedDate.day}
-              </Text>
-              <Text style={[
-                styles.dateText,
-                { color: theme.colors.text },
-                (isSelected || today) && { color: theme.colors.primary }
-              ]}>
-                {formattedDate.date}
-              </Text>
-              {today && (
-                <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.contentContainer}>
+        {/* Week Selector */}
+        <View style={styles.weekSelectorContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={[styles.weekSelector, { borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}
+            contentContainerStyle={styles.weekSelectorContent}
+          >
+            {weekDates.map((date, index) => {
+              const formattedDate = formatDate(date);
+              const isSelected = date.toDateString() === selectedDate.toDateString();
+              const today = isToday(date);
+              
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.dayButton,
+                    isSelected && [styles.selectedDay, { borderBottomColor: theme.colors.primary }],
+                    { width: DAY_WIDTH }
+                  ]}
+                  onPress={() => setSelectedDate(date)}
+                >
+                  <Text style={[
+                    styles.dayText,
+                    { color: theme.colors.textSecondary },
+                    (isSelected || today) && { color: theme.colors.primary }
+                  ]}>
+                    {formattedDate.day}
+                  </Text>
+                  <Text style={[
+                    styles.dateText,
+                    { color: theme.colors.text },
+                    (isSelected || today) && { color: theme.colors.primary }
+                  ]}>
+                    {formattedDate.date}
+                  </Text>
+                  {today && (
+                    <View style={[styles.todayDot, { backgroundColor: theme.colors.primary }]} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollViewContent}
-      >
-        {loading ? (
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            Loading...
-          </Text>
-        ) : exercises.length > 0 ? (
-          <>
-            <View style={styles.exerciseList}>
-              {exercises.map((exercise, index) => {
-                const section = String.fromCharCode(65 + Math.floor(index / 3)); // A, B, C, etc.
-                const subIndex = (index % 3) + 1; // 1, 2, 3
+        <ScrollView 
+          style={[styles.scrollView, { marginTop: -1 }]} 
+          contentContainerStyle={[styles.scrollViewContent, { marginTop: 0, paddingTop: 0 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {loading ? (
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+              Loading...
+            </Text>
+          ) : exercises.length > 0 ? (
+            <View style={[styles.exerciseList, { marginTop: 8, paddingTop: 0 }]}>
+              {[...exercises].reverse().map((exercise, index) => {
+                const section = String.fromCharCode(65 + Math.floor(index / 3));
+                const subIndex = (index % 3) + 1;
                 const exerciseId = index < 3 ? section : `${section}${subIndex}`;
                 
                 return (
@@ -191,9 +211,15 @@ export default function Training({ navigation }) {
                       <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
                         {exercise.exerciseTitle}
                       </Text>
-                      <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                        {exercise.sets}x{exercise.reps}
-                      </Text>
+                      {exercise.type === 'guidedSession' ? (
+                        <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                          {exercise.duration}
+                        </Text>
+                      ) : (
+                        <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                          {exercise.sets}x{exercise.reps}
+                        </Text>
+                      )}
                       {exercise.description && (
                         <Text style={[styles.exerciseDescription, { color: theme.colors.text }]}>
                           {exercise.description}
@@ -210,27 +236,27 @@ export default function Training({ navigation }) {
                 );
               })}
             </View>
-          </>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons 
-              name="calendar-outline" 
-              size={48} 
-              color={theme.colors.textSecondary} 
-              style={styles.emptyIcon}
-            />
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-              No exercises scheduled for {selectedDate.toLocaleDateString()}
-            </Text>
-            <TouchableOpacity
-              style={[styles.addFirstButton, { backgroundColor: theme.colors.primary }]}
-              onPress={handleAddExercise}
-            >
-              <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>Add First Exercise</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons 
+                name="calendar-outline" 
+                size={48} 
+                color={theme.colors.textSecondary} 
+                style={styles.emptyIcon}
+              />
+              <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+                No exercises scheduled for {selectedDate.toLocaleDateString()}
+              </Text>
+              <TouchableOpacity
+                style={[styles.addFirstButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleAddExercise}
+              >
+                <Text style={[styles.addFirstButtonText, { color: theme.colors.background }]}>Add First Exercise</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       {/* Floating Action Button */}
       <TouchableOpacity 
@@ -247,6 +273,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  contentContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
   title: {
     fontSize: 28,
     fontFamily: Typography.fonts.bold,
@@ -257,7 +287,6 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     paddingHorizontal: Layout.spacing.large,
-    paddingTop: 0,
   },
   exerciseCard: {
     flexDirection: 'row',
@@ -306,11 +335,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 8,
   },
-  weekSelector: {
+  weekSelectorContainer: {
     height: 80,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  weekSelector: {
+    height: '100%',
   },
   weekSelectorContent: {
-    height: 80,
+    height: '100%',
   },
   dayButton: {
     height: 80,
@@ -343,7 +377,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingTop: Layout.spacing.medium,
+    paddingTop: 0,
   },
   emptyIcon: {
     marginBottom: Layout.spacing.medium,
@@ -359,8 +393,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: Layout.spacing.large,
-    bottom: Layout.spacing.large + 60,
+    right: Layout.spacing.large - 8,
+    bottom: 100,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -384,5 +418,6 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     paddingTop: 0,
+    marginTop: 8,
   },
 }); 

@@ -9,7 +9,8 @@ import {
   query,
   where,
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  deleteDoc
 } from 'firebase/firestore';
 
 // Create a new scheduled exercise
@@ -201,6 +202,18 @@ export const getClientScheduledExercises = async (clientIds, startDate, endDate)
     }));
   } catch (error) {
     console.error('Error getting client scheduled exercises:', error);
+    throw error;
+  }
+};
+
+// Delete a scheduled exercise
+export const deleteScheduledExercise = async (exerciseId) => {
+  try {
+    const exerciseRef = doc(db, 'scheduledExercises', exerciseId);
+    await deleteDoc(exerciseRef);
+    return true;
+  } catch (error) {
+    console.error('Error deleting scheduled exercise:', error);
     throw error;
   }
 };
