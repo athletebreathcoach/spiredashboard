@@ -123,6 +123,16 @@ export default function Training({ navigation }) {
     });
   };
 
+  const handleDeleteExercise = async (exerciseId) => {
+    try {
+      await deleteExercise(exerciseId);
+      // Refresh the exercises list
+      loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error deleting exercise:', error);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Client Selector for Coaches */}
@@ -137,7 +147,7 @@ export default function Training({ navigation }) {
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        style={[styles.weekSelector, { borderBottomColor: theme.colors.border }]}
+        style={styles.weekSelector}
         contentContainerStyle={styles.weekSelectorContent}
       >
         {weekDates.map((date, index) => {
@@ -177,44 +187,55 @@ export default function Training({ navigation }) {
         })}
       </ScrollView>
 
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        {selectedClient?.name === 'My Training' ? 'My Training' : selectedClient ? `${selectedClient.name}'s Training` : "Today's Training"}
-      </Text>
-      
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollViewContent}
+      >
         {loading ? (
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             Loading...
           </Text>
         ) : exercises.length > 0 ? (
-          exercises.map((exercise) => (
-            <TouchableOpacity
-              key={exercise.id}
-              style={[styles.exerciseCard, { backgroundColor: '#2C2C2E' }]}
-              onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
-            >
-              <Ionicons 
-                name={exercise.icon || 'barbell-outline'} 
-                size={24} 
-                color="#00B5E0" 
-                style={styles.exerciseIcon}
-              />
-              <View style={styles.exerciseContent}>
-                <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-                  {exercise.exerciseTitle}
-                </Text>
-                <Text style={[styles.exerciseType, { color: theme.colors.textSecondary }]}>
-                  {exercise.status}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.startButton}
-                onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
-              >
-                <Ionicons name="chevron-forward" size={24} color="#00B5E0" />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))
+          <>
+            <View style={styles.exerciseList}>
+              {exercises.map((exercise, index) => {
+                const section = String.fromCharCode(65 + Math.floor(index / 3)); // A, B, C, etc.
+                const subIndex = (index % 3) + 1; // 1, 2, 3
+                const exerciseId = index < 3 ? section : `${section}${subIndex}`;
+                
+                return (
+                  <TouchableOpacity
+                    key={exercise.id}
+                    style={[styles.exerciseCard, { backgroundColor: '#2C2C2E' }]}
+                    onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
+                  >
+                    <View style={styles.exerciseIdContainer}>
+                      <Text style={styles.exerciseId}>{exerciseId}</Text>
+                    </View>
+                    <View style={styles.exerciseContent}>
+                      <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+                        {exercise.exerciseTitle}
+                      </Text>
+                      <Text style={[styles.exerciseMetrics, { color: '#00B5E0' }]}>
+                        {exercise.sets}x{exercise.reps}
+                      </Text>
+                      {exercise.description && (
+                        <Text style={[styles.exerciseDescription, { color: theme.colors.text }]}>
+                          {exercise.description}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteExercise(exercise.id)}
+                    >
+                      <Ionicons name="trash-outline" size={24} color="#00B5E0" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons 
@@ -258,25 +279,52 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    padding: Layout.spacing.large,
+  },
+  scrollViewContent: {
+    paddingHorizontal: Layout.spacing.large,
+    paddingTop: 0,
   },
   exerciseCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: Layout.spacing.medium,
     borderRadius: Layout.borderRadius.medium,
     marginBottom: Layout.spacing.small,
   },
-  exerciseIcon: {
+  exerciseIdContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#38383A',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: Layout.spacing.medium,
+  },
+  exerciseId: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
   },
   exerciseContent: {
     flex: 1,
   },
   exerciseTitle: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
+    marginBottom: 4,
+  },
+  exerciseMetrics: {
     fontSize: 17,
     fontFamily: Typography.fonts.medium,
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  exerciseDescription: {
+    fontSize: 15,
+    fontFamily: Typography.fonts.regular,
+    lineHeight: 20,
+  },
+  deleteButton: {
+    padding: Layout.spacing.small,
   },
   addButton: {
     position: 'absolute',
@@ -287,7 +335,6 @@ const styles = StyleSheet.create({
   },
   weekSelector: {
     height: 80,
-    borderBottomWidth: 1,
   },
   weekSelectorContent: {
     height: 80,
@@ -298,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedDay: {
-    borderBottomWidth: 2,
+    borderBottomWidth: 0,
   },
   dayText: {
     fontSize: 13,
@@ -310,9 +357,9 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.semibold,
   },
   todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#00B5E0',
     marginTop: 4,
   },
@@ -320,29 +367,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     fontFamily: Typography.fonts.regular,
-    padding: Layout.spacing.large,
-  },
-  exerciseType: {
-    fontSize: 15,
-    fontFamily: Typography.fonts.regular,
-    marginTop: 4,
-  },
-  startButton: {
-    padding: Layout.spacing.small,
+    color: '#8E8E93',
+    marginBottom: Layout.spacing.large,
   },
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.large,
+    paddingTop: Layout.spacing.medium,
   },
   emptyIcon: {
     marginBottom: Layout.spacing.medium,
   },
   addFirstButton: {
-    marginTop: Layout.spacing.large,
-    paddingVertical: Layout.spacing.small,
-    paddingHorizontal: Layout.spacing.large,
+    paddingHorizontal: Layout.spacing.xlarge,
+    paddingVertical: Layout.spacing.medium,
     borderRadius: Layout.borderRadius.large,
   },
   addFirstButtonText: {
@@ -368,5 +405,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 1000,
+  },
+  sectionHeader: {
+    fontSize: 24,
+    fontFamily: Typography.fonts.semibold,
+    color: '#00B5E0',
+    marginBottom: Layout.spacing.large,
+  },
+  exerciseList: {
+    paddingTop: 0,
   },
 }); 
