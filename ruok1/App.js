@@ -350,11 +350,7 @@ function AuthenticatedStack({ user }) {
         name="BreathProtocols" 
         component={BreathProtocols}
         options={{
-          title: 'Breath Protocols',
-          headerTitleStyle: {
-            fontFamily: Typography.fonts.bold,
-            fontSize: Layout.text.large,
-          }
+          headerShown: false,
         }}
       />
       <Stack.Screen 

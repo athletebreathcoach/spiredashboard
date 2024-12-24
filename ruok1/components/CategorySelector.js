@@ -11,8 +11,7 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { scheduleGuidedSession } from '../firebase/guidedSessions';
-import { scheduleExercise } from '../firebase/scheduledExercises';
-import { scheduleHabit, scheduleTask } from '../firebase/scheduledExercises';
+import { scheduleExercise, scheduleHabit, scheduleTask, scheduleBreathProtocol } from '../firebase/scheduledExercises';
 import { auth } from '../config/firebase';
 import ActivityMetricsForm from './ActivityMetricsForm';
 
@@ -74,6 +73,13 @@ export default function CategorySelector({ navigation, route }) {
     try {
       if (selectedActivity.type === 'exercise') {
         await scheduleExercise(
+          selectedClient?.id || auth.currentUser.uid,
+          selectedActivity.id,
+          selectedDate,
+          { metrics }
+        );
+      } else if (selectedActivity.type === 'breathProtocol') {
+        await scheduleBreathProtocol(
           selectedClient?.id || auth.currentUser.uid,
           selectedActivity.id,
           selectedDate,
@@ -152,6 +158,15 @@ export default function CategorySelector({ navigation, route }) {
           } catch (error) {
             console.error('Error scheduling habit/task:', error);
           }
+        }
+      });
+    } else if (category.navigateTo === 'BreathProtocols') {
+      navigation.navigate(category.navigateTo, { 
+        mode: 'selection',
+        selectedDate,
+        onProtocolSelect: (protocol) => {
+          setSelectedActivity({ ...protocol, type: 'breathProtocol' });
+          setShowMetricsForm(true);
         }
       });
     } else {

@@ -63,8 +63,10 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
         return [...baseFields, 'priority'];
       case 'guidedsession':
         return [...baseFields, 'time'];
+      case 'breathprotocol':
+        return [...baseFields]; // Only time of day for breath protocols
       default:
-        return [...baseFields, 'sets', 'reps', 'weights', 'time']; // Default fields
+        return [...baseFields, 'sets', 'reps', 'weights', 'time'];
     }
   };
 
@@ -197,6 +199,46 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
     );
   };
 
+  const renderBreathProtocolDetails = () => {
+    if (activity?.type !== 'breathProtocol') return null;
+
+    return (
+      <View style={styles.protocolDetails}>
+        <Text style={[styles.protocolDescription, { color: theme.colors.text }]}>
+          {activity.description}
+        </Text>
+
+        <View style={styles.protocolSection}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pattern</Text>
+          {Object.entries(activity.pattern).map(([key, value]) => (
+            <Text key={key} style={[styles.patternText, { color: theme.colors.textSecondary }]}>
+              {key.charAt(0).toUpperCase() + key.slice(1)}: {value} {key.includes('Hold') ? 'seconds' : ''}
+            </Text>
+          ))}
+        </View>
+
+        <View style={styles.protocolSection}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Details</Text>
+          <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>
+            Duration: {activity.duration}
+          </Text>
+          <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>
+            Rounds: {activity.rounds}
+          </Text>
+        </View>
+
+        <View style={styles.protocolSection}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Benefits</Text>
+          {activity.benefits.map((benefit, index) => (
+            <Text key={index} style={[styles.benefitText, { color: theme.colors.textSecondary }]}>
+              • {benefit}
+            </Text>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <Modal
       visible={visible}
@@ -211,7 +253,7 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
         <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Set {activity?.type || 'Activity'} Metrics
+              Schedule {activity?.title || activity?.type || 'Activity'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -221,6 +263,9 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
           <ScrollView style={styles.form}>
             {/* Render Time of Day selector first */}
             {renderField('timeOfDay')}
+            
+            {/* Render breath protocol details if applicable */}
+            {renderBreathProtocolDetails()}
             
             {/* Render remaining fields in pairs */}
             {Array.from({ length: Math.ceil((visibleFields.length - 1) / 2) }).map((_, index) => {
@@ -325,5 +370,33 @@ const styles = StyleSheet.create({
   timeOfDayText: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
+  },
+  protocolDetails: {
+    marginBottom: Layout.spacing.large,
+  },
+  protocolDescription: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  protocolSection: {
+    marginBottom: Layout.spacing.xsmall,
+  },
+  sectionTitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  patternText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+  },
+  detailText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+  },
+  benefitText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
 }); 

@@ -315,3 +315,50 @@ export const updateTaskStatus = async (scheduledExerciseId, completed) => {
     throw error;
   }
 };
+
+// Schedule a breath protocol
+export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTime, options = {}) => {
+  try {
+    const protocolRef = doc(db, 'breathProtocols', protocolId);
+    const protocolDoc = await getDoc(protocolRef);
+    
+    if (!protocolDoc.exists()) {
+      throw new Error('Breath protocol not found');
+    }
+
+    const protocol = protocolDoc.data();
+    const scheduledExerciseRef = collection(db, 'scheduledExercises');
+    
+    const scheduledProtocol = {
+      protocolId,
+      userId,
+      exerciseTitle: protocol.title,
+      type: 'breathProtocol',
+      scheduledDateTime,
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        duration: protocol.duration || null,
+        rounds: protocol.rounds || null,
+        breathHold: protocol.breathHold || null,
+        recovery: protocol.recovery || null,
+        timeOfDay: '',
+      },
+      protocol: {
+        ...protocol,  // Include all protocol data for auto-population
+      },
+      clientComments: '',
+      coachNotes: '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      ...options
+    };
+
+    const docRef = await addDoc(scheduledExerciseRef, scheduledProtocol);
+    return { id: docRef.id, ...scheduledProtocol };
+  } catch (error) {
+    console.error('Error scheduling breath protocol:', error);
+    throw error;
+  }
+};

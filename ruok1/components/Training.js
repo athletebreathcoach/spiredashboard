@@ -369,7 +369,23 @@ export default function Training({ navigation, route }) {
                         <TouchableOpacity
                           key={exercise.id}
                           style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
-                          onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
+                          onPress={() => {
+                            if (exercise.type === 'breathProtocol') {
+                              const breathGuideParams = {
+                                totalTime: exercise.protocol.duration,
+                                inhaleTime: exercise.protocol.pattern.inhale,
+                                inhaleHoldTime: exercise.protocol.pattern.inHold,
+                                exhaleTime: exercise.protocol.pattern.exhale,
+                                exhaleHoldTime: exercise.protocol.pattern.exHold,
+                                rounds: exercise.protocol.rounds,
+                                title: exercise.protocol.title,
+                                description: exercise.protocol.description
+                              };
+                              navigation.navigate('BreathGuide', breathGuideParams);
+                            } else {
+                              navigation.navigate('ExerciseDetail', { exercise });
+                            }
+                          }}
                         >
                           <View style={[styles.exerciseIdContainer, { backgroundColor: theme.colors.border }]}>
                             <Text style={[styles.exerciseId, { color: theme.colors.text }]}>{exerciseId}</Text>
@@ -382,6 +398,48 @@ export default function Training({ navigation, route }) {
                               <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
                                 {exercise.duration}
                               </Text>
+                            ) : exercise.type === 'breathProtocol' ? (
+                              <View style={styles.breathProtocolMetrics}>
+                                <View style={styles.exerciseMetricsContainer}>
+                                  {exercise.metrics?.rounds && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                                      {exercise.metrics.rounds} rounds
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.breathHold && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.breathHold}s hold
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.recovery && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.recovery}s recovery
+                                    </Text>
+                                  )}
+                                </View>
+                                {!isCoach && (
+                                  <TouchableOpacity
+                                    style={[styles.logButton, { borderColor: theme.colors.primary }]}
+                                    onPress={() => {
+                                      const breathGuideParams = {
+                                        totalTime: exercise.protocol.duration,
+                                        inhaleTime: exercise.protocol.pattern.inhale,
+                                        inhaleHoldTime: exercise.protocol.pattern.inHold,
+                                        exhaleTime: exercise.protocol.pattern.exhale,
+                                        exhaleHoldTime: exercise.protocol.pattern.exHold,
+                                        rounds: exercise.protocol.rounds,
+                                        title: exercise.protocol.title,
+                                        description: exercise.protocol.description
+                                      };
+                                      navigation.navigate('BreathGuide', breathGuideParams);
+                                    }}
+                                  >
+                                    <Text style={[styles.logButtonText, { color: theme.colors.primary }]}>
+                                      Start Protocol
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
                             ) : exercise.type === 'habit' ? (
                               <View style={styles.habitMetrics}>
                                 <Ionicons 
@@ -713,5 +771,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Typography.fonts.medium,
     color: '#00B5E0',
+  },
+  breathProtocolMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
 }); 

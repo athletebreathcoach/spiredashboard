@@ -1,14 +1,14 @@
-const { populateHabitsTasks } = require('./populateHabitsTasks');
+const { populateBreathProtocols } = require('./populateBreathProtocols');
 
-const runPopulation = async () => {
+async function run() {
   try {
-    console.log('Starting population of habits and tasks...');
-    await populateHabitsTasks();
-    console.log('Population completed successfully!');
+    await populateBreathProtocols();
+    console.log('Population completed successfully');
+    process.exit(0);
   } catch (error) {
     console.error('Error during population:', error);
     process.exit(1);
   }
-};
+}
 
-runPopulation(); 
+run(); 
