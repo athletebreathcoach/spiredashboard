@@ -48,7 +48,13 @@ const quickActions = [
 ];
 
 export default function HomeScreen({ navigation }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
+
+  if (!theme) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#000000' }]} />
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -60,14 +66,14 @@ export default function HomeScreen({ navigation }) {
           {quickActions.map((action) => (
             <TouchableOpacity
               key={action.id}
-              style={[styles.card, { backgroundColor: action.color }]}
+              style={[styles.card, { backgroundColor: theme.colors.surface }]}
               onPress={() => navigation.navigate(action.navigateTo)}
             >
               <View style={styles.cardContent}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name={action.icon} size={32} color="#FFFFFF" />
+                <View style={[styles.iconContainer, { backgroundColor: action.color }]}>
+                  <Ionicons name={action.icon} size={32} color={theme.colors.background} />
                 </View>
-                <Text style={styles.cardTitle}>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                   {action.title}
                 </Text>
               </View>
@@ -85,32 +91,34 @@ const styles = StyleSheet.create({
     padding: Layout.spacing.large,
   },
   scrollContent: {
-    paddingBottom: Layout.spacing.large,
+    flexGrow: 1,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: CARD_MARGIN,
   },
   card: {
     width: CARD_WIDTH,
-    height: 120,
-    borderRadius: Layout.borderRadius.medium,
+    aspectRatio: 1,
+    borderRadius: Layout.borderRadius.large,
     padding: Layout.spacing.medium,
-    overflow: 'hidden',
+    marginBottom: CARD_MARGIN,
   },
   cardContent: {
     flex: 1,
-    flexDirection: 'column',
     justifyContent: 'space-between',
   },
   iconContainer: {
-    marginTop: Layout.spacing.small,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
     fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
-    color: '#FFFFFF',
-    marginTop: Layout.spacing.small,
+    fontFamily: Typography.fonts.medium,
   },
 }); 

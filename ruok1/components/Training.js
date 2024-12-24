@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
@@ -22,25 +22,14 @@ export default function Training({ navigation, route }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Add a focus listener to refresh data when returning to this screen
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadExercisesForDate(selectedDate);
-    });
-
-    return unsubscribe;
-  }, [navigation, selectedDate]);
-
-  const onRefresh = React.useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await loadExercisesForDate(selectedDate);
-    } catch (error) {
-      console.error('Error refreshing exercises:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [selectedDate]);
+  // Add theme check right after hooks declarations
+  if (!theme) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#000000' }]}>
+        <ActivityIndicator size="large" color="#00B5E0" />
+      </View>
+    );
+  }
 
   const panResponder = useRef(
     PanResponder.create({
@@ -91,12 +80,18 @@ export default function Training({ navigation, route }) {
   ).current;
 
   useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadExercisesForDate(selectedDate);
+    });
+    return unsubscribe;
+  }, [navigation, selectedDate]);
+
+  useEffect(() => {
     checkIfCoach();
     generateWeekDates();
   }, []);
 
   useEffect(() => {
-    // Initialize selectedClient as "My Training" for coaches
     if (isCoach) {
       setSelectedClient({ id: auth.currentUser.uid, name: 'My Training' });
     }
@@ -105,6 +100,17 @@ export default function Training({ navigation, route }) {
   useEffect(() => {
     loadExercisesForDate(selectedDate);
   }, [selectedDate, selectedClient]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error refreshing exercises:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedDate]);
 
   const checkIfCoach = async () => {
     try {
@@ -294,94 +300,132 @@ export default function Training({ navigation, route }) {
             </Text>
           ) : exercises.length > 0 ? (
             <View style={[styles.exerciseList, { marginTop: 8, paddingTop: 0 }]}>
-              {[...exercises].reverse().map((exercise, index) => {
-                const section = String.fromCharCode(65 + Math.floor(index / 3));
-                const subIndex = (index % 3) + 1;
-                const exerciseId = index < 3 ? section : `${section}${subIndex}`;
-                
-                return (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
-                  >
-                    <View style={[styles.exerciseIdContainer, { backgroundColor: theme.colors.border }]}>
-                      <Text style={[styles.exerciseId, { color: theme.colors.text }]}>{exerciseId}</Text>
-                    </View>
-                    <View style={styles.exerciseContent}>
-                      <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-                        {exercise.exerciseTitle}
-                      </Text>
-                      {exercise.type === 'guidedSession' ? (
-                        <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                          {exercise.duration}
+              {(() => {
+                // Group exercises by time of day
+                const groupedExercises = [...exercises].reverse().reduce((acc, exercise) => {
+                  const timeOfDay = exercise.metrics?.timeOfDay || 'Unscheduled';
+                  if (!acc[timeOfDay]) {
+                    acc[timeOfDay] = [];
+                  }
+                  acc[timeOfDay].push(exercise);
+                  return acc;
+                }, {});
+
+                // Define time of day order
+                const timeOrder = {
+                  'Morning': 0,
+                  'Afternoon': 1,
+                  'Evening': 2,
+                  'Unscheduled': 3
+                };
+
+                // Sort groups by time of day
+                const sortedGroups = Object.entries(groupedExercises).sort((a, b) => {
+                  return (timeOrder[a[0]] ?? 4) - (timeOrder[b[0]] ?? 4);
+                });
+
+                // Render each group
+                return sortedGroups.map(([timeOfDay, groupExercises]) => (
+                  <View key={timeOfDay}>
+                    {timeOfDay !== 'Unscheduled' && (
+                      <View style={styles.timeOfDayHeader}>
+                        <Text style={[styles.timeOfDayText, { color: theme.colors.textSecondary }]}>
+                          {timeOfDay}
                         </Text>
-                      ) : exercise.type === 'habit' ? (
-                        <View style={styles.habitMetrics}>
-                          <Ionicons 
-                            name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
-                            size={20} 
-                            color={theme.colors.primary} 
-                          />
-                          <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                            Streak: {exercise.metrics?.streak || 0}
-                          </Text>
-                        </View>
-                      ) : exercise.type === 'task' ? (
-                        <View style={styles.taskMetrics}>
-                          <Ionicons 
-                            name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
-                            size={20} 
-                            color={theme.colors.primary} 
-                          />
-                          <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                            Priority: {exercise.metrics?.priority || 'medium'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={styles.exerciseMetricsContainer}>
-                          {exercise.metrics?.sets && exercise.metrics?.reps && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                              {exercise.metrics.sets} × {exercise.metrics.reps}
+                        <View style={[styles.timeOfDayDivider, { backgroundColor: theme.colors.border }]} />
+                      </View>
+                    )}
+                    {groupExercises.map((exercise, index) => {
+                      const section = String.fromCharCode(65 + Math.floor(index / 3));
+                      const subIndex = (index % 3) + 1;
+                      const exerciseId = index < 3 ? section : `${section}${subIndex}`;
+                      
+                      return (
+                        <TouchableOpacity
+                          key={exercise.id}
+                          style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
+                          onPress={() => navigation.navigate('ExerciseDetail', { exercise })}
+                        >
+                          <View style={[styles.exerciseIdContainer, { backgroundColor: theme.colors.border }]}>
+                            <Text style={[styles.exerciseId, { color: theme.colors.text }]}>{exerciseId}</Text>
+                          </View>
+                          <View style={styles.exerciseContent}>
+                            <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+                              {exercise.exerciseTitle}
                             </Text>
-                          )}
-                          {exercise.metrics?.weights && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                              {exercise.metrics.weights}kg
-                            </Text>
-                          )}
-                          {exercise.metrics?.rir && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                              RIR: {exercise.metrics.rir}
-                            </Text>
-                          )}
-                          {exercise.metrics?.time && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                              {exercise.metrics.time}
-                            </Text>
-                          )}
-                          {exercise.metrics?.distance && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                              {exercise.metrics.distance}km
-                            </Text>
-                          )}
-                          {exercise.metrics?.oneRmPercentage && (
-                            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                              {exercise.metrics.oneRmPercentage}% 1RM
-                            </Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteExercise(exercise.id)}
-                    >
-                      <Ionicons name="trash-outline" size={24} color={theme.colors.primary} />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                );
-              })}
+                            {exercise.type === 'guidedSession' ? (
+                              <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                                {exercise.duration}
+                              </Text>
+                            ) : exercise.type === 'habit' ? (
+                              <View style={styles.habitMetrics}>
+                                <Ionicons 
+                                  name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                                  size={20} 
+                                  color={theme.colors.primary} 
+                                />
+                                <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                  Streak: {exercise.metrics?.streak || 0}
+                                </Text>
+                              </View>
+                            ) : exercise.type === 'task' ? (
+                              <View style={styles.taskMetrics}>
+                                <Ionicons 
+                                  name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                                  size={20} 
+                                  color={theme.colors.primary} 
+                                />
+                                <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                  Priority: {exercise.metrics?.priority || 'medium'}
+                                </Text>
+                              </View>
+                            ) : (
+                              <View style={styles.exerciseMetricsContainer}>
+                                {exercise.metrics?.sets && exercise.metrics?.reps && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                                    {exercise.metrics.sets} × {exercise.metrics.reps}
+                                  </Text>
+                                )}
+                                {exercise.metrics?.weights && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                    {exercise.metrics.weights}kg
+                                  </Text>
+                                )}
+                                {exercise.metrics?.rir && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                    RIR: {exercise.metrics.rir}
+                                  </Text>
+                                )}
+                                {exercise.metrics?.time && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                    {exercise.metrics.time}
+                                  </Text>
+                                )}
+                                {exercise.metrics?.distance && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                    {exercise.metrics.distance}km
+                                  </Text>
+                                )}
+                                {exercise.metrics?.oneRmPercentage && (
+                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                    {exercise.metrics.oneRmPercentage}% 1RM
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+                          </View>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteExercise(exercise.id)}
+                          >
+                            <Ionicons name="trash-outline" size={24} color={theme.colors.primary} />
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ));
+              })()}
             </View>
           ) : (
             <View style={[styles.emptyContainer, { marginTop: -150 }]}>
@@ -588,5 +632,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.small,
     paddingVertical: 4,
     borderRadius: Layout.borderRadius.small,
+  },
+  timeOfDay: {
+    fontSize: 15,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: 4,
+  },
+  timeOfDayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    marginTop: Layout.spacing.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  timeOfDayText: {
+    fontSize: 15,
+    fontFamily: Typography.fonts.medium,
+    marginRight: Layout.spacing.medium,
+    opacity: 0.8,
+  },
+  timeOfDayDivider: {
+    height: 1,
+    flex: 1,
+    opacity: 0.2,
   },
 }); 

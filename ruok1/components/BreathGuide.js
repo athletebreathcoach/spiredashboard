@@ -5,7 +5,7 @@ import BreathSetup from './BreathSetup';
 import BreathAnimation from './BreathAnimation';
 
 export default function BreathGuide({ navigation, route }) {
-  const { theme } = useTheme();
+  const theme = useTheme();
   const [showSetup, setShowSetup] = useState(true);
   const [currentSettings, setCurrentSettings] = useState(null);
   const presetSettings = route.params?.settings;
@@ -26,8 +26,14 @@ export default function BreathGuide({ navigation, route }) {
     setShowSetup(false);
   };
 
+  if (!theme) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#000000' }]} />
+    );
+  }
+
   return (
-    <View style={[styles.container, theme?.colors?.background && { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {showSetup ? (
         <BreathSetup 
           onStart={handleStart} 

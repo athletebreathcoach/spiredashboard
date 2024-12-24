@@ -44,21 +44,29 @@ export default function GuidedSessions({ navigation, route }) {
     }
   };
 
+  if (!theme) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#000000' }]}>
+        <ActivityIndicator size="large" color="#00B5E0" />
+      </View>
+    );
+  }
+
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme?.colors?.background ?? '#000000' }]}>
-        <ActivityIndicator size="large" color={theme?.colors?.primary ?? '#00B5E0'} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme?.colors?.background ?? '#000000' }]}>
-      <Text style={[styles.title, { color: theme?.colors?.text ?? '#FFFFFF' }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         {isSelectionMode ? 'Add Guided Session' : 'Guided Sessions'}
       </Text>
-      <Text style={[styles.subtitle, { color: theme?.colors?.textSecondary ?? '#A0A0A0' }]}>
-        {isSelectionMode ? 'Select a session to add to schedule' : 'Follow along with guided breathing practices'}
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+        {isSelectionMode ? 'Select a session to add to schedule' : 'Choose a guided workout session'}
       </Text>
 
       <ScrollView 
@@ -69,28 +77,27 @@ export default function GuidedSessions({ navigation, route }) {
         {sessions.map((session) => (
           <TouchableOpacity
             key={session.id}
-            style={[styles.card, { backgroundColor: theme?.colors?.surface ?? '#1C1C1E' }]}
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
             onPress={() => handleSessionPress(session)}
           >
             <View style={styles.cardHeader}>
-              <Ionicons name="play-circle-outline" size={24} color={theme?.colors?.primary ?? '#00B5E0'} />
-              <Text style={[styles.cardTitle, { color: theme?.colors?.text ?? '#FFFFFF' }]}>{session.title}</Text>
+              <Ionicons name="compass-outline" size={24} color={theme.colors.primary} />
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                {session.title}
+              </Text>
             </View>
-            <Text style={[styles.cardDescription, { color: theme?.colors?.textSecondary ?? '#A0A0A0' }]}>
+            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
               {session.description}
             </Text>
             <View style={styles.cardFooter}>
               <View style={styles.durationContainer}>
-                <Ionicons name="time-outline" size={16} color={theme?.colors?.primary ?? '#00B5E0'} />
-                <Text style={[styles.duration, { color: theme?.colors?.text ?? '#FFFFFF' }]}>{session.duration}</Text>
+                <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
+                <Text style={[styles.duration, { color: theme.colors.textSecondary }]}>
+                  {session.duration}
+                </Text>
               </View>
               {isSelectionMode && (
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => handleSessionPress(session)}
-                >
-                  <Ionicons name="add-circle" size={32} color={theme?.colors?.primary ?? '#00B5E0'} />
-                </TouchableOpacity>
+                <Ionicons name="add-circle" size={24} color={theme.colors.primary} />
               )}
             </View>
           </TouchableOpacity>

@@ -29,6 +29,7 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
     completed: false,
     streak: 0,
     priority: 'medium',
+    timeOfDay: '',
   });
 
   // Reset metrics when activity changes
@@ -45,23 +46,25 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
       completed: false,
       streak: 0,
       priority: 'medium',
+      timeOfDay: '',
     });
   }, [activity]);
 
   const getVisibleFields = () => {
+    const baseFields = ['timeOfDay'];
     switch (activity?.type?.toLowerCase()) {
       case 'strength':
-        return ['sets', 'reps', 'weights', 'rir', 'oneRmPercentage'];
+        return [...baseFields, 'sets', 'reps', 'weights', 'rir', 'oneRmPercentage'];
       case 'cardio':
-        return ['time', 'distance', 'calories'];
+        return [...baseFields, 'time', 'distance', 'calories'];
       case 'habit':
-        return ['streak'];
+        return [...baseFields, 'streak'];
       case 'task':
-        return ['priority'];
+        return [...baseFields, 'priority'];
       case 'guidedsession':
-        return ['time'];
+        return [...baseFields, 'time'];
       default:
-        return ['sets', 'reps', 'weights', 'time']; // Default fields
+        return [...baseFields, 'sets', 'reps', 'weights', 'time']; // Default fields
     }
   };
 
@@ -79,6 +82,7 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
       completed: metrics.completed,
       streak: metrics.streak,
       priority: metrics.priority,
+      timeOfDay: metrics.timeOfDay || null,
     };
     onSubmit(processedMetrics);
   };
@@ -87,6 +91,10 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
 
   const renderField = (fieldName) => {
     const fieldConfig = {
+      timeOfDay: {
+        label: 'Time of Day',
+        options: ['Morning', 'Afternoon', 'Evening'],
+      },
       sets: {
         label: 'Sets',
         placeholder: '0',
@@ -142,6 +150,38 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
     const config = fieldConfig[fieldName];
     if (!config) return null;
 
+    if (fieldName === 'timeOfDay') {
+      return (
+        <View style={styles.inputGroup} key={fieldName}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>{config.label}</Text>
+          <View style={styles.timeOfDayContainer}>
+            {config.options.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.timeOfDayButton,
+                  metrics.timeOfDay === option && { backgroundColor: theme.colors.primary },
+                  { borderColor: theme.colors.primary }
+                ]}
+                onPress={() => setMetrics(prev => ({ ...prev, timeOfDay: option }))}
+              >
+                <Text
+                  style={[
+                    styles.timeOfDayText,
+                    metrics.timeOfDay === option
+                      ? { color: theme.colors.white }
+                      : { color: theme.colors.primary }
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.inputGroup} key={fieldName}>
         <Text style={[styles.label, { color: theme.colors.text }]}>{config.label}</Text>
@@ -179,13 +219,19 @@ export default function ActivityMetricsForm({ visible, onClose, onSubmit, activi
           </View>
 
           <ScrollView style={styles.form}>
-            {/* Render fields in pairs */}
-            {Array.from({ length: Math.ceil(visibleFields.length / 2) }).map((_, index) => (
-              <View style={styles.inputRow} key={index}>
-                {renderField(visibleFields[index * 2])}
-                {visibleFields[index * 2 + 1] && renderField(visibleFields[index * 2 + 1])}
-              </View>
-            ))}
+            {/* Render Time of Day selector first */}
+            {renderField('timeOfDay')}
+            
+            {/* Render remaining fields in pairs */}
+            {Array.from({ length: Math.ceil((visibleFields.length - 1) / 2) }).map((_, index) => {
+              const fieldIndex = index * 2 + 1; // Skip timeOfDay which is already rendered
+              return (
+                <View style={styles.inputRow} key={index}>
+                  {renderField(visibleFields[fieldIndex])}
+                  {visibleFields[fieldIndex + 1] && renderField(visibleFields[fieldIndex + 1])}
+                </View>
+              );
+            })}
           </ScrollView>
 
           <TouchableOpacity
@@ -254,12 +300,30 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     margin: Layout.spacing.large,
-    padding: Layout.spacing.medium,
+    height: 56,
     borderRadius: Layout.borderRadius.large,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   submitButtonText: {
     fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+  },
+  timeOfDayContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Layout.spacing.small,
+  },
+  timeOfDayButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: Layout.borderRadius.medium,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  timeOfDayText: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
   },
 }); 
