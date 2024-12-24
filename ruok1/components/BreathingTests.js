@@ -9,49 +9,52 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-
-const tests = [
-  {
-    id: 1,
-    title: 'CO2 Tolerance',
-    category: 'Baseline',
-    description: 'Measure your CO2 tolerance level',
-    icon: 'timer-outline',
-    color: '#4A90E2',
-  },
-  {
-    id: 2,
-    title: 'O2 Advantage Test',
-    category: 'Baseline',
-    description: 'Measure your oxygen efficiency',
-    icon: 'pulse-outline',
-    color: '#FF9500',
-  },
-  {
-    id: 3,
-    title: 'BOLT Score',
-    category: 'Assessment',
-    description: 'Body Oxygen Level Test',
-    icon: 'analytics-outline',
-    color: '#FF3B30',
-  },
-  {
-    id: 4,
-    title: 'MAX Breath Hold',
-    category: 'Performance',
-    description: 'Maximum breath hold duration',
-    icon: 'stopwatch-outline',
-    color: '#5856D6',
-  },
-];
+import { useTheme } from '../theme/ThemeContext';
 
 export default function BreathingTests({ navigation }) {
+  const theme = useTheme();
+
+  const tests = [
+    {
+      id: 1,
+      title: 'CO2 Tolerance',
+      category: 'Baseline',
+      description: 'Measure your CO2 tolerance level',
+      icon: 'timer-outline',
+      color: theme.colors.primary,
+    },
+    {
+      id: 2,
+      title: 'O2 Advantage Test',
+      category: 'Baseline',
+      description: 'Measure your oxygen efficiency',
+      icon: 'pulse-outline',
+      color: theme.colors.primary,
+    },
+    {
+      id: 3,
+      title: 'BOLT Score',
+      category: 'Assessment',
+      description: 'Body Oxygen Level Test',
+      icon: 'analytics-outline',
+      color: theme.colors.primary,
+    },
+    {
+      id: 4,
+      title: 'MAX Breath Hold',
+      category: 'Performance',
+      description: 'Maximum breath hold duration',
+      icon: 'stopwatch-outline',
+      color: theme.colors.primary,
+    },
+  ];
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         Breathing Tests
       </Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
         Assess your breathing capacity
       </Text>
 
@@ -63,15 +66,24 @@ export default function BreathingTests({ navigation }) {
         {tests.map((test) => (
           <TouchableOpacity
             key={test.id}
-            style={[styles.card, { backgroundColor: test.color }]}
+            style={[
+              styles.card,
+              { backgroundColor: theme.colors.surface }
+            ]}
             onPress={() => navigation.navigate('BreathTestDetail', { test })}
           >
             <View style={styles.cardHeader}>
-              <Ionicons name={test.icon} size={24} color="#FFFFFF" />
-              <Text style={styles.cardTitle}>{test.title}</Text>
+              <View style={[styles.iconContainer, { backgroundColor: test.color }]}>
+                <Ionicons name={test.icon} size={24} color={theme.colors.background} />
+              </View>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{test.title}</Text>
             </View>
-            <Text style={styles.cardDescription}>{test.description}</Text>
-            <Text style={styles.cardCategory}>#{test.category}</Text>
+            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
+              {test.description}
+            </Text>
+            <Text style={[styles.cardCategory, { color: theme.colors.primary }]}>
+              #{test.category}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -83,19 +95,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.large,
-    backgroundColor: '#1C1C1E',
   },
   title: {
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
     marginBottom: Layout.spacing.small,
-    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
-    color: '#8E8E93',
   },
   scrollView: {
     flex: 1,
@@ -113,22 +122,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Layout.spacing.medium,
   },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Layout.spacing.medium,
+  },
   cardTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.bold,
-    color: '#FFFFFF',
-    marginLeft: Layout.spacing.medium,
   },
   cardDescription: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
     marginBottom: Layout.spacing.small,
   },
   cardCategory: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
-    color: '#FFFFFF',
-    opacity: 0.8,
   },
 }); 
