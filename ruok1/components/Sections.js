@@ -209,9 +209,6 @@ export default function Sections({ navigation, route }) {
         onPress={handleCreateSection}
       >
         <Ionicons name="add" size={24} color={theme.colors.white} />
-        <Text style={[styles.createButtonText, { color: theme.colors.white }]}>
-          Create Section
-        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -288,24 +285,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: Layout.spacing.large,
     bottom: Layout.spacing.large,
-    width: 120,
-    height: 48,
-    borderRadius: Layout.borderRadius.medium,
-    flexDirection: 'row',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  createButtonText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
-    marginLeft: Layout.spacing.small,
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    zIndex: 1000,
   },
 }); 
