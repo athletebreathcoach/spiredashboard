@@ -46,9 +46,8 @@ export default function Exercises({ navigation, route }) {
   };
 
   const handleAddPress = (exercise) => {
-    if (isSelectionMode && onExerciseSelect) {
-      setSelectedExercise({ ...exercise, type: 'exercise' });
-      setShowMetricsForm(true);
+    if (isSelectionMode && route.params?.onSelect) {
+      route.params.onSelect(exercise);
     }
   };
 

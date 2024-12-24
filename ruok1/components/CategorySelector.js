@@ -5,17 +5,24 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { scheduleGuidedSession } from '../firebase/guidedSessions';
-import { scheduleExercise, scheduleHabit, scheduleTask, scheduleBreathProtocol } from '../firebase/scheduledExercises';
+import { scheduleExercise, scheduleHabit, scheduleTask, scheduleBreathProtocol, scheduleSection } from '../firebase/scheduledExercises';
 import { auth } from '../config/firebase';
 import ActivityMetricsForm from './ActivityMetricsForm';
 
 const categories = [
+  {
+    id: 'sections',
+    title: 'Sections',
+    icon: 'layers-outline',
+    screen: 'Sections'
+  },
   {
     id: 1,
     title: 'Programs',
@@ -93,8 +100,28 @@ export default function CategorySelector({ navigation, route }) {
     }
   };
 
-  const handleCategoryPress = (category) => {
-    if (category.navigateTo === 'GuidedSessions') {
+  const handleCategoryPress = async (category) => {
+    if (category.id === 'sections') {
+      navigation.navigate('Sections', {
+        mode: 'selection',
+        onSectionSelect: async (section) => {
+          try {
+            await scheduleSection(
+              selectedClient?.id || auth.currentUser.uid,
+              section,
+              selectedDate,
+              null // timeOfDay will be set in ActivityMetricsForm
+            );
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error scheduling section:', error);
+            Alert.alert('Error', 'Failed to schedule section. Please try again.');
+          }
+        }
+      });
+    } else if (category.navigateTo === 'Programs') {
+      navigation.navigate('Programs');
+    } else if (category.navigateTo === 'GuidedSessions') {
       console.log('Scheduling for client:', {
         selectedClient,
         selectedClientId: selectedClient?.id,
@@ -178,6 +205,48 @@ export default function CategorySelector({ navigation, route }) {
         }
       });
     }
+  };
+
+  const handleItemPress = (item, type) => {
+    if (route.params?.onItemSelect) {
+      route.params.onItemSelect(item, type);
+    }
+  };
+
+  const handleAddPress = (item, type) => {
+    if (route.params?.onItemSelect) {
+      route.params.onItemSelect(item, type);
+    }
+  };
+
+  const renderActivityList = (activities, type) => {
+    return activities.map((activity) => (
+      <TouchableOpacity
+        key={activity.id}
+        style={[styles.activityItem, { backgroundColor: theme.colors.surface }]}
+        onPress={() => handleItemPress(activity, type)}
+      >
+        <View style={styles.activityInfo}>
+          <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
+            {activity.title || activity.name}
+          </Text>
+          {activity.description && (
+            <Text style={[styles.activityDescription, { color: theme.colors.textSecondary }]}>
+              {activity.description}
+            </Text>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleAddPress(activity, type);
+          }}
+        >
+          <Ionicons name="add-square" size={24} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    ));
   };
 
   return (
@@ -279,5 +348,28 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.medium,
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  activityDescription: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+  },
+  addButton: {
+    padding: Layout.spacing.small,
   },
 }); 

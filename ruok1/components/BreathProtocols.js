@@ -59,8 +59,8 @@ export default function BreathProtocols({ navigation, route }) {
   };
 
   const handleAddPress = (protocol) => {
-    if (isSelectionMode && onProtocolSelect) {
-      onProtocolSelect(protocol);
+    if (isSelectionMode && route.params?.onSelect) {
+      route.params.onSelect(protocol);
     }
   };
 

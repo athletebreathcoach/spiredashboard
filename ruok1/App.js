@@ -38,6 +38,9 @@ import ProgramDayEdit from './components/ProgramDayEdit';
 import ClientBreathHistory from './components/ClientBreathHistory';
 import Chat from './components/Chat';
 import CategorySelector from './components/CategorySelector';
+import Sections from './components/Sections';
+import CreateSection from './components/CreateSection';
+import AddSectionActivities from './components/AddSectionActivities';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -448,6 +451,26 @@ function AuthenticatedStack({ user }) {
             fontSize: Layout.text.large,
           }
         }}
+      />
+      <Stack.Screen 
+        name="Sections" 
+        component={Sections}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="CreateSection" 
+        component={CreateSection}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="AddSectionActivities" 
+        component={AddSectionActivities}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SectionDetail" 
+        component={SectionDetail}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

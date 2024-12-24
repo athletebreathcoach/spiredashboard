@@ -10,7 +10,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { getHabitTaskById } from './habits';
 
@@ -359,6 +360,48 @@ export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTi
     return { id: docRef.id, ...scheduledProtocol };
   } catch (error) {
     console.error('Error scheduling breath protocol:', error);
+    throw error;
+  }
+};
+
+export const scheduleSection = async (userId, section, date, timeOfDay = null) => {
+  try {
+    const batch = writeBatch(db);
+    const scheduledExercisesRef = collection(db, 'scheduledExercises');
+
+    // Schedule each activity in the section
+    for (const activityGroup of section.activities) {
+      for (const item of activityGroup.items || []) {
+        const scheduledExercise = {
+          userId,
+          date: date.toISOString(),
+          type: activityGroup.type,
+          exerciseTitle: item.title || item.exerciseTitle,
+          description: item.description,
+          metrics: {
+            ...item.metrics,
+            timeOfDay
+          },
+          createdAt: new Date().toISOString()
+        };
+
+        // Add specific fields based on activity type
+        if (activityGroup.type === 'breathProtocol') {
+          scheduledExercise.protocol = item;
+        } else if (activityGroup.type === 'exercise') {
+          scheduledExercise.exercise = item;
+        } else if (activityGroup.type === 'guidedSession') {
+          scheduledExercise.session = item;
+        }
+
+        const newDocRef = doc(scheduledExercisesRef);
+        batch.set(newDocRef, scheduledExercise);
+      }
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Error scheduling section:', error);
     throw error;
   }
 };
