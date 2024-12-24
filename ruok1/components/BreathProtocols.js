@@ -43,7 +43,18 @@ export default function BreathProtocols({ navigation, route }) {
 
   const handleProtocolPress = (protocol) => {
     if (!isSelectionMode) {
-      navigation.navigate('BreathProtocolGuide', { protocol });
+      const breathGuideParams = {
+        settings: {
+          inhaleTime: protocol.pattern.inhale,
+          inhaleHoldTime: protocol.pattern.inHold,
+          exhaleTime: protocol.pattern.exhale,
+          exhaleHoldTime: protocol.pattern.exHold,
+          rounds: protocol.rounds,
+          totalTime: parseInt(protocol.duration)
+        },
+        presetName: protocol.title
+      };
+      navigation.navigate('BreathGuide', breathGuideParams);
     }
   };
 
@@ -63,12 +74,17 @@ export default function BreathProtocols({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        {isSelectionMode ? 'Add Breath Protocol' : 'Breath Protocols'}
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        {isSelectionMode ? 'Select a protocol to add to schedule' : 'Choose a protocol to begin'}
-      </Text>
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          {isSelectionMode ? 'Add Breath Protocol' : 'Breath Protocols'}
+        </Text>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -181,5 +197,20 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: Layout.spacing.small,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Layout.spacing.medium,
+    height: 60,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: Layout.spacing.small,
+    marginRight: Layout.spacing.small,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
   },
 }); 

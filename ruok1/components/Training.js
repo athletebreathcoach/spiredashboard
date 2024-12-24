@@ -372,14 +372,15 @@ export default function Training({ navigation, route }) {
                           onPress={() => {
                             if (exercise.type === 'breathProtocol') {
                               const breathGuideParams = {
-                                totalTime: exercise.protocol.duration,
-                                inhaleTime: exercise.protocol.pattern.inhale,
-                                inhaleHoldTime: exercise.protocol.pattern.inHold,
-                                exhaleTime: exercise.protocol.pattern.exhale,
-                                exhaleHoldTime: exercise.protocol.pattern.exHold,
-                                rounds: exercise.protocol.rounds,
-                                title: exercise.protocol.title,
-                                description: exercise.protocol.description
+                                settings: {
+                                  inhaleTime: exercise.protocol.pattern.inhale,
+                                  inhaleHoldTime: exercise.protocol.pattern.inHold,
+                                  exhaleTime: exercise.protocol.pattern.exhale,
+                                  exhaleHoldTime: exercise.protocol.pattern.exHold,
+                                  rounds: exercise.protocol.rounds,
+                                  totalTime: parseInt(exercise.protocol.duration)
+                                },
+                                presetName: exercise.protocol.title
                               };
                               navigation.navigate('BreathGuide', breathGuideParams);
                             } else {
@@ -422,14 +423,15 @@ export default function Training({ navigation, route }) {
                                     style={[styles.logButton, { borderColor: theme.colors.primary }]}
                                     onPress={() => {
                                       const breathGuideParams = {
-                                        totalTime: exercise.protocol.duration,
-                                        inhaleTime: exercise.protocol.pattern.inhale,
-                                        inhaleHoldTime: exercise.protocol.pattern.inHold,
-                                        exhaleTime: exercise.protocol.pattern.exhale,
-                                        exhaleHoldTime: exercise.protocol.pattern.exHold,
-                                        rounds: exercise.protocol.rounds,
-                                        title: exercise.protocol.title,
-                                        description: exercise.protocol.description
+                                        settings: {
+                                          inhaleTime: exercise.protocol.pattern.inhale,
+                                          inhaleHoldTime: exercise.protocol.pattern.inHold,
+                                          exhaleTime: exercise.protocol.pattern.exhale,
+                                          exhaleHoldTime: exercise.protocol.pattern.exHold,
+                                          rounds: exercise.protocol.rounds,
+                                          totalTime: parseInt(exercise.protocol.duration)
+                                        },
+                                        presetName: exercise.protocol.title
                                       };
                                       navigation.navigate('BreathGuide', breathGuideParams);
                                     }}
