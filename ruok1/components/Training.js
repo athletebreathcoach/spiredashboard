@@ -4,10 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getScheduledExercises, scheduleExercise, deleteScheduledExercise } from '../firebase/scheduledExercises';
+import { getScheduledExercises, scheduleExercise, deleteScheduledExercise, updateExerciseMetrics } from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
+import ActivityMetricsForm from './ActivityMetricsForm';
 
 const { width } = Dimensions.get('window');
 const DAY_WIDTH = width / 7;
@@ -21,6 +22,8 @@ export default function Training({ navigation, route }) {
   const [isCoach, setIsCoach] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showMetricsForm, setShowMetricsForm] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState(null);
 
   // Add theme check right after hooks declarations
   if (!theme) {
@@ -221,6 +224,28 @@ export default function Training({ navigation, route }) {
     );
   };
 
+  const handleLogExercise = (exercise) => {
+    setSelectedExercise(exercise);
+    setShowMetricsForm(true);
+  };
+
+  const handleMetricsSubmit = async (metrics) => {
+    try {
+      if (selectedExercise) {
+        await updateExerciseMetrics(selectedExercise.id, {
+          ...selectedExercise.metrics,
+          ...metrics,
+          logged: true,
+        });
+        setShowMetricsForm(false);
+        loadExercisesForDate(selectedDate);
+      }
+    } catch (error) {
+      console.error('Error updating exercise metrics:', error);
+      Alert.alert('Error', 'Failed to update exercise metrics. Please try again.');
+    }
+  };
+
   return (
     <View 
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -380,36 +405,48 @@ export default function Training({ navigation, route }) {
                                 </Text>
                               </View>
                             ) : (
-                              <View style={styles.exerciseMetricsContainer}>
-                                {exercise.metrics?.sets && exercise.metrics?.reps && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                                    {exercise.metrics.sets} × {exercise.metrics.reps}
-                                  </Text>
-                                )}
-                                {exercise.metrics?.weights && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                    {exercise.metrics.weights}kg
-                                  </Text>
-                                )}
-                                {exercise.metrics?.rir && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                    RIR: {exercise.metrics.rir}
-                                  </Text>
-                                )}
-                                {exercise.metrics?.time && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                    {exercise.metrics.time}
-                                  </Text>
-                                )}
-                                {exercise.metrics?.distance && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                    {exercise.metrics.distance}km
-                                  </Text>
-                                )}
-                                {exercise.metrics?.oneRmPercentage && (
-                                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                    {exercise.metrics.oneRmPercentage}% 1RM
-                                  </Text>
+                              <View>
+                                <View style={styles.exerciseMetricsContainer}>
+                                  {exercise.metrics?.sets && exercise.metrics?.reps && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                                      {exercise.metrics.sets} × {exercise.metrics.reps}
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.weights && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.weights}kg
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.rir && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      RIR: {exercise.metrics.rir}
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.time && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.time}
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.distance && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.distance}km
+                                    </Text>
+                                  )}
+                                  {exercise.metrics?.oneRmPercentage && (
+                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                                      {exercise.metrics.oneRmPercentage}% 1RM
+                                    </Text>
+                                  )}
+                                </View>
+                                {!isCoach && (
+                                  <TouchableOpacity
+                                    style={[styles.logButton, { borderColor: theme.colors.primary }]}
+                                    onPress={() => handleLogExercise(exercise)}
+                                  >
+                                    <Text style={[styles.logButtonText, { color: theme.colors.primary }]}>
+                                      {exercise.metrics?.logged ? 'Update Log' : 'Log Exercise'}
+                                    </Text>
+                                  </TouchableOpacity>
                                 )}
                               </View>
                             )}
@@ -450,6 +487,13 @@ export default function Training({ navigation, route }) {
       >
         <Ionicons name="add" size={24} color={theme.colors.background} />
       </TouchableOpacity>
+
+      <ActivityMetricsForm
+        visible={showMetricsForm}
+        onClose={() => setShowMetricsForm(false)}
+        onSubmit={handleMetricsSubmit}
+        activity={selectedExercise}
+      />
     </View>
   );
 }
@@ -656,5 +700,18 @@ const styles = StyleSheet.create({
     height: 1,
     flex: 1,
     opacity: 0.2,
+  },
+  logButton: {
+    padding: Layout.spacing.small,
+    borderWidth: 1,
+    borderColor: '#00B5E0',
+    borderRadius: Layout.borderRadius.small,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  logButtonText: {
+    fontSize: 13,
+    fontFamily: Typography.fonts.medium,
+    color: '#00B5E0',
   },
 }); 

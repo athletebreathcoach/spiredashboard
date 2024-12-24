@@ -61,17 +61,10 @@ export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, op
 };
 
 // Update metrics for a scheduled exercise
-export const updateExerciseMetrics = async (scheduledExerciseId, metrics) => {
+export const updateExerciseMetrics = async (exerciseId, metrics) => {
   try {
-    const exerciseRef = doc(db, 'scheduledExercises', scheduledExerciseId);
-    
-    await updateDoc(exerciseRef, {
-      metrics: {
-        ...metrics
-      },
-      updatedAt: serverTimestamp()
-    });
-
+    const exerciseRef = doc(db, 'scheduledExercises', exerciseId);
+    await updateDoc(exerciseRef, { metrics });
     return true;
   } catch (error) {
     console.error('Error updating exercise metrics:', error);
