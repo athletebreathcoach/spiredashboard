@@ -8,6 +8,10 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
+  Modal,
+  FlatList,
+  Image,
+  TextInput,
 } from 'react-native';
 import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,12 +25,19 @@ import {
   addDoc,
   serverTimestamp,
 } from 'firebase/firestore';
+import { GiphyFetch } from '@giphy/js-fetch-api';
+
+// Initialize Giphy API
+const gf = new GiphyFetch('bjb9eQhsXLSG4kh6h6wlDtImisFJW6lP');
 
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function Chat({ navigation, route, hideHeader }) {
   const theme = useTheme();
   const [messages, setMessages] = useState([]);
+  const [isGiphyModalVisible, setIsGiphyModalVisible] = useState(false);
+  const [giphyResults, setGiphyResults] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const { client } = route.params || {};
 
   useEffect(() => {
@@ -39,6 +50,7 @@ export default function Chat({ navigation, route, hideHeader }) {
         const newMessages = snapshot.docs.map(doc => ({
           _id: doc.id,
           text: doc.data().text,
+          image: doc.data().image,
           createdAt: doc.data().timestamp?.toDate(),
           user: {
             _id: doc.data().senderId,
@@ -59,14 +71,48 @@ export default function Chat({ navigation, route, hideHeader }) {
     const chatId = [auth.currentUser.uid, client.id].sort().join('_');
     const messagesRef = collection(db, 'chats', chatId, 'messages');
 
-    const { text } = newMessages[0];
+    const message = newMessages[0];
     
-    addDoc(messagesRef, {
-      text,
+    const messageData = {
       senderId: auth.currentUser.uid,
       timestamp: serverTimestamp(),
-    });
+    };
+
+    // Add text field only if it exists
+    if (message.text) {
+      messageData.text = message.text;
+    }
+
+    // Add image field only if it exists
+    if (message.image) {
+      messageData.image = message.image;
+    }
+    
+    addDoc(messagesRef, messageData);
   }, [client]);
+
+  const searchGiphy = async (query) => {
+    try {
+      const { data } = await gf.search(query, { limit: 20 });
+      setGiphyResults(data);
+    } catch (error) {
+      console.error('Error searching Giphy:', error);
+    }
+  };
+
+  const handleGiphySelect = (gif) => {
+    const message = {
+      _id: Math.random().toString(),
+      createdAt: new Date(),
+      user: {
+        _id: auth.currentUser.uid,
+        name: auth.currentUser.email?.split('@')[0],
+      },
+      image: gif.images.original.url,
+    };
+    onSend([message]);
+    setIsGiphyModalVisible(false);
+  };
 
   const renderBubble = (props) => {
     return (
@@ -102,6 +148,17 @@ export default function Chat({ navigation, route, hideHeader }) {
     );
   };
 
+  const renderActions = (props) => {
+    return (
+      <TouchableOpacity
+        style={styles.giphyButton}
+        onPress={() => setIsGiphyModalVisible(true)}
+      >
+        <Ionicons name="images" size={24} color={theme.colors.primary} />
+      </TouchableOpacity>
+    );
+  };
+
   const renderInputToolbar = (props) => {
     return (
       <InputToolbar
@@ -114,6 +171,7 @@ export default function Chat({ navigation, route, hideHeader }) {
           marginBottom: Platform.OS === 'ios' ? 80 : 90,
         }}
         primaryStyle={{ alignItems: 'center' }}
+        renderActions={renderActions}
       />
     );
   };
@@ -210,6 +268,61 @@ export default function Chat({ navigation, route, hideHeader }) {
         infiniteScroll={true}
         bottomOffset={Platform.OS === 'ios' ? 80 : 90}
       />
+
+      <Modal
+        visible={isGiphyModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsGiphyModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setIsGiphyModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Select a GIF
+              </Text>
+              <View style={styles.headerRight} />
+            </View>
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={[styles.searchInput, { backgroundColor: theme.colors.surface, color: theme.colors.text }]}
+                placeholder="Search GIFs..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  if (text.trim()) {
+                    searchGiphy(text);
+                  }
+                }}
+              />
+            </View>
+            <FlatList
+              data={giphyResults}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.gifContainer}
+                  onPress={() => handleGiphySelect(item)}
+                >
+                  <Image
+                    source={{ uri: item.images.fixed_height.url }}
+                    style={styles.gifImage}
+                  />
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.giphyList}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -238,5 +351,58 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
+  },
+  giphyButton: {
+    marginLeft: 8,
+    marginRight: 8,
+    alignSelf: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    flex: 1,
+    marginTop: 50,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#CCCCCC',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  searchContainer: {
+    padding: 16,
+  },
+  searchInput: {
+    height: 40,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  giphyList: {
+    padding: 8,
+  },
+  gifContainer: {
+    flex: 1,
+    margin: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  gifImage: {
+    width: '100%',
+    height: 150,
+    resizeMode: 'cover',
   },
 }); 
