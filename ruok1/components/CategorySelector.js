@@ -105,28 +105,32 @@ export default function CategorySelector({ navigation, route }) {
       navigation.navigate('Sections', {
         mode: 'selection',
         onSectionSelect: async (section) => {
-          try {
-            await scheduleSection(
-              selectedClient?.id || auth.currentUser.uid,
-              section,
-              selectedDate,
-              null // timeOfDay will be set in ActivityMetricsForm
-            );
-            navigation.goBack();
-          } catch (error) {
-            console.error('Error scheduling section:', error);
-            Alert.alert('Error', 'Failed to schedule section. Please try again.');
-          }
+          navigation.navigate('ActivityMetricsForm', {
+            activity: {
+              title: section.title,
+              type: 'section'
+            },
+            type: 'section',
+            onSave: async (metrics) => {
+              try {
+                await scheduleSection(
+                  selectedClient?.id || auth.currentUser.uid,
+                  section,
+                  selectedDate,
+                  metrics.timeOfDay
+                );
+                navigation.navigate('Training');
+              } catch (error) {
+                console.error('Error scheduling section:', error);
+                Alert.alert('Error', 'Failed to schedule section. Please try again.');
+              }
+            }
+          });
         }
       });
     } else if (category.navigateTo === 'Programs') {
       navigation.navigate('Programs');
     } else if (category.navigateTo === 'GuidedSessions') {
-      console.log('Scheduling for client:', {
-        selectedClient,
-        selectedClientId: selectedClient?.id,
-        selectedClientName: selectedClient?.name
-      });
       navigation.navigate(category.navigateTo, { 
         mode: 'selection',
         selectedDate,
@@ -141,67 +145,6 @@ export default function CategorySelector({ navigation, route }) {
           } catch (error) {
             console.error('Error scheduling guided session:', error);
           }
-        }
-      });
-    } else if (category.navigateTo === 'Exercises') {
-      navigation.navigate(category.navigateTo, { 
-        mode: 'selection',
-        selectedDate,
-        onExerciseSelect: async (exerciseWithMetrics) => {
-          try {
-            await scheduleExercise(
-              selectedClient?.id || auth.currentUser.uid,
-              exerciseWithMetrics.id,
-              selectedDate,
-              { metrics: exerciseWithMetrics.metrics }
-            );
-            navigation.navigate('Training');
-          } catch (error) {
-            console.error('Error scheduling exercise:', error);
-          }
-        }
-      });
-    } else if (category.navigateTo === 'HabitsTasks') {
-      navigation.navigate('HabitsTasks', {
-        mode: 'selection',
-        selectedDate,
-        itemType: 'habit',
-        onItemSelect: async (item) => {
-          try {
-            if (item.type === 'habit') {
-              await scheduleHabit(
-                selectedClient?.id || auth.currentUser.uid,
-                item.id,
-                selectedDate
-              );
-            } else {
-              await scheduleTask(
-                selectedClient?.id || auth.currentUser.uid,
-                item.id,
-                selectedDate
-              );
-            }
-            navigation.navigate('Training');
-          } catch (error) {
-            console.error('Error scheduling habit/task:', error);
-          }
-        }
-      });
-    } else if (category.navigateTo === 'BreathProtocols') {
-      navigation.navigate(category.navigateTo, { 
-        mode: 'selection',
-        selectedDate,
-        onProtocolSelect: (protocol) => {
-          setSelectedActivity({ ...protocol, type: 'breathProtocol' });
-          setShowMetricsForm(true);
-        }
-      });
-    } else {
-      navigation.navigate(category.navigateTo, { 
-        mode: 'selection',
-        selectedDate,
-        onSessionSelect: async (session) => {
-          navigation.navigate('Training');
         }
       });
     }

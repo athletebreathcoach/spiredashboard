@@ -8,11 +8,11 @@ import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 
 const ACTIVITY_TYPES = [
-  { id: 'breathingTest', label: 'Breathing Test', icon: 'fitness-outline' },
-  { id: 'exercise', label: 'Exercise', icon: 'barbell-outline' },
-  { id: 'breathProtocol', label: 'Breath Protocol', icon: 'pulse-outline' },
-  { id: 'habitTask', label: 'Habit & Task', icon: 'checkbox-outline' },
-  { id: 'guidedSession', label: 'Guided Session', icon: 'play-circle-outline' }
+  { id: 'breathingTests', label: 'Breathing Test', icon: 'fitness-outline' },
+  { id: 'exercises', label: 'Exercise', icon: 'barbell-outline' },
+  { id: 'breathProtocols', label: 'Breath Protocol', icon: 'pulse-outline' },
+  { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
+  { id: 'guidedSessions', label: 'Guided Session', icon: 'play-circle-outline' }
 ];
 
 export default function CreateSection({ navigation }) {

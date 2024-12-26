@@ -18,7 +18,7 @@ export default function GuidedSessions({ navigation, route }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const isSelectionMode = route.params?.mode === 'selection';
-  const onSessionSelect = route.params?.onSessionSelect;
+  const onSelect = route.params?.onSelect;
 
   useEffect(() => {
     loadSessions();
@@ -36,8 +36,8 @@ export default function GuidedSessions({ navigation, route }) {
   };
 
   const handleSessionPress = (session) => {
-    if (isSelectionMode && onSessionSelect) {
-      onSessionSelect(session);
+    if (isSelectionMode && onSelect) {
+      onSelect(session);
       navigation.goBack();
     } else {
       navigation.navigate('SessionDetail', { session });

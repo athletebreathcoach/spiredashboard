@@ -364,39 +364,35 @@ export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTi
   }
 };
 
-export const scheduleSection = async (userId, section, date, timeOfDay = null) => {
+export const scheduleSection = async (userId, section, date, timeOfDay) => {
   try {
     const batch = writeBatch(db);
     const scheduledExercisesRef = collection(db, 'scheduledExercises');
 
     // Schedule each activity in the section
-    for (const activityGroup of section.activities) {
-      for (const item of activityGroup.items || []) {
-        const scheduledExercise = {
-          userId,
-          date: date.toISOString(),
-          type: activityGroup.type,
-          exerciseTitle: item.title || item.exerciseTitle,
-          description: item.description,
-          metrics: {
-            ...item.metrics,
-            timeOfDay
-          },
-          createdAt: new Date().toISOString()
-        };
+    for (const activity of section.activities) {
+      const scheduledExercise = {
+        userId,
+        scheduledDateTime: date,
+        type: activity.type,
+        exerciseTitle: activity.title,
+        description: activity.description,
+        data: activity.data,
+        status: 'scheduled',
+        metrics: {
+          ...(activity.metrics || {}),
+          timeOfDay: timeOfDay || 'Unscheduled',
+          completed: false
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: userId,
+        sectionId: section.id,
+        sectionTitle: section.title
+      };
 
-        // Add specific fields based on activity type
-        if (activityGroup.type === 'breathProtocol') {
-          scheduledExercise.protocol = item;
-        } else if (activityGroup.type === 'exercise') {
-          scheduledExercise.exercise = item;
-        } else if (activityGroup.type === 'guidedSession') {
-          scheduledExercise.session = item;
-        }
-
-        const newDocRef = doc(scheduledExercisesRef);
-        batch.set(newDocRef, scheduledExercise);
-      }
+      const newDocRef = doc(scheduledExercisesRef);
+      batch.set(newDocRef, scheduledExercise);
     }
 
     await batch.commit();

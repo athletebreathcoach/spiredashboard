@@ -9,12 +9,11 @@ import { Ionicons } from '@expo/vector-icons';
 import ActivityMetricsForm from './ActivityMetricsForm';
 
 const ACTIVITY_TYPES = [
-  { id: 'exercise', label: 'Exercise', icon: 'barbell-outline' },
-  { id: 'breathprotocol', label: 'Breath Protocol', icon: 'fitness-outline' },
-  { id: 'breathingtest', label: 'Breathing Test', icon: 'pulse-outline' },
-  { id: 'habit', label: 'Habit', icon: 'checkbox-outline' },
-  { id: 'task', label: 'Task', icon: 'checkbox-outline' },
-  { id: 'guidedsession', label: 'Guided Session', icon: 'play-circle-outline' },
+  { id: 'exercises', label: 'Exercise', icon: 'barbell-outline' },
+  { id: 'breathProtocols', label: 'Breath Protocol', icon: 'fitness-outline' },
+  { id: 'breathingTests', label: 'Breathing Test', icon: 'pulse-outline' },
+  { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
+  { id: 'guidedSessions', label: 'Guided Session', icon: 'play-circle-outline' },
 ];
 
 const styles = StyleSheet.create({
@@ -161,21 +160,23 @@ export default function SectionDetail({ navigation, route }) {
   const handleAddActivity = (type) => {
     const activityType = ACTIVITY_TYPES.find(t => t.id === type);
     let screen;
+    let additionalParams = {};
+
     switch (type) {
-      case 'exercise':
+      case 'exercises':
         screen = 'Exercises';
         break;
-      case 'breathprotocol':
+      case 'breathProtocols':
         screen = 'BreathProtocols';
         break;
-      case 'breathingtest':
+      case 'breathingTests':
         screen = 'BreathingTests';
         break;
-      case 'habit':
-      case 'task':
+      case 'habitstasks':
         screen = 'HabitsTasks';
+        additionalParams = { itemType: 'habit' };
         break;
-      case 'guidedsession':
+      case 'guidedSessions':
         screen = 'GuidedSessions';
         break;
       default:
@@ -188,7 +189,8 @@ export default function SectionDetail({ navigation, route }) {
         setSelectedActivity(activity);
         setSelectedType(type);
         setShowMetricsForm(true);
-      }
+      },
+      ...additionalParams
     });
   };
 

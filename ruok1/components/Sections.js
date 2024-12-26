@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -72,45 +72,15 @@ export default function Sections({ navigation, route }) {
     }
   };
 
-  const handleAddPress = (section) => {
-    navigation.navigate('CategorySelector', {
-      selectedDate: new Date(),
-      selectedClient: null,
-      onItemSelect: (activity, type) => {
-        // Navigate to ActivityMetricsForm first
-        navigation.navigate('ActivityMetricsForm', {
-          activity,
-          type,
-          onSave: async (metrics) => {
-            try {
-              setLoading(true);
-              const sectionRef = doc(db, 'sections', section.id);
-              const updatedActivities = [...(section.activities || []), {
-                id: activity.id,
-                type: type,
-                title: activity.title || activity.name,
-                data: activity,
-                metrics
-              }];
-              
-              await updateDoc(sectionRef, {
-                activities: updatedActivities
-              });
-              
-              // Refresh sections list
-              loadSections();
-              
-              // Navigate back to sections list
-              navigation.navigate('Sections');
-            } catch (error) {
-              console.error('Error adding activity:', error);
-            } finally {
-              setLoading(false);
-            }
-          }
-        });
+  const handleAddPress = async (section) => {
+    try {
+      if (route.params?.onSectionSelect) {
+        route.params.onSectionSelect(section);
       }
-    });
+    } catch (error) {
+      console.error('Error adding section:', error);
+      Alert.alert('Error', 'Failed to add section. Please try again.');
+    }
   };
 
   const handleCreateSection = () => {

@@ -239,6 +239,141 @@ export default function Training({ navigation, route }) {
     }
   };
 
+  const renderExercise = (exercise, timeOfDay) => {
+    // If it's part of a section and not being viewed individually
+    if (exercise.sectionId && !exercise.isExpanded) {
+      return null; // Don't render individual activities from sections
+    }
+
+    return (
+      <TouchableOpacity
+        key={exercise.id}
+        style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
+        onPress={() => handleLogExercise(exercise)}
+      >
+        <View style={styles.exerciseContent}>
+          {exercise.sectionTitle && (
+            <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+              {exercise.sectionTitle}
+            </Text>
+          )}
+          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+            {exercise.exerciseTitle}
+          </Text>
+          {exercise.type === 'guidedSession' ? (
+            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+              {exercise.duration}
+            </Text>
+          ) : exercise.type === 'breathProtocol' ? (
+            <View style={styles.breathProtocolMetrics}>
+              <View style={styles.exerciseMetricsContainer}>
+                {exercise.metrics?.rounds && (
+                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                    {exercise.metrics.rounds} rounds
+                  </Text>
+                )}
+                {exercise.metrics?.breathHold && (
+                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                    {exercise.metrics.breathHold}s hold
+                  </Text>
+                )}
+                {exercise.metrics?.recovery && (
+                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                    {exercise.metrics.recovery}s recovery
+                  </Text>
+                )}
+              </View>
+            </View>
+          ) : exercise.type === 'habit' || exercise.type === 'task' ? (
+            <View style={styles.habitMetrics}>
+              <Ionicons 
+                name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                size={20} 
+                color={theme.colors.primary} 
+              />
+              <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
+                {exercise.type === 'habit' ? `Streak: ${exercise.metrics?.streak || 0}` : `Priority: ${exercise.metrics?.priority || 'medium'}`}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteExercise(exercise.id)}
+        >
+          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSection = (section, timeOfDay) => {
+    const activities = section.activities;
+    const completedActivities = activities.filter(a => a.metrics?.completed).length;
+
+    return (
+      <TouchableOpacity
+        key={section.id}
+        style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
+        onPress={() => navigation.navigate('SectionDetail', { section })}
+      >
+        <View style={styles.exerciseContent}>
+          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+            {section.title}
+          </Text>
+          <View style={styles.sectionMetrics}>
+            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+              {completedActivities}/{activities.length} Activities
+            </Text>
+            <Text style={[styles.timeOfDayText, { color: theme.colors.textSecondary }]}>
+              {timeOfDay}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteExercise(section.id)}
+        >
+          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderTimeOfDayGroup = (timeOfDay, exercises) => {
+    // Group exercises by section
+    const sections = {};
+    const standaloneExercises = [];
+
+    exercises.forEach(exercise => {
+      if (exercise.sectionId) {
+        if (!sections[exercise.sectionId]) {
+          sections[exercise.sectionId] = {
+            id: exercise.sectionId,
+            title: exercise.sectionTitle,
+            activities: [],
+          };
+        }
+        sections[exercise.sectionId].activities.push(exercise);
+      } else {
+        standaloneExercises.push(exercise);
+      }
+    });
+
+    return (
+      <View key={timeOfDay}>
+        <View style={styles.timeOfDayHeader}>
+          <Text style={[styles.timeOfDayText, { color: theme.colors.textSecondary }]}>
+            {timeOfDay}
+          </Text>
+          <View style={[styles.timeOfDayDivider, { backgroundColor: theme.colors.border }]} />
+        </View>
+        {Object.values(sections).map(section => renderSection(section, timeOfDay))}
+        {standaloneExercises.map(exercise => renderExercise(exercise, timeOfDay))}
+      </View>
+    );
+  };
+
   return (
     <View 
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -344,176 +479,7 @@ export default function Training({ navigation, route }) {
 
                 // Render each group
                 return sortedGroups.map(([timeOfDay, groupExercises]) => (
-                  <View key={timeOfDay}>
-                    {timeOfDay !== 'Unscheduled' && (
-                      <View style={styles.timeOfDayHeader}>
-                        <Text style={[styles.timeOfDayText, { color: theme.colors.textSecondary }]}>
-                          {timeOfDay}
-                        </Text>
-                        <View style={[styles.timeOfDayDivider, { backgroundColor: theme.colors.border }]} />
-                      </View>
-                    )}
-                    {groupExercises.map((exercise, index) => {
-                      const section = String.fromCharCode(65 + Math.floor(index / 3));
-                      const subIndex = (index % 3) + 1;
-                      const exerciseId = index < 3 ? section : `${section}${subIndex}`;
-                      
-                      return (
-                        <TouchableOpacity
-                          key={exercise.id}
-                          style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
-                          onPress={() => {
-                            if (exercise.type === 'breathProtocol') {
-                              const breathGuideParams = {
-                                settings: {
-                                  inhaleTime: exercise.protocol.pattern.inhale,
-                                  inhaleHoldTime: exercise.protocol.pattern.inHold,
-                                  exhaleTime: exercise.protocol.pattern.exhale,
-                                  exhaleHoldTime: exercise.protocol.pattern.exHold,
-                                  rounds: exercise.protocol.rounds,
-                                  totalTime: parseInt(exercise.protocol.duration)
-                                },
-                                presetName: exercise.protocol.title
-                              };
-                              navigation.navigate('BreathGuide', breathGuideParams);
-                            } else {
-                              navigation.navigate('ExerciseDetail', { exercise });
-                            }
-                          }}
-                        >
-                          <View style={[styles.exerciseIdContainer, { backgroundColor: theme.colors.border }]}>
-                            <Text style={[styles.exerciseId, { color: theme.colors.text }]}>{exerciseId}</Text>
-                          </View>
-                          <View style={styles.exerciseContent}>
-                            <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-                              {exercise.exerciseTitle}
-                            </Text>
-                            {exercise.type === 'guidedSession' ? (
-                              <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                                {exercise.duration}
-                              </Text>
-                            ) : exercise.type === 'breathProtocol' ? (
-                              <View style={styles.breathProtocolMetrics}>
-                                <View style={styles.exerciseMetricsContainer}>
-                                  {exercise.metrics?.rounds && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                                      {exercise.metrics.rounds} rounds
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.breathHold && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.breathHold}s hold
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.recovery && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.recovery}s recovery
-                                    </Text>
-                                  )}
-                                </View>
-                                {!isCoach && (
-                                  <TouchableOpacity
-                                    style={[styles.logButton, { borderColor: theme.colors.primary }]}
-                                    onPress={() => {
-                                      const breathGuideParams = {
-                                        settings: {
-                                          inhaleTime: exercise.protocol.pattern.inhale,
-                                          inhaleHoldTime: exercise.protocol.pattern.inHold,
-                                          exhaleTime: exercise.protocol.pattern.exhale,
-                                          exhaleHoldTime: exercise.protocol.pattern.exHold,
-                                          rounds: exercise.protocol.rounds,
-                                          totalTime: parseInt(exercise.protocol.duration)
-                                        },
-                                        presetName: exercise.protocol.title
-                                      };
-                                      navigation.navigate('BreathGuide', breathGuideParams);
-                                    }}
-                                  >
-                                    <Text style={[styles.logButtonText, { color: theme.colors.primary }]}>
-                                      Start Protocol
-                                    </Text>
-                                  </TouchableOpacity>
-                                )}
-                              </View>
-                            ) : exercise.type === 'habit' ? (
-                              <View style={styles.habitMetrics}>
-                                <Ionicons 
-                                  name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
-                                  size={20} 
-                                  color={theme.colors.primary} 
-                                />
-                                <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                  Streak: {exercise.metrics?.streak || 0}
-                                </Text>
-                              </View>
-                            ) : exercise.type === 'task' ? (
-                              <View style={styles.taskMetrics}>
-                                <Ionicons 
-                                  name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
-                                  size={20} 
-                                  color={theme.colors.primary} 
-                                />
-                                <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                  Priority: {exercise.metrics?.priority || 'medium'}
-                                </Text>
-                              </View>
-                            ) : (
-                              <View>
-                                <View style={styles.exerciseMetricsContainer}>
-                                  {exercise.metrics?.sets && exercise.metrics?.reps && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                                      {exercise.metrics.sets} × {exercise.metrics.reps}
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.weights && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.weights}kg
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.rir && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      RIR: {exercise.metrics.rir}
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.time && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.time}
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.distance && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.distance}km
-                                    </Text>
-                                  )}
-                                  {exercise.metrics?.oneRmPercentage && (
-                                    <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                                      {exercise.metrics.oneRmPercentage}% 1RM
-                                    </Text>
-                                  )}
-                                </View>
-                                {!isCoach && (
-                                  <TouchableOpacity
-                                    style={[styles.logButton, { borderColor: theme.colors.primary }]}
-                                    onPress={() => handleLogExercise(exercise)}
-                                  >
-                                    <Text style={[styles.logButtonText, { color: theme.colors.primary }]}>
-                                      {exercise.metrics?.logged ? 'Update Log' : 'Log Exercise'}
-                                    </Text>
-                                  </TouchableOpacity>
-                                )}
-                              </View>
-                            )}
-                          </View>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteExercise(exercise.id)}
-                          >
-                            <Ionicons name="trash-outline" size={24} color={theme.colors.primary} />
-                          </TouchableOpacity>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  renderTimeOfDayGroup(timeOfDay, groupExercises)
                 ));
               })()}
             </View>
@@ -557,163 +523,40 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    flexDirection: 'column',
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: Typography.fonts.bold,
-    padding: Layout.spacing.large,
   },
   scrollView: {
     flex: 1,
   },
-  scrollViewContent: {
-    paddingHorizontal: Layout.spacing.large,
+  scrollContent: {
+    padding: Layout.spacing.large,
   },
   exerciseCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: Layout.spacing.medium,
     borderRadius: Layout.borderRadius.medium,
     marginBottom: Layout.spacing.small,
   },
-  exerciseIdContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Layout.spacing.medium,
-  },
-  exerciseId: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.medium,
-  },
   exerciseContent: {
     flex: 1,
-    paddingRight: Layout.spacing.small,
+  },
+  sectionTitle: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.xsmall,
   },
   exerciseTitle: {
-    fontSize: 20,
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.semibold,
-    marginBottom: 4,
+    marginBottom: Layout.spacing.xsmall,
   },
   exerciseMetrics: {
-    fontSize: 17,
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.medium,
-    marginBottom: 4,
-  },
-  exerciseDescription: {
-    fontSize: 15,
-    fontFamily: Typography.fonts.regular,
-    lineHeight: 20,
-  },
-  deleteButton: {
-    padding: Layout.spacing.small,
-    alignSelf: 'center',
-  },
-  addButton: {
-    position: 'absolute',
-    right: Layout.spacing.large,
-    bottom: Layout.spacing.large,
-    borderRadius: 16,
-    padding: 8,
-  },
-  weekSelectorContainer: {
-    height: 80,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  weekSelector: {
-    height: '100%',
-  },
-  weekSelectorContent: {
-    height: '100%',
-  },
-  dayButton: {
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedDay: {
-    borderBottomWidth: 0,
-  },
-  dayText: {
-    fontSize: 13,
-    fontFamily: Typography.fonts.medium,
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.semibold,
-  },
-  todayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 17,
-    fontFamily: Typography.fonts.regular,
-    marginBottom: Layout.spacing.large,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 0,
-  },
-  emptyIcon: {
-    marginBottom: Layout.spacing.medium,
-  },
-  addFirstButton: {
-    paddingHorizontal: Layout.spacing.xlarge,
-    paddingVertical: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.large,
-  },
-  addFirstButtonText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.medium,
-  },
-  fab: {
-    position: 'absolute',
-    right: Layout.spacing.large - 8,
-    bottom: 100,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 1000,
-  },
-  sectionHeader: {
-    fontSize: 24,
-    fontFamily: Typography.fonts.semibold,
-    color: '#00B5E0',
-    marginBottom: Layout.spacing.large,
-  },
-  exerciseList: {
-    paddingTop: 0,
-    marginTop: 8,
-  },
-  habitMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  taskMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+    backgroundColor: 'rgba(0, 181, 224, 0.1)',
+    paddingHorizontal: Layout.spacing.small,
+    paddingVertical: 4,
+    borderRadius: Layout.borderRadius.small,
   },
   exerciseMetricsContainer: {
     flexDirection: 'row',
@@ -722,18 +565,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  exerciseMetrics: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
-    backgroundColor: 'rgba(0, 181, 224, 0.1)',
-    paddingHorizontal: Layout.spacing.small,
-    paddingVertical: 4,
-    borderRadius: Layout.borderRadius.small,
-  },
-  timeOfDay: {
-    fontSize: 15,
-    fontFamily: Typography.fonts.regular,
-    marginBottom: 4,
+  deleteButton: {
+    padding: Layout.spacing.small,
   },
   timeOfDayHeader: {
     flexDirection: 'row',
@@ -754,22 +587,59 @@ const styles = StyleSheet.create({
     flex: 1,
     opacity: 0.2,
   },
-  logButton: {
-    padding: Layout.spacing.small,
-    borderWidth: 1,
-    borderColor: '#00B5E0',
-    borderRadius: Layout.borderRadius.small,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  logButtonText: {
-    fontSize: 13,
-    fontFamily: Typography.fonts.medium,
-    color: '#00B5E0',
-  },
-  breathProtocolMetrics: {
+  habitMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginTop: 4,
+  },
+  breathProtocolMetrics: {
+    marginTop: 4,
+  },
+  // Restore FAB styles
+  fab: {
+    position: 'absolute',
+    right: Layout.spacing.large - 8,
+    bottom: 100,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  // Restore empty state styles
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 0,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 17,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+  },
+  addButton: {
+    paddingHorizontal: Layout.spacing.xlarge,
+    paddingVertical: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+  },
+  addButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+  },
+  sectionMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.xsmall,
   },
 }); 

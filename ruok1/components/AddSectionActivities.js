@@ -13,7 +13,27 @@ export default function AddSectionActivities({ navigation, route }) {
   const [activities, setActivities] = useState(sectionData.activities);
 
   const handleAddActivity = (activityType) => {
-    const screenName = activityType.charAt(0).toUpperCase() + activityType.slice(1) + 's';
+    let screenName;
+    switch (activityType) {
+      case 'habitstasks':
+        screenName = 'HabitsTasks';
+        break;
+      case 'guidedSessions':
+        screenName = 'GuidedSessions';
+        break;
+      case 'exercises':
+        screenName = 'Exercises';
+        break;
+      case 'breathProtocols':
+        screenName = 'BreathProtocols';
+        break;
+      case 'breathingTests':
+        screenName = 'BreathingTests';
+        break;
+      default:
+        screenName = activityType;
+    }
+
     navigation.navigate(screenName, {
       mode: 'selection',
       onSelect: (activity) => {
@@ -34,7 +54,9 @@ export default function AddSectionActivities({ navigation, route }) {
             return a;
           })
         );
-        navigation.goBack();
+        if (activityType === 'exercises' || activityType === 'breathProtocols' || activityType === 'breathingTests') {
+          navigation.goBack();
+        }
       }
     });
   };
@@ -56,9 +78,23 @@ export default function AddSectionActivities({ navigation, route }) {
   const handleSave = async () => {
     try {
       const sectionsRef = collection(db, 'sections');
+      // Flatten the activities array to match SectionDetail's format
+      const flattenedActivities = activities.reduce((acc, activityGroup) => {
+        if (activityGroup.items && activityGroup.items.length > 0) {
+          return [...acc, ...activityGroup.items.map(item => ({
+            id: item.id,
+            type: activityGroup.type,
+            title: item.title,
+            description: item.description,
+            data: item
+          }))];
+        }
+        return acc;
+      }, []);
+
       await addDoc(sectionsRef, {
         ...sectionData,
-        activities,
+        activities: flattenedActivities,
         createdBy: auth.currentUser.uid,
         createdAt: new Date().toISOString()
       });
@@ -109,7 +145,7 @@ export default function AddSectionActivities({ navigation, route }) {
                   color={theme.colors.primary} 
                 />
                 <Text style={[styles.activityGroupTitle, { color: theme.colors.text }]}>
-                  {activityGroup.type.charAt(0).toUpperCase() + activityGroup.type.slice(1)}s
+                  {getActivityLabel(activityGroup.type)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -160,12 +196,29 @@ export default function AddSectionActivities({ navigation, route }) {
 
 const getActivityIcon = (type) => {
   switch (type) {
-    case 'breathingTest': return 'fitness-outline';
-    case 'exercise': return 'barbell-outline';
-    case 'breathProtocol': return 'pulse-outline';
-    case 'habitTask': return 'checkbox-outline';
-    case 'guidedSession': return 'play-circle-outline';
+    case 'breathingTests': return 'fitness-outline';
+    case 'exercises': return 'barbell-outline';
+    case 'breathProtocols': return 'pulse-outline';
+    case 'habitstasks': return 'checkbox-outline';
+    case 'guidedSessions': return 'play-circle-outline';
     default: return 'add-circle-outline';
+  }
+};
+
+const getActivityLabel = (type) => {
+  switch (type) {
+    case 'habitstasks':
+      return 'Habits & Tasks';
+    case 'guidedSessions':
+      return 'Guided Sessions';
+    case 'exercises':
+      return 'Exercises';
+    case 'breathProtocols':
+      return 'Breath Protocols';
+    case 'breathingTests':
+      return 'Breathing Tests';
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1);
   }
 };
 

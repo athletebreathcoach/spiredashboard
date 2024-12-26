@@ -18,7 +18,7 @@ export default function HabitsTasks({ navigation, route }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const isSelectionMode = route.params?.mode === 'selection';
-  const onItemSelect = route.params?.onItemSelect;
+  const onSelect = route.params?.onSelect;
   const selectedDate = route.params?.selectedDate;
   const itemType = route.params?.itemType || 'habit'; // 'habit' or 'task'
 
@@ -38,19 +38,11 @@ export default function HabitsTasks({ navigation, route }) {
   };
 
   const handleItemPress = (item) => {
-    if (!isSelectionMode) {
+    if (isSelectionMode && onSelect) {
+      onSelect(item);
+      navigation.goBack();
+    } else {
       navigation.navigate('HabitTaskDetail', { item });
-    }
-  };
-
-  const handleAddPress = async (item) => {
-    if (isSelectionMode && onItemSelect) {
-      try {
-        await onItemSelect(item);
-        // Navigation is handled in the callback
-      } catch (error) {
-        console.error('Error in handleAddPress:', error);
-      }
     }
   };
 
@@ -103,7 +95,7 @@ export default function HabitsTasks({ navigation, route }) {
               <View style={styles.addButtonContainer}>
                 <TouchableOpacity
                   style={styles.addButton}
-                  onPress={() => handleAddPress(item)}
+                  onPress={() => handleItemPress(item)}
                 >
                   <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
                 </TouchableOpacity>
