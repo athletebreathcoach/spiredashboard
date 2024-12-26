@@ -217,6 +217,7 @@ export default function Sections({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 44, // iOS status bar height
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -232,10 +233,17 @@ const styles = StyleSheet.create({
   backButton: {
     padding: Layout.spacing.small,
     marginRight: Layout.spacing.small,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
+    flex: 1,
     fontSize: 20,
     fontFamily: Typography.fonts.semibold,
+    marginLeft: -44,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,

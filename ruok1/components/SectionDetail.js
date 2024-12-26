@@ -237,6 +237,8 @@ export default function SectionDetail({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 44,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -244,22 +246,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.medium,
     height: 60,
     borderBottomWidth: 1,
-    marginTop: 40,
   },
   backButton: {
     padding: Layout.spacing.small,
     marginRight: Layout.spacing.small,
-    zIndex: 1,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontFamily: Typography.fonts.semibold,
-    marginLeft: -40,
+    marginLeft: -44,
     textAlign: 'center',
   },
   saveButton: {
     padding: Layout.spacing.medium,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   saveButtonText: {
     fontSize: Layout.text.medium,
