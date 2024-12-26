@@ -184,13 +184,6 @@ export default function Training({ navigation, route }) {
   };
 
   const handleAddExercise = () => {
-    console.log('Selected client in handleAddExercise:', {
-      selectedClient,
-      selectedClientId: selectedClient?.id,
-      selectedClientName: selectedClient?.name,
-      isCoachId: selectedClient?.id === auth.currentUser.uid,
-      currentUserId: auth.currentUser.uid
-    });
     navigation.navigate('CategorySelector', {
       selectedDate,
       selectedClient,

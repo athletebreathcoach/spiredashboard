@@ -17,6 +17,133 @@ const ACTIVITY_TYPES = [
   { id: 'guidedsession', label: 'Guided Session', icon: 'play-circle-outline' },
 ];
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 44,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Layout.spacing.medium,
+    height: 60,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: Layout.spacing.small,
+    marginRight: Layout.spacing.small,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Layout.borderRadius.small,
+    zIndex: 1,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
+    marginLeft: -44,
+    textAlign: 'center',
+    zIndex: 0,
+  },
+  saveButton: {
+    padding: Layout.spacing.small,
+    paddingHorizontal: Layout.spacing.medium,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Layout.borderRadius.small,
+    zIndex: 1,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.semibold,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: Layout.spacing.large,
+  },
+  description: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+  },
+  activityTypes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Layout.spacing.medium,
+    marginBottom: Layout.spacing.large,
+  },
+  activityTypeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    flex: 1,
+    minWidth: '45%',
+  },
+  activityTypeText: {
+    marginLeft: Layout.spacing.small,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  activitiesList: {
+    gap: Layout.spacing.medium,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    justifyContent: 'space-between',
+  },
+  activityInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityIcon: {
+    marginRight: Layout.spacing.medium,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: 4,
+  },
+  activityMetrics: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+  },
+  activityButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.small,
+  },
+  actionButton: {
+    padding: Layout.spacing.small,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.spacing.medium,
+    marginHorizontal: Layout.spacing.large,
+    marginBottom: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+    gap: Layout.spacing.small,
+  },
+  deleteButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+  },
+});
+
 export default function SectionDetail({ navigation, route }) {
   const theme = useTheme();
   const [section, setSection] = useState(route.params.section);
@@ -25,6 +152,11 @@ export default function SectionDetail({ navigation, route }) {
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [selectedType, setSelectedType] = useState(null);
+
+  const themedContainerStyle = [
+    styles.container,
+    { backgroundColor: theme.colors.background }
+  ];
 
   const handleAddActivity = (type) => {
     const activityType = ACTIVITY_TYPES.find(t => t.id === type);
@@ -123,11 +255,11 @@ export default function SectionDetail({ navigation, route }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={themedContainerStyle}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          onPress={navigation.goBack}
         >
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
@@ -135,11 +267,14 @@ export default function SectionDetail({ navigation, route }) {
           {section.title}
         </Text>
         <TouchableOpacity 
-          style={styles.saveButton}
+          style={[styles.saveButton, { backgroundColor: theme.colors.surface }]}
           onPress={handleSave}
           disabled={loading}
         >
-          <Text style={[styles.saveButtonText, { color: theme.colors.primary }]}>
+          <Text style={[styles.saveButtonText, { 
+            color: theme.colors.primary,
+            opacity: loading ? 0.5 : 1 
+          }]}>
             {loading ? 'Saving...' : 'Save'}
           </Text>
         </TouchableOpacity>
@@ -232,127 +367,4 @@ export default function SectionDetail({ navigation, route }) {
       </TouchableOpacity>
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 44,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.spacing.medium,
-    height: 60,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: Layout.spacing.small,
-    marginRight: Layout.spacing.small,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontFamily: Typography.fonts.semibold,
-    marginLeft: -44,
-    textAlign: 'center',
-  },
-  saveButton: {
-    padding: Layout.spacing.medium,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: Layout.spacing.large,
-  },
-  description: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.regular,
-    marginBottom: Layout.spacing.large,
-  },
-  activityTypes: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Layout.spacing.medium,
-    marginBottom: Layout.spacing.large,
-  },
-  activityTypeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
-    flex: 1,
-    minWidth: '45%',
-  },
-  activityTypeText: {
-    marginLeft: Layout.spacing.small,
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
-  },
-  activitiesList: {
-    gap: Layout.spacing.medium,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
-    justifyContent: 'space-between',
-  },
-  activityInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activityIcon: {
-    marginRight: Layout.spacing.medium,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
-    marginBottom: 4,
-  },
-  activityMetrics: {
-    fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.regular,
-  },
-  activityButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Layout.spacing.small,
-  },
-  actionButton: {
-    padding: Layout.spacing.small,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.medium,
-    marginHorizontal: Layout.spacing.large,
-    marginBottom: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.medium,
-    gap: Layout.spacing.small,
-  },
-  deleteButtonText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
-  },
-}); 
+} 
