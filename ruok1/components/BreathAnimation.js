@@ -106,6 +106,7 @@ export default function BreathAnimation({ pattern, navigation }) {
   useEffect(() => {
     if (isComplete && !completionHandled.current) {
       completionHandled.current = true;
+      stopTickingHaptics();
       navigation.replace('BreathingComplete', {
         totalBreaths: breathCount,
         streak: 1,
@@ -124,6 +125,13 @@ export default function BreathAnimation({ pattern, navigation }) {
       });
     }
   }, [isComplete, pattern, breathCount, navigation]);
+
+  useEffect(() => {
+    return () => {
+      stopTickingHaptics();
+      completionHandled.current = true;
+    };
+  }, []);
 
   const startBreathingAnimation = () => {
     const animate = () => {

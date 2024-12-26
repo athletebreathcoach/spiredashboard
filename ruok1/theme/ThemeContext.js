@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
-import { lightColors, darkColors, purpleColors, darkPurpleColors, forestColors, darkForestColors } from './colors';
+import { 
+  lightColors, 
+  darkColors, 
+  purpleColors, 
+  darkPurpleColors, 
+  forestColors, 
+  darkForestColors,
+  tennesseeColors,
+  darkTennesseeColors 
+} from './colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ThemeContext = createContext();
@@ -15,6 +24,7 @@ export const THEME_VARIANTS = {
   DEFAULT: 'default',
   PURPLE: 'purple',
   FOREST: 'forest',
+  TENNESSEE: 'tennessee',
 };
 
 export const ThemeProvider = ({ children }) => {
@@ -61,6 +71,8 @@ export const ThemeProvider = ({ children }) => {
         return isDark ? darkPurpleColors : purpleColors;
       case THEME_VARIANTS.FOREST:
         return isDark ? darkForestColors : forestColors;
+      case THEME_VARIANTS.TENNESSEE:
+        return isDark ? darkTennesseeColors : tennesseeColors;
       default:
         return isDark ? darkColors : lightColors;
     }

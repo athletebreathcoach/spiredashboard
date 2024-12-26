@@ -63,6 +63,8 @@ export default function Settings({ navigation }) {
         return 'Purple';
       case THEME_VARIANTS.FOREST:
         return 'Forest';
+      case THEME_VARIANTS.TENNESSEE:
+        return 'Tennessee';
       default:
         return variant;
     }
@@ -250,48 +252,51 @@ export default function Settings({ navigation }) {
                 <Ionicons name="close" size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
-
             <ScrollView style={styles.modalBody}>
               <View style={styles.themeSection}>
-                <Text style={[styles.themeSectionTitle, { color: theme.colors.primary }]}>THEME MODE</Text>
-                <View style={styles.themeOptions}>
-                  <ThemeOption
-                    label="System"
-                    isSelected={theme.themeMode === THEME_MODES.SYSTEM}
-                    onPress={() => handleThemeSelect(THEME_MODES.SYSTEM, theme.themeVariant)}
-                  />
-                  <ThemeOption
-                    label="Light"
-                    isSelected={theme.themeMode === THEME_MODES.LIGHT}
-                    onPress={() => handleThemeSelect(THEME_MODES.LIGHT, theme.themeVariant)}
-                  />
-                  <ThemeOption
-                    label="Dark"
-                    isSelected={theme.themeMode === THEME_MODES.DARK}
-                    onPress={() => handleThemeSelect(THEME_MODES.DARK, theme.themeVariant)}
-                  />
-                </View>
+                <Text style={[styles.themeSectionTitle, { color: theme.colors.textSecondary }]}>
+                  APPEARANCE
+                </Text>
+                <ThemeOption
+                  label="System"
+                  isSelected={theme.themeMode === THEME_MODES.SYSTEM}
+                  onPress={() => handleThemeSelect(THEME_MODES.SYSTEM, theme.themeVariant)}
+                />
+                <ThemeOption
+                  label="Light"
+                  isSelected={theme.themeMode === THEME_MODES.LIGHT}
+                  onPress={() => handleThemeSelect(THEME_MODES.LIGHT, theme.themeVariant)}
+                />
+                <ThemeOption
+                  label="Dark"
+                  isSelected={theme.themeMode === THEME_MODES.DARK}
+                  onPress={() => handleThemeSelect(THEME_MODES.DARK, theme.themeVariant)}
+                />
               </View>
-
               <View style={styles.themeSection}>
-                <Text style={[styles.themeSectionTitle, { color: theme.colors.primary }]}>COLOR SCHEME</Text>
-                <View style={styles.themeOptions}>
-                  <ThemeOption
-                    label="Default"
-                    isSelected={theme.themeVariant === THEME_VARIANTS.DEFAULT}
-                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.DEFAULT)}
-                  />
-                  <ThemeOption
-                    label="Purple"
-                    isSelected={theme.themeVariant === THEME_VARIANTS.PURPLE}
-                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.PURPLE)}
-                  />
-                  <ThemeOption
-                    label="Forest"
-                    isSelected={theme.themeVariant === THEME_VARIANTS.FOREST}
-                    onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.FOREST)}
-                  />
-                </View>
+                <Text style={[styles.themeSectionTitle, { color: theme.colors.textSecondary }]}>
+                  COLOR SCHEME
+                </Text>
+                <ThemeOption
+                  label="Default"
+                  isSelected={theme.themeVariant === THEME_VARIANTS.DEFAULT}
+                  onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.DEFAULT)}
+                />
+                <ThemeOption
+                  label="Purple"
+                  isSelected={theme.themeVariant === THEME_VARIANTS.PURPLE}
+                  onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.PURPLE)}
+                />
+                <ThemeOption
+                  label="Forest"
+                  isSelected={theme.themeVariant === THEME_VARIANTS.FOREST}
+                  onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.FOREST)}
+                />
+                <ThemeOption
+                  label="Tennessee"
+                  isSelected={theme.themeVariant === THEME_VARIANTS.TENNESSEE}
+                  onPress={() => handleThemeSelect(theme.themeMode, THEME_VARIANTS.TENNESSEE)}
+                />
               </View>
             </ScrollView>
           </View>

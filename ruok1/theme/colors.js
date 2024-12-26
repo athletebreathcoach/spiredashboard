@@ -146,4 +146,54 @@ export const darkForestColors = {
     hold: '#2F5233',
     exhale: '#27AE60'
   }
+};
+
+export const tennesseeColors = {
+  primary: '#FF8200',
+  secondary: '#58595B',
+  background: '#FFFFFF',
+  surface: '#F8F9FA',
+  text: '#000000',
+  textSecondary: '#58595B',
+  border: '#E1E1E1',
+  error: '#DC3545',
+  success: '#28A745',
+  warning: '#FFC107',
+  info: '#17A2B8',
+  messageBubbleOwn: '#FF8200',
+  messageBubbleOther: '#F2F2F7',
+  messageTextOwn: '#FFFFFF',
+  messageTextOther: '#000000',
+  searchBackground: '#F2F2F7',
+  divider: '#58595B',
+  breathing: {
+    inhale: '#FF8200',
+    hold: '#FF9933',
+    exhale: '#58595B'
+  }
+};
+
+export const darkTennesseeColors = {
+  primary: '#FF8200',
+  secondary: '#58595B',
+  background: '#000000',
+  surface: '#1C1C1E',
+  text: '#FFFFFF',
+  textSecondary: '#A0A0A0',
+  border: '#2C2C2E',
+  error: '#FF453A',
+  success: '#32D74B',
+  warning: '#FFD60A',
+  info: '#64D2FF',
+  messageBubbleOwn: '#FF8200',
+  messageBubbleOther: '#2C2C2E',
+  messageTextOwn: '#FFFFFF',
+  messageTextOther: '#FFFFFF',
+  searchBackground: '#2C2C2E',
+  divider: '#58595B',
+  breathing: {
+    inhale: '#FF8200',
+    hold: '#FF9933',
+    exhale: '#58595B'
+  }
 }; 
