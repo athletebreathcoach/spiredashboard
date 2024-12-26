@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useEffect, useState } from 'react';
 import { auth, db } from './config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -41,6 +41,10 @@ import CategorySelector from './components/CategorySelector';
 import Sections from './components/Sections';
 import CreateSection from './components/CreateSection';
 import AddSectionActivities from './components/AddSectionActivities';
+import FeaturedVideos from './components/FeaturedVideos';
+import FeaturedProtocols from './components/FeaturedProtocols';
+import BlogReader from './components/BlogReader';
+import FeaturedBlogs from './components/FeaturedBlogs';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,16 +58,24 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.homeContainer, { backgroundColor: theme?.colors?.background }]}>
-      <TouchableOpacity 
-        style={[styles.breathButton, { backgroundColor: theme?.colors?.primary }]}
-        onPress={handleBreathGuide}
-      >
-        <Text style={[styles.breathButtonText, { color: theme?.colors?.background }]}>
-          Breath Guide
-        </Text>
-      </TouchableOpacity>
-    </View>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: theme?.colors?.background }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <FeaturedVideos />
+      <FeaturedProtocols />
+      <FeaturedBlogs />
+      <View style={styles.breathGuideContainer}>
+        <TouchableOpacity 
+          style={[styles.breathButton, { backgroundColor: theme?.colors?.primary }]}
+          onPress={handleBreathGuide}
+        >
+          <Text style={[styles.breathButtonText, { color: theme?.colors?.background }]}>
+            Breath Guide
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -472,6 +484,11 @@ function AuthenticatedStack({ user }) {
         component={SectionDetail}
         options={{ headerShown: false }}
       />
+      <Stack.Screen 
+        name="BlogReader" 
+        component={BlogReader}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -479,35 +496,18 @@ function AuthenticatedStack({ user }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingVertical: 20,
   },
-  homeContainer: {
-    flex: 1,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  welcomeText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 40,
+  breathGuideContainer: {
+    padding: Layout.spacing.large,
   },
   breathButton: {
-    paddingVertical: 20,
-    paddingHorizontal: 50,
-    borderRadius: 12,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    transform: [{ scale: 1.05 }],
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   breathButtonText: {
-    fontFamily: Typography.fonts.bold,
     fontSize: Layout.text.large,
-    letterSpacing: 1,
+    fontFamily: Typography.fonts.medium,
   },
 });

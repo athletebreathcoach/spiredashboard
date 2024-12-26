@@ -105,27 +105,18 @@ export default function CategorySelector({ navigation, route }) {
       navigation.navigate('Sections', {
         mode: 'selection',
         onSectionSelect: async (section) => {
-          navigation.navigate('ActivityMetricsForm', {
-            activity: {
-              title: section.title,
-              type: 'section'
-            },
-            type: 'section',
-            onSave: async (metrics) => {
-              try {
-                await scheduleSection(
-                  selectedClient?.id || auth.currentUser.uid,
-                  section,
-                  selectedDate,
-                  metrics.timeOfDay
-                );
-                navigation.navigate('Training');
-              } catch (error) {
-                console.error('Error scheduling section:', error);
-                Alert.alert('Error', 'Failed to schedule section. Please try again.');
-              }
-            }
-          });
+          try {
+            await scheduleSection(
+              selectedClient?.id || auth.currentUser.uid,
+              section,
+              selectedDate,
+              'Unscheduled'
+            );
+            navigation.navigate('Training');
+          } catch (error) {
+            console.error('Error scheduling section:', error);
+            Alert.alert('Error', 'Failed to schedule section. Please try again.');
+          }
         }
       });
     } else if (category.navigateTo === 'Programs') {

@@ -369,33 +369,54 @@ export const scheduleSection = async (userId, section, date, timeOfDay) => {
     const batch = writeBatch(db);
     const scheduledExercisesRef = collection(db, 'scheduledExercises');
 
-    // Schedule each activity in the section
-    for (const activity of section.activities) {
-      const scheduledExercise = {
-        userId,
-        scheduledDateTime: date,
-        type: activity.type,
-        exerciseTitle: activity.title,
-        description: activity.description,
-        data: activity.data,
-        status: 'scheduled',
-        metrics: {
-          ...(activity.metrics || {}),
-          timeOfDay: timeOfDay || 'Unscheduled',
-          completed: false
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: userId,
-        sectionId: section.id,
-        sectionTitle: section.title
-      };
+    console.log('Scheduling section:', section);
 
-      const newDocRef = doc(scheduledExercisesRef);
-      batch.set(newDocRef, scheduledExercise);
+    // Iterate through each activity group (exercises, habitstasks, guidedSessions)
+    for (const activityGroup of section.activities) {
+      // Each activity group has an items array
+      if (!activityGroup.items) {
+        console.error('Activity group missing items:', activityGroup);
+        continue;
+      }
+
+      for (const item of activityGroup.items) {
+        if (!item.title) {
+          console.error('Item missing title:', item);
+          continue;
+        }
+
+        const scheduledExercise = {
+          userId,
+          scheduledDateTime: date,
+          type: item.type,
+          exerciseTitle: item.title,
+          description: item.description || '',
+          status: 'scheduled',
+          metrics: {
+            completed: false,
+            timeOfDay: timeOfDay || 'Unscheduled',
+            ...(item.metrics || {})
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: userId,
+          sectionId: section.id,
+          sectionTitle: section.title,
+          activityId: item.id // Store the original activity ID
+        };
+
+        // Only add data field if it exists
+        if (item.data) {
+          scheduledExercise.data = item.data;
+        }
+
+        const newDocRef = doc(scheduledExercisesRef);
+        batch.set(newDocRef, scheduledExercise);
+      }
     }
 
     await batch.commit();
+    return true;
   } catch (error) {
     console.error('Error scheduling section:', error);
     throw error;
