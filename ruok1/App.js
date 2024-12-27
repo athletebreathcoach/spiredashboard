@@ -46,6 +46,7 @@ import FeaturedProtocols from './components/FeaturedProtocols';
 import BlogReader from './components/BlogReader';
 import FeaturedBlogs from './components/FeaturedBlogs';
 import GuidedSessionDetail from './components/GuidedSessionDetail';
+import HabitTaskDetail from './components/HabitTaskDetail';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -495,6 +496,11 @@ function AuthenticatedStack({ user }) {
       <Stack.Screen 
         name="BlogReader" 
         component={BlogReader}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="HabitTaskDetail" 
+        component={HabitTaskDetail}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
