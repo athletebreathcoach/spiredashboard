@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   Vibration,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
@@ -17,29 +18,84 @@ import * as Haptics from 'expo-haptics';
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.7;
 
+const getTestConfig = (testId) => {
+  switch (testId) {
+    case 1: // Exhale Test
+      return {
+        title: 'Exhale Test',
+        type: 'timer',
+        description: 'Take a deep breath in to your maximum capacity, then exhale slowly and steadily through your nose for as long as you can. This test measures your exhale control and lung capacity.',
+        instructions: [
+          'Sit in a comfortable position',
+          'Take a deep breath in through your nose to maximum capacity',
+          'Once you\'ve inhaled fully, press start',
+          'Exhale slowly through your nose',
+          'Continue until you need to breathe in'
+        ],
+        duration: 80000,
+        initialScale: 1.2,
+        finalScale: 0.4,
+        referenceCircles: [
+          { scale: 1.2, label: '0s' },
+          { scale: 1.1, label: '10s' },
+          { scale: 1.0, label: '20s' },
+          { scale: 0.9, label: '30s' },
+          { scale: 0.8, label: '40s' },
+          { scale: 0.7, label: '50s' },
+          { scale: 0.6, label: '60s' },
+          { scale: 0.5, label: '70s' },
+          { scale: 0.4, label: '80s' },
+        ],
+        getScore: (seconds) => {
+          if (seconds < 10) return 'Beginner';
+          if (seconds < 20) return 'Intermediate';
+          if (seconds < 30) return 'Advanced';
+          return 'Expert';
+        }
+      };
+    case 2: // CO2 Walking Test
+      return {
+        title: 'CO2 Walking Test',
+        type: 'steps',
+        description: 'This test measures your CO2 tolerance by counting how many steps you can take while holding your breath. A higher step count indicates better CO2 tolerance.',
+        instructions: [
+          'Stand in a clear area where you can walk safely',
+          'Take a normal breath in and out through your nose',
+          'Pinch your nose closed',
+          'Press start and begin walking',
+          'Count your steps as you walk',
+          'When you need to breathe, stop walking',
+          'Enter your step count'
+        ],
+        getScore: (steps) => {
+          if (steps < 20) return 'Beginner';
+          if (steps < 40) return 'Intermediate';
+          if (steps < 60) return 'Advanced';
+          return 'Expert';
+        }
+      };
+    default:
+      return null;
+  }
+};
+
 export default function BreathTestDetail({ navigation, route }) {
   const { test } = route.params;
+  const testConfig = getTestConfig(test.id);
   const theme = useTheme();
-  const [phase, setPhase] = useState('ready'); // ready, testing, complete
+  const [phase, setPhase] = useState('ready');
   const [timer, setTimer] = useState(0);
   const [result, setResult] = useState(null);
   const timerRef = useRef(null);
   const startTime = useRef(null);
+  const [steps, setSteps] = useState('');
 
-  const scale = useRef(new Animated.Value(1.2)).current;
-  const opacity = useRef(new Animated.Value(0.9)).current;
-
-  const referenceCircles = [
-    { scale: 1.2, label: '0s' },
-    { scale: 1.1, label: '10s' },
-    { scale: 1.0, label: '20s' },
-    { scale: 0.9, label: '30s' },
-    { scale: 0.8, label: '40s' },
-    { scale: 0.7, label: '50s' },
-    { scale: 0.6, label: '60s' },
-    { scale: 0.5, label: '70s' },
-    { scale: 0.4, label: '80s' },
-  ];
+  const scale = useRef(
+    testConfig.type === 'timer' ? new Animated.Value(testConfig.initialScale) : null
+  ).current;
+  const opacity = useRef(
+    testConfig.type === 'timer' ? new Animated.Value(0.9) : null
+  ).current;
 
   useEffect(() => {
     return () => {
@@ -51,49 +107,57 @@ export default function BreathTestDetail({ navigation, route }) {
 
   const startTest = () => {
     setPhase('testing');
-    startTime.current = Date.now();
-    
-    // Start the timer
-    timerRef.current = setInterval(() => {
-      setTimer(prev => prev + 1);
-    }, 1000);
+    if (testConfig.type === 'timer') {
+      startTime.current = Date.now();
+      
+      timerRef.current = setInterval(() => {
+        setTimer(prev => prev + 1);
+      }, 1000);
 
-    // Start the shrinking animation
-    Animated.timing(scale, {
-      toValue: 0.4,
-      duration: 80000, // 80 seconds animation
-      useNativeDriver: false,
-    }).start();
+      Animated.timing(scale, {
+        toValue: testConfig.finalScale,
+        duration: testConfig.duration,
+        useNativeDriver: false,
+      }).start();
 
-    // Fade animation
-    Animated.timing(opacity, {
-      toValue: 0.4,
-      duration: 80000, // 80 seconds animation
-      useNativeDriver: false,
-    }).start();
+      Animated.timing(opacity, {
+        toValue: 0.4,
+        duration: testConfig.duration,
+        useNativeDriver: false,
+      }).start();
+    }
   };
 
   const stopTest = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+    if (testConfig.type === 'timer') {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      const endTime = Date.now();
+      const duration = Math.floor((endTime - startTime.current) / 1000);
+      
+      setResult(duration);
+      setPhase('complete');
+      
+      scale.stopAnimation();
+      opacity.stopAnimation();
+      
+      scale.setValue(testConfig.initialScale);
+      opacity.setValue(0.9);
+    } else {
+      setPhase('input');
     }
     
-    const endTime = Date.now();
-    const duration = Math.floor((endTime - startTime.current) / 1000);
-    
-    setResult(duration);
-    setPhase('complete');
-    
-    // Stop animations
-    scale.stopAnimation();
-    opacity.stopAnimation();
-    
-    // Reset scale for next time
-    scale.setValue(1.2);
-    opacity.setValue(0.9);
-    
-    // Trigger success haptic
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleStepsSubmit = () => {
+    const stepCount = parseInt(steps, 10);
+    if (stepCount > 0) {
+      setResult(stepCount);
+      setPhase('complete');
+    }
   };
 
   const formatTime = (seconds) => {
@@ -102,44 +166,29 @@ export default function BreathTestDetail({ navigation, route }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getScore = (seconds) => {
-    if (seconds < 10) return 'Beginner';
-    if (seconds < 20) return 'Intermediate';
-    if (seconds < 30) return 'Advanced';
-    return 'Expert';
-  };
-
   const renderContent = () => {
     switch (phase) {
       case 'ready':
         return (
           <View style={styles.contentContainer}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Exhale Test
+              {testConfig.title}
             </Text>
             <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-              Take a deep breath in to your maximum capacity, then exhale slowly and steadily through your nose for as long as you can.
-              This test measures your exhale control and lung capacity.
+              {testConfig.description}
             </Text>
             <View style={styles.instructionsContainer}>
               <Text style={[styles.instructionTitle, { color: theme.colors.text }]}>
                 Instructions:
               </Text>
-              <Text style={[styles.instruction, { color: theme.colors.textSecondary }]}>
-                1. Sit in a comfortable position
-              </Text>
-              <Text style={[styles.instruction, { color: theme.colors.textSecondary }]}>
-                2. Take a deep breath in through your nose to maximum capacity
-              </Text>
-              <Text style={[styles.instruction, { color: theme.colors.textSecondary }]}>
-                3. Once you've inhaled fully, press start
-              </Text>
-              <Text style={[styles.instruction, { color: theme.colors.textSecondary }]}>
-                4. Exhale slowly through your nose
-              </Text>
-              <Text style={[styles.instruction, { color: theme.colors.textSecondary }]}>
-                5. Continue until you need to breathe in
-              </Text>
+              {testConfig.instructions.map((instruction, index) => (
+                <Text 
+                  key={index}
+                  style={[styles.instruction, { color: theme.colors.textSecondary }]}
+                >
+                  {`${index + 1}. ${instruction}`}
+                </Text>
+              ))}
             </View>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: theme.colors.primary }]}
@@ -153,51 +202,101 @@ export default function BreathTestDetail({ navigation, route }) {
         );
 
       case 'testing':
-        return (
-          <View style={styles.contentContainer}>
-            <View style={styles.animationContainer}>
-              {/* Reference circles */}
-              {referenceCircles.map((circle, index) => (
-                <View
-                  key={index}
+        if (testConfig.type === 'timer') {
+          return (
+            <View style={styles.contentContainer}>
+              <View style={styles.animationContainer}>
+                {testConfig.referenceCircles.map((circle, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.referenceCircle,
+                      {
+                        transform: [{ scale: circle.scale }],
+                        borderColor: theme.colors.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.referenceLabel, { color: theme.colors.textSecondary }]}>
+                      {circle.label}
+                    </Text>
+                  </View>
+                ))}
+                <Animated.View
                   style={[
-                    styles.referenceCircle,
+                    styles.circle,
                     {
-                      transform: [{ scale: circle.scale }],
-                      borderColor: theme.colors.primary,
+                      backgroundColor: theme.colors.primary,
+                      transform: [{ scale }],
+                      opacity,
                     },
                   ]}
+                />
+              </View>
+              <View style={styles.controlsContainer}>
+                <Text style={[styles.timer, { color: theme.colors.text }]}>
+                  {formatTime(timer)}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: theme.colors.error }]}
+                  onPress={stopTest}
                 >
-                  <Text style={[styles.referenceLabel, { color: theme.colors.textSecondary }]}>
-                    {circle.label}
+                  <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+                    Stop
                   </Text>
-                </View>
-              ))}
-              {/* Animated circle */}
-              <Animated.View
-                style={[
-                  styles.circle,
-                  {
-                    backgroundColor: theme.colors.primary,
-                    transform: [{ scale }],
-                    opacity,
-                  },
-                ]}
-              />
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.controlsContainer}>
-              <Text style={[styles.timer, { color: theme.colors.text }]}>
-                {formatTime(timer)}
-              </Text>
+          );
+        } else {
+          return (
+            <View style={styles.contentContainer}>
+              <View style={styles.walkingContainer}>
+                <Ionicons name="walk" size={64} color={theme.colors.primary} />
+                <Text style={[styles.walkingText, { color: theme.colors.text }]}>
+                  Count your steps as you walk
+                </Text>
+              </View>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: theme.colors.error }]}
                 onPress={stopTest}
               >
                 <Text style={[styles.buttonText, { color: theme.colors.background }]}>
-                  Stop
+                  I Need to Breathe
                 </Text>
               </TouchableOpacity>
             </View>
+          );
+        }
+
+      case 'input':
+        return (
+          <View style={styles.contentContainer}>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              Enter Step Count
+            </Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                value={steps}
+                onChangeText={setSteps}
+                keyboardType="number-pad"
+                placeholder="Number of steps"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.primary }]}
+              onPress={handleStepsSubmit}
+            >
+              <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+                Submit
+              </Text>
+            </TouchableOpacity>
           </View>
         );
 
@@ -210,10 +309,10 @@ export default function BreathTestDetail({ navigation, route }) {
             <View style={styles.resultsContainer}>
               <View style={[styles.resultCard, { backgroundColor: theme.colors.surface }]}>
                 <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
-                  Duration
+                  {testConfig.type === 'timer' ? 'Duration' : 'Steps'}
                 </Text>
                 <Text style={[styles.resultValue, { color: theme.colors.text }]}>
-                  {formatTime(result)}
+                  {testConfig.type === 'timer' ? formatTime(result) : result}
                 </Text>
               </View>
               <View style={[styles.resultCard, { backgroundColor: theme.colors.surface }]}>
@@ -221,7 +320,7 @@ export default function BreathTestDetail({ navigation, route }) {
                   Level
                 </Text>
                 <Text style={[styles.resultValue, { color: theme.colors.text }]}>
-                  {getScore(result)}
+                  {testConfig.getScore(result)}
                 </Text>
               </View>
             </View>
@@ -350,5 +449,29 @@ const styles = StyleSheet.create({
   resultValue: {
     fontSize: Layout.text.xxlarge,
     fontFamily: Typography.fonts.bold,
+  },
+  walkingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walkingText: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    marginTop: Layout.spacing.large,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    width: '100%',
+    paddingHorizontal: Layout.spacing.xlarge,
+    marginVertical: Layout.spacing.xlarge,
+  },
+  input: {
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.medium,
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+    borderWidth: 1,
+    textAlign: 'center',
   },
 }); 

@@ -23,6 +23,14 @@ export default function BreathingTests({ navigation }) {
       icon: 'cloud-outline',
       color: theme.colors.primary,
     },
+    {
+      id: 2,
+      title: 'CO2 Walking Test',
+      category: 'Assessment',
+      description: 'Measure steps taken while holding breath',
+      icon: 'walk-outline',
+      color: theme.colors.primary,
+    },
   ];
 
   return (
