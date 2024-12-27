@@ -47,6 +47,7 @@ import BlogReader from './components/BlogReader';
 import FeaturedBlogs from './components/FeaturedBlogs';
 import GuidedSessionDetail from './components/GuidedSessionDetail';
 import HabitTaskDetail from './components/HabitTaskDetail';
+import HabitTaskHistory from './components/HabitTaskHistory';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -502,6 +503,17 @@ function AuthenticatedStack({ user }) {
         name="HabitTaskDetail" 
         component={HabitTaskDetail}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="HabitTaskHistory" 
+        component={HabitTaskHistory}
+        options={{
+          title: 'Habit & Task History',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
       />
     </Stack.Navigator>
   );

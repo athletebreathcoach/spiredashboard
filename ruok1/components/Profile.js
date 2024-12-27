@@ -188,6 +188,17 @@ export default function Profile({ navigation }) {
             </Text>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('HabitTaskHistory')}
+          >
+            <Ionicons name="list-outline" size={24} color={theme.colors.primary} />
+            <Text style={[styles.menuText, { color: theme.colors.text }]}>
+              Habit & Task History
+            </Text>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
