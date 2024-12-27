@@ -48,6 +48,7 @@ import FeaturedBlogs from './components/FeaturedBlogs';
 import GuidedSessionDetail from './components/GuidedSessionDetail';
 import HabitTaskDetail from './components/HabitTaskDetail';
 import HabitTaskHistory from './components/HabitTaskHistory';
+import WorkoutHistory from './components/WorkoutHistory';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -514,6 +515,11 @@ function AuthenticatedStack({ user }) {
             fontSize: Layout.text.large,
           }
         }}
+      />
+      <Stack.Screen
+        name="WorkoutHistory"
+        component={WorkoutHistory}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

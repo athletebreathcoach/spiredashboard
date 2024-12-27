@@ -1,294 +1,145 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  TouchableOpacity,
   Modal,
+  TouchableOpacity,
   TextInput,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ActivityMetricsForm({ visible, onClose, onSubmit, activity }) {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const [metrics, setMetrics] = useState({
     sets: '',
     reps: '',
-    weights: '',
-    rir: '', // Reps In Reserve
-    time: '',
-    distance: '',
-    calories: '',
-    oneRmPercentage: '', // %1RM
-    completed: false,
-    streak: 0,
-    priority: 'medium',
-    timeOfDay: '',
+    weight: '',
+    notes: '',
   });
 
-  // Reset metrics when activity changes
-  useEffect(() => {
-    setMetrics({
-      sets: '',
-      reps: '',
-      weights: '',
-      rir: '',
-      time: '',
-      distance: '',
-      calories: '',
-      oneRmPercentage: '',
-      completed: false,
-      streak: 0,
-      priority: 'medium',
-      timeOfDay: '',
-    });
-  }, [activity]);
+  // Default colors to use when theme isn't ready
+  const defaultColors = {
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    primary: '#00B5E0',
+    error: '#FF3B30',
+  };
 
-  const getVisibleFields = () => {
-    const baseFields = ['timeOfDay'];
-    switch (activity?.type?.toLowerCase()) {
-      case 'strength':
-        return [...baseFields, 'sets', 'reps', 'weights', 'rir', 'oneRmPercentage'];
-      case 'cardio':
-        return [...baseFields, 'time', 'distance', 'calories'];
-      case 'habit':
-        return [...baseFields, 'streak'];
-      case 'task':
-        return [...baseFields, 'priority'];
-      case 'guidedsession':
-        return [...baseFields, 'time'];
-      case 'breathprotocol':
-        return [...baseFields]; // Only time of day for breath protocols
-      default:
-        return [...baseFields, 'sets', 'reps', 'weights', 'time'];
-    }
+  // Use theme colors if available, otherwise fall back to defaults
+  const colors = {
+    background: theme?.colors?.background || defaultColors.background,
+    surface: theme?.colors?.surface || defaultColors.surface,
+    text: theme?.colors?.text || defaultColors.text,
+    textSecondary: theme?.colors?.textSecondary || defaultColors.textSecondary,
+    primary: theme?.colors?.primary || defaultColors.primary,
+    error: theme?.colors?.error || defaultColors.error,
   };
 
   const handleSubmit = () => {
-    // Convert string values to numbers where appropriate
-    const processedMetrics = {
-      sets: metrics.sets ? parseInt(metrics.sets) : null,
-      reps: metrics.reps ? parseInt(metrics.reps) : null,
-      weights: metrics.weights ? parseFloat(metrics.weights) : null,
-      rir: metrics.rir ? parseInt(metrics.rir) : null,
-      time: metrics.time || null,
-      distance: metrics.distance ? parseFloat(metrics.distance) : null,
-      calories: metrics.calories ? parseInt(metrics.calories) : null,
-      oneRmPercentage: metrics.oneRmPercentage ? parseInt(metrics.oneRmPercentage) : null,
-      completed: metrics.completed,
-      streak: metrics.streak,
-      priority: metrics.priority,
-      timeOfDay: metrics.timeOfDay || null,
-    };
-    onSubmit(processedMetrics);
-  };
-
-  const visibleFields = getVisibleFields();
-
-  const renderField = (fieldName) => {
-    const fieldConfig = {
-      timeOfDay: {
-        label: 'Time of Day',
-        options: ['Morning', 'Afternoon', 'Evening'],
-      },
-      sets: {
-        label: 'Sets',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      reps: {
-        label: 'Reps',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      weights: {
-        label: 'Weight (kg)',
-        placeholder: '0.0',
-        keyboardType: 'decimal-pad',
-      },
-      rir: {
-        label: 'RIR',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      time: {
-        label: 'Time',
-        placeholder: 'mm:ss',
-        keyboardType: 'default',
-      },
-      distance: {
-        label: 'Distance (km)',
-        placeholder: '0.0',
-        keyboardType: 'decimal-pad',
-      },
-      calories: {
-        label: 'Calories',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      oneRmPercentage: {
-        label: '%1RM',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      streak: {
-        label: 'Current Streak',
-        placeholder: '0',
-        keyboardType: 'number-pad',
-      },
-      priority: {
-        label: 'Priority',
-        placeholder: 'medium',
-        keyboardType: 'default',
-      },
-    };
-
-    const config = fieldConfig[fieldName];
-    if (!config) return null;
-
-    if (fieldName === 'timeOfDay') {
-      return (
-        <View style={styles.inputGroup} key={fieldName}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>{config.label}</Text>
-          <View style={styles.timeOfDayContainer}>
-            {config.options.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.timeOfDayButton,
-                  metrics.timeOfDay === option && { backgroundColor: theme.colors.primary },
-                  { borderColor: theme.colors.primary }
-                ]}
-                onPress={() => setMetrics(prev => ({ ...prev, timeOfDay: option }))}
-              >
-                <Text
-                  style={[
-                    styles.timeOfDayText,
-                    metrics.timeOfDay === option
-                      ? { color: theme.colors.white }
-                      : { color: theme.colors.primary }
-                  ]}
-                >
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      );
+    if (!metrics.sets || !metrics.reps) {
+      Alert.alert('Required Fields', 'Please fill in sets and reps before submitting.');
+      return;
     }
 
-    return (
-      <View style={styles.inputGroup} key={fieldName}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>{config.label}</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text }]}
-          value={metrics[fieldName]}
-          onChangeText={(text) => setMetrics(prev => ({ ...prev, [fieldName]: text }))}
-          keyboardType={config.keyboardType}
-          placeholder={config.placeholder}
-          placeholderTextColor={theme.colors.textSecondary}
-        />
-      </View>
-    );
-  };
+    const formattedMetrics = {
+      sets: parseInt(metrics.sets, 10),
+      reps: parseInt(metrics.reps, 10),
+      weight: metrics.weight ? parseFloat(metrics.weight) : null,
+      notes: metrics.notes || '',
+    };
 
-  const renderBreathProtocolDetails = () => {
-    if (activity?.type !== 'breathProtocol') return null;
-
-    return (
-      <View style={styles.protocolDetails}>
-        <Text style={[styles.protocolDescription, { color: theme.colors.text }]}>
-          {activity.description}
-        </Text>
-
-        <View style={styles.protocolSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pattern</Text>
-          {Object.entries(activity.pattern).map(([key, value]) => (
-            <Text key={key} style={[styles.patternText, { color: theme.colors.textSecondary }]}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}: {value} {key.includes('Hold') ? 'seconds' : ''}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.protocolSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Details</Text>
-          <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>
-            Duration: {activity.duration}
-          </Text>
-          <Text style={[styles.detailText, { color: theme.colors.textSecondary }]}>
-            Rounds: {activity.rounds}
-          </Text>
-        </View>
-
-        <View style={styles.protocolSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Benefits</Text>
-          {activity.benefits.map((benefit, index) => (
-            <Text key={index} style={[styles.benefitText, { color: theme.colors.textSecondary }]}>
-              • {benefit}
-            </Text>
-          ))}
-        </View>
-      </View>
-    );
+    onSubmit(formattedMetrics);
+    setMetrics({ sets: '', reps: '', weight: '', notes: '' });
   };
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalContainer}
-      >
-        <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Schedule {activity?.title || activity?.type || 'Activity'}
+      <View style={[styles.modalContainer, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Log {activity?.title || 'Exercise'}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={theme.colors.text} />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.form}>
-            {/* Render Time of Day selector first */}
-            {renderField('timeOfDay')}
-            
-            {/* Render breath protocol details if applicable */}
-            {renderBreathProtocolDetails()}
-            
-            {/* Render remaining fields in pairs */}
-            {Array.from({ length: Math.ceil((visibleFields.length - 1) / 2) }).map((_, index) => {
-              const fieldIndex = index * 2 + 1; // Skip timeOfDay which is already rendered
-              return (
-                <View style={styles.inputRow} key={index}>
-                  {renderField(visibleFields[fieldIndex])}
-                  {visibleFields[fieldIndex + 1] && renderField(visibleFields[fieldIndex + 1])}
-                </View>
-              );
-            })}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Sets *</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+                value={metrics.sets}
+                onChangeText={(text) => setMetrics({ ...metrics, sets: text })}
+                keyboardType="number-pad"
+                placeholder="Enter number of sets"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Reps *</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+                value={metrics.reps}
+                onChangeText={(text) => setMetrics({ ...metrics, reps: text })}
+                keyboardType="number-pad"
+                placeholder="Enter number of reps"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+                value={metrics.weight}
+                onChangeText={(text) => setMetrics({ ...metrics, weight: text })}
+                keyboardType="decimal-pad"
+                placeholder="Enter weight (optional)"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput, { backgroundColor: colors.background, color: colors.text }]}
+                value={metrics.notes}
+                onChangeText={(text) => setMetrics({ ...metrics, notes: text })}
+                placeholder="Add any notes (optional)"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
           </ScrollView>
 
           <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.submitButton, { backgroundColor: colors.primary }]}
             onPress={handleSubmit}
           >
-            <Text style={[styles.submitButtonText, { color: theme.colors.white }]}>
-              Schedule {activity?.type || 'Activity'}
+            <Text style={[styles.submitButtonText, { color: colors.background }]}>
+              Save Log
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -297,44 +148,37 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
     borderTopLeftRadius: Layout.borderRadius.large,
     borderTopRightRadius: Layout.borderRadius.large,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    padding: Layout.spacing.large,
     maxHeight: '90%',
   },
-  modalHeader: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Layout.spacing.large,
-    borderBottomWidth: 1,
+    marginBottom: Layout.spacing.large,
   },
-  modalTitle: {
+  title: {
     fontSize: Layout.text.xlarge,
-    fontFamily: Typography.fonts.semibold,
+    fontFamily: Typography.fonts.bold,
   },
   closeButton: {
     padding: Layout.spacing.small,
   },
   form: {
-    padding: Layout.spacing.large,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Layout.spacing.medium,
+    minHeight: 300,
+    marginBottom: Layout.spacing.large,
   },
   inputGroup: {
-    flex: 1,
-    marginHorizontal: Layout.spacing.xsmall,
+    marginBottom: Layout.spacing.large,
   },
   label: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
-    marginBottom: Layout.spacing.xsmall,
+    marginBottom: Layout.spacing.small,
   },
   input: {
     height: 48,
@@ -343,60 +187,18 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
   },
+  notesInput: {
+    height: 120,
+    paddingTop: Layout.spacing.medium,
+    paddingBottom: Layout.spacing.medium,
+  },
   submitButton: {
-    margin: Layout.spacing.large,
-    height: 56,
+    padding: Layout.spacing.medium,
     borderRadius: Layout.borderRadius.large,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   submitButtonText: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.medium,
-  },
-  timeOfDayContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Layout.spacing.small,
-  },
-  timeOfDayButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: Layout.borderRadius.medium,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  timeOfDayText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
-  },
-  protocolDetails: {
-    marginBottom: Layout.spacing.large,
-  },
-  protocolDescription: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.medium,
-    marginBottom: Layout.spacing.xsmall,
-  },
-  protocolSection: {
-    marginBottom: Layout.spacing.xsmall,
-  },
-  sectionTitle: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
-    marginBottom: Layout.spacing.xsmall,
-  },
-  patternText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-  },
-  detailText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
-  },
-  benefitText: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.regular,
+    textAlign: 'center',
   },
 }); 

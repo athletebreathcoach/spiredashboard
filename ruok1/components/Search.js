@@ -197,6 +197,18 @@ export default function Search({ navigation }) {
       navigation.navigate('ExerciseDetail', { 
         exercise: {
           ...item,
+          type: {
+            name: item.category
+          },
+          primaryMuscleGroup: {
+            name: item.category
+          },
+          equipment: {
+            default: {
+              id: 'default',
+              name: 'Basic Equipment'
+            }
+          },
           instructions: [
             "1. Lie on a flat bench with your feet flat on the floor",
             "2. Grip the barbell slightly wider than shoulder-width",
