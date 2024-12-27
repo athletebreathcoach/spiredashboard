@@ -27,8 +27,16 @@ export default function BreathingTests({ navigation }) {
       id: 2,
       title: 'CO2 Walking Test',
       category: 'Assessment',
-      description: 'Measure steps taken while holding breath',
+      description: 'Test your CO2 tolerance while walking',
       icon: 'walk-outline',
+      color: theme.colors.primary,
+    },
+    {
+      id: 3,
+      title: 'BOLT Test',
+      category: 'Assessment',
+      description: 'Body Oxygen Level Test - Measure your CO2 tolerance',
+      icon: 'timer-outline',
       color: theme.colors.primary,
     },
   ];

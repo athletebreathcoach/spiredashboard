@@ -79,6 +79,27 @@ const getTestConfig = (testId) => {
           return 'Expert';
         }
       };
+    case 3: // BOLT Test
+      return {
+        title: 'BOLT Test',
+        type: 'timer',
+        description: 'The Body Oxygen Level Test (BOLT) measures your CO2 tolerance. Stop at your FIRST natural urge to breathe - this is not a maximum breath hold test.',
+        instructions: [
+          'Sit quietly and breathe normally for about 1 minute',
+          'Take a normal breath in and out through your nose',
+          'After a normal exhale, press start',
+          'Hold your breath',
+          'Stop at your FIRST definite desire to breathe',
+          'Press stop immediately when you feel the urge'
+        ],
+        getScore: (seconds) => {
+          if (seconds < 10) return 'Poor';
+          if (seconds < 20) return 'Below Average';
+          if (seconds < 30) return 'Average';
+          if (seconds < 40) return 'Good';
+          return 'Excellent';
+        }
+      };
     default:
       return null;
   }
@@ -100,10 +121,10 @@ export default function BreathTestDetail({ navigation, route }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const scale = useRef(
-    testConfig.type === 'timer' ? new Animated.Value(testConfig.initialScale) : null
+    testConfig.type === 'timer' && test.id === 1 ? new Animated.Value(testConfig.initialScale) : null
   ).current;
   const opacity = useRef(
-    testConfig.type === 'timer' ? new Animated.Value(0.9) : null
+    testConfig.type === 'timer' && test.id === 1 ? new Animated.Value(0.9) : null
   ).current;
 
   useEffect(() => {
@@ -144,17 +165,19 @@ export default function BreathTestDetail({ navigation, route }) {
         setTimer(prev => prev + 1);
       }, 1000);
 
-      Animated.timing(scale, {
-        toValue: testConfig.finalScale,
-        duration: testConfig.duration,
-        useNativeDriver: false,
-      }).start();
+      if (test.id === 1) { // Only animate for Exhale Test
+        Animated.timing(scale, {
+          toValue: testConfig.finalScale,
+          duration: testConfig.duration,
+          useNativeDriver: false,
+        }).start();
 
-      Animated.timing(opacity, {
-        toValue: 0.4,
-        duration: testConfig.duration,
-        useNativeDriver: false,
-      }).start();
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: testConfig.duration,
+          useNativeDriver: false,
+        }).start();
+      }
     } else if (testConfig.type === 'steps' && isPedometerAvailable) {
       setCurrentStepCount(0);
       const start = new Date();
@@ -180,11 +203,13 @@ export default function BreathTestDetail({ navigation, route }) {
       setResult(duration);
       setPhase('complete');
       
-      scale.stopAnimation();
-      opacity.stopAnimation();
-      
-      scale.setValue(testConfig.initialScale);
-      opacity.setValue(0.9);
+      if (test.id === 1 && scale && opacity) {
+        scale.stopAnimation();
+        opacity.stopAnimation();
+        
+        scale.setValue(testConfig.initialScale);
+        opacity.setValue(0.9);
+      }
     } else {
       if (subscription.current) {
         subscription.current.remove();
@@ -277,7 +302,25 @@ export default function BreathTestDetail({ navigation, route }) {
         );
 
       case 'testing':
-        if (testConfig.type === 'timer') {
+        if (test.id === 3) { // BOLT Test
+          return (
+            <View style={styles.contentContainer}>
+              <View style={styles.timerContainer}>
+                <Text style={[styles.timer, { color: theme.colors.text }]}>
+                  {formatTime(timer)}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: theme.colors.error }]}
+                  onPress={stopTest}
+                >
+                  <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+                    Stop
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        } else if (testConfig.type === 'timer') {
           return (
             <View style={styles.contentContainer}>
               <View style={styles.animationContainer}>
@@ -590,5 +633,11 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginTop: Layout.spacing.medium,
+  },
+  timerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Layout.spacing.xlarge,
   },
 }); 
