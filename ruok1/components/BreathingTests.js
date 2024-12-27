@@ -17,34 +17,10 @@ export default function BreathingTests({ navigation }) {
   const tests = [
     {
       id: 1,
-      title: 'CO2 Tolerance',
-      category: 'Baseline',
-      description: 'Measure your CO2 tolerance level',
-      icon: 'timer-outline',
-      color: theme.colors.primary,
-    },
-    {
-      id: 2,
-      title: 'O2 Advantage Test',
-      category: 'Baseline',
-      description: 'Measure your oxygen efficiency',
-      icon: 'pulse-outline',
-      color: theme.colors.primary,
-    },
-    {
-      id: 3,
-      title: 'BOLT Score',
+      title: 'Exhale Test',
       category: 'Assessment',
-      description: 'Body Oxygen Level Test',
-      icon: 'analytics-outline',
-      color: theme.colors.primary,
-    },
-    {
-      id: 4,
-      title: 'MAX Breath Hold',
-      category: 'Performance',
-      description: 'Maximum breath hold duration',
-      icon: 'stopwatch-outline',
+      description: 'Measure your exhale control and capacity',
+      icon: 'cloud-outline',
       color: theme.colors.primary,
     },
   ];
