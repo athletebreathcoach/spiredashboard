@@ -13,6 +13,8 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 const { width } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 9/16; // 16:9 aspect ratio
@@ -25,9 +27,38 @@ export default function GuidedSessionDetail({ navigation, route }) {
   const onStateChange = useCallback((state) => {
     if (state === "ended") {
       setPlaying(false);
-      Alert.alert("Video has finished playing!");
+      handleSessionComplete();
     }
   }, []);
+
+  const handleSessionComplete = async () => {
+    try {
+      // Save to the guidedSessions subcollection
+      const guidedSessionsRef = collection(db, 'users', auth.currentUser.uid, 'guidedSessions');
+      await addDoc(guidedSessionsRef, {
+        sessionId: session.id,
+        title: session.title,
+        type: session.type,
+        duration: session.duration,
+        intensity: session.intensity,
+        completedAt: serverTimestamp()
+      });
+
+      Alert.alert(
+        "Session Complete!",
+        "Great job completing the guided session! It has been saved to your history.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error saving guided session:', error);
+      Alert.alert('Error', 'Failed to save session to history');
+    }
+  };
 
   const getYoutubeVideoId = (url) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;

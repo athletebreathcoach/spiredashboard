@@ -43,20 +43,36 @@ export default function BreathHistory() {
   const fetchHistory = async () => {
     try {
       setLoading(true);
+      // Fetch breathing exercises
       const breathingRef = collection(db, 'users', auth.currentUser.uid, 'breathingExercises');
       const breathingQuery = query(breathingRef, orderBy('completedAt', 'desc'));
-      const snapshot = await getDocs(breathingQuery);
+      const breathingSnapshot = await getDocs(breathingQuery);
       
-      const breathingData = snapshot.docs.map(doc => ({
+      const breathingData = breathingSnapshot.docs.map(doc => ({
         id: doc.id,
+        type: 'breathing',
         ...doc.data(),
         timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
       }));
+
+      // Fetch guided sessions
+      const guidedRef = collection(db, 'users', auth.currentUser.uid, 'guidedSessions');
+      const guidedQuery = query(guidedRef, orderBy('completedAt', 'desc'));
+      const guidedSnapshot = await getDocs(guidedQuery);
       
-      setHistory(breathingData);
+      const guidedData = guidedSnapshot.docs.map(doc => ({
+        id: doc.id,
+        type: 'guided',
+        ...doc.data(),
+        timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
+      }));
+
+      // Combine and sort all sessions by timestamp
+      const allSessions = [...breathingData, ...guidedData].sort((a, b) => b.timestamp - a.timestamp);
+      setHistory(allSessions);
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching breathing history:', error);
+      console.error('Error fetching history:', error);
       setLoading(false);
     }
   };
@@ -77,6 +93,55 @@ export default function BreathHistory() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const renderBreathingSession = (session) => (
+    <View style={styles.sessionDetails}>
+      <View style={styles.detailItem}>
+        <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+        <Text style={[styles.detailText, { color: colors.text }]}>
+          {formatDuration(session.duration)}
+        </Text>
+      </View>
+      
+      <View style={styles.detailItem}>
+        <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
+        <Text style={[styles.detailText, { color: colors.text }]}>
+          {session.rounds} rounds
+        </Text>
+      </View>
+
+      <View style={styles.patternContainer}>
+        <Text style={[styles.patternText, { color: colors.textSecondary }]}>
+          {`${session.inhaleTime}s - ${session.inhaleHoldTime}s - ${session.exhaleTime}s - ${session.exhaleHoldTime}s`}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderGuidedSession = (session) => (
+    <View style={styles.sessionDetails}>
+      <View style={styles.detailItem}>
+        <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+        <Text style={[styles.detailText, { color: colors.text }]}>
+          {session.duration}
+        </Text>
+      </View>
+      
+      <View style={styles.detailItem}>
+        <Ionicons name="fitness-outline" size={16} color={colors.textSecondary} />
+        <Text style={[styles.detailText, { color: colors.text }]}>
+          {session.type}
+        </Text>
+      </View>
+
+      <View style={styles.detailItem}>
+        <Ionicons name="speedometer-outline" size={16} color={colors.textSecondary} />
+        <Text style={[styles.detailText, { color: colors.text }]}>
+          {session.intensity}
+        </Text>
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -95,40 +160,34 @@ export default function BreathHistory() {
               style={[styles.sessionCard, { backgroundColor: colors.surface }]}
             >
               <View style={styles.sessionHeader}>
-                <Text style={[styles.sessionTitle, { color: colors.text }]}>
-                  {session.presetName || 'Custom Breath Protocol'}
-                </Text>
+                <View style={styles.titleContainer}>
+                  <Ionicons 
+                    name={session.type === 'breathing' ? 'fitness' : 'play-circle'} 
+                    size={20} 
+                    color={colors.primary} 
+                    style={styles.titleIcon}
+                  />
+                  <Text style={[styles.sessionTitle, { color: colors.text }]}>
+                    {session.type === 'breathing' 
+                      ? (session.presetName || 'Custom Breath Protocol')
+                      : session.title
+                    }
+                  </Text>
+                </View>
                 <Text style={[styles.sessionDate, { color: colors.textSecondary }]}>
                   {formatDate(session.timestamp)}
                 </Text>
               </View>
-              
-              <View style={styles.sessionDetails}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {formatDuration(session.duration)}
-                  </Text>
-                </View>
-                
-                <View style={styles.detailItem}>
-                  <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[styles.detailText, { color: colors.text }]}>
-                    {session.rounds} rounds
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.patternContainer}>
-                <Text style={[styles.patternText, { color: colors.textSecondary }]}>
-                  {`${session.inhaleTime}s - ${session.inhaleHoldTime}s - ${session.exhaleTime}s - ${session.exhaleHoldTime}s`}
-                </Text>
-              </View>
+              {session.type === 'breathing' 
+                ? renderBreathingSession(session)
+                : renderGuidedSession(session)
+              }
             </View>
           ))
         ) : (
           <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
-            No breathing sessions recorded yet
+            No sessions recorded yet
           </Text>
         )}
       </ScrollView>
@@ -152,9 +211,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Layout.spacing.medium,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: Layout.spacing.medium,
+  },
+  titleIcon: {
+    marginRight: Layout.spacing.small,
+  },
   sessionTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.semibold,
+    flex: 1,
   },
   sessionDate: {
     fontSize: Layout.text.small,

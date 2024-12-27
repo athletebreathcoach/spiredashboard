@@ -50,5 +50,6 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "react-native-dotenv": "^3.4.11"
   },
-  "private": true
+  "private": true,
+  "type": "module"
 }
