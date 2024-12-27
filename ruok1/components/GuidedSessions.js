@@ -1,60 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Image,
+  ActivityIndicator 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getGuidedSessions } from '../firebase/guidedSessions';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function GuidedSessions({ navigation, route }) {
+export default function GuidedSessions({ navigation }) {
   const theme = useTheme();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const isSelectionMode = route.params?.mode === 'selection';
-  const onSelect = route.params?.onSelect;
 
   useEffect(() => {
-    loadSessions();
+    fetchGuidedSessions();
   }, []);
 
-  const loadSessions = async () => {
+  const fetchGuidedSessions = async () => {
     try {
-      const sessionsData = await getGuidedSessions();
+      const sessionsRef = collection(db, 'guidedSessions');
+      const q = query(sessionsRef, orderBy('title'));
+      const snapshot = await getDocs(q);
+      const sessionsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       setSessions(sessionsData);
     } catch (error) {
-      console.error('Error loading guided sessions:', error);
+      console.error('Error fetching guided sessions:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSessionPress = (session) => {
-    if (isSelectionMode && onSelect) {
-      onSelect(session);
-      navigation.goBack();
-    } else {
-      navigation.navigate('SessionDetail', { session });
-    }
+  const formatDuration = (duration) => {
+    return `${duration} min`;
   };
-
-  if (!theme) {
-    return (
-      <View style={[styles.container, { backgroundColor: '#000000' }]}>
-        <ActivityIndicator size="large" color="#00B5E0" />
-      </View>
-    );
-  }
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
@@ -63,42 +56,54 @@ export default function GuidedSessions({ navigation, route }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text style={[styles.title, { color: theme.colors.text }]}>
-        {isSelectionMode ? 'Add Guided Session' : 'Guided Sessions'}
+        Guided Sessions
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        {isSelectionMode ? 'Select a session to add to schedule' : 'Choose a guided workout session'}
+        Follow along with expert-led breathing sessions
       </Text>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {sessions.map((session) => (
           <TouchableOpacity
             key={session.id}
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
-            onPress={() => handleSessionPress(session)}
+            onPress={() => navigation.navigate('GuidedSessionDetail', { session })}
           >
-            <View style={styles.cardHeader}>
-              <Ionicons name="compass-outline" size={24} color={theme.colors.primary} />
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                {session.title}
-              </Text>
-            </View>
-            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
-              {session.description}
-            </Text>
-            <View style={styles.cardFooter}>
-              <View style={styles.durationContainer}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
-                <Text style={[styles.duration, { color: theme.colors.textSecondary }]}>
-                  {session.duration}
+            <View style={styles.cardContent}>
+              <View style={styles.cardHeader}>
+                <Ionicons 
+                  name="play-circle-outline" 
+                  size={24} 
+                  color={theme.colors.primary} 
+                  style={styles.cardIcon}
+                />
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                  {session.title}
                 </Text>
               </View>
-              {isSelectionMode && (
-                <Ionicons name="add-circle" size={24} color={theme.colors.primary} />
-              )}
+              <Text 
+                style={[styles.cardDescription, { color: theme.colors.textSecondary }]}
+                numberOfLines={2}
+              >
+                {session.description}
+              </Text>
+              <View style={styles.cardFooter}>
+                <View style={styles.typeContainer}>
+                  <Text style={[styles.typeText, { color: theme.colors.text }]}>
+                    {session.type}
+                  </Text>
+                </View>
+                <View style={styles.durationContainer}>
+                  <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
+                  <Text style={[styles.duration, { color: theme.colors.textSecondary }]}>
+                    {formatDuration(session.duration)}
+                  </Text>
+                </View>
+              </View>
             </View>
           </TouchableOpacity>
         ))}
@@ -111,6 +116,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.large,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: Layout.text.xlarge,
@@ -129,40 +138,54 @@ const styles = StyleSheet.create({
     paddingBottom: Layout.spacing.large,
   },
   card: {
-    padding: Layout.spacing.large,
     borderRadius: Layout.borderRadius.large,
     marginBottom: Layout.spacing.medium,
+    overflow: 'hidden',
+  },
+  cardContent: {
+    padding: Layout.spacing.large,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: Layout.spacing.medium,
   },
+  cardIcon: {
+    marginRight: Layout.spacing.medium,
+  },
   cardTitle: {
+    flex: 1,
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.bold,
-    marginLeft: Layout.spacing.medium,
   },
   cardDescription: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.medium,
+    lineHeight: Layout.text.medium * 1.4,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  typeContainer: {
+    backgroundColor: 'rgba(0, 181, 224, 0.1)',
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+  },
+  typeText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+  },
   durationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   duration: {
-    fontSize: Layout.text.medium,
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
     marginLeft: Layout.spacing.small,
-  },
-  addButton: {
-    padding: Layout.spacing.small,
   },
 }); 

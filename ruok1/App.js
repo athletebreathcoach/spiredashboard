@@ -45,6 +45,7 @@ import FeaturedVideos from './components/FeaturedVideos';
 import FeaturedProtocols from './components/FeaturedProtocols';
 import BlogReader from './components/BlogReader';
 import FeaturedBlogs from './components/FeaturedBlogs';
+import GuidedSessionDetail from './components/GuidedSessionDetail';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -421,6 +422,13 @@ function AuthenticatedStack({ user }) {
             fontFamily: Typography.fonts.bold,
             fontSize: Layout.text.large,
           }
+        }}
+      />
+      <Stack.Screen 
+        name="GuidedSessionDetail" 
+        component={GuidedSessionDetail}
+        options={{
+          headerShown: false
         }}
       />
       <Stack.Screen 
