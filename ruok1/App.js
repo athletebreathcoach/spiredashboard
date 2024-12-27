@@ -50,6 +50,7 @@ import HabitTaskDetail from './components/HabitTaskDetail';
 import HabitTaskHistory from './components/HabitTaskHistory';
 import WorkoutHistory from './components/WorkoutHistory';
 import BreathTestDetail from './components/BreathTestDetail';
+import BreathTestHistory from './components/BreathTestHistory';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -527,6 +528,17 @@ function AuthenticatedStack({ user }) {
         component={BreathTestDetail}
         options={{
           title: 'Exhale Test',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        }}
+      />
+      <Stack.Screen 
+        name="BreathTestHistory"
+        component={BreathTestHistory}
+        options={{
+          title: 'Breath Test History',
           headerTitleStyle: {
             fontFamily: Typography.fonts.bold,
             fontSize: Layout.text.large,

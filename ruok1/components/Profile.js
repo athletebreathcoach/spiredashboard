@@ -180,6 +180,17 @@ export default function Profile({ navigation }) {
           </Text>
           <TouchableOpacity
             style={[styles.menuItem, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('BreathTestHistory')}
+          >
+            <Ionicons name="fitness-outline" size={24} color={theme.colors.primary} />
+            <Text style={[styles.menuText, { color: theme.colors.text }]}>
+              Breath Test History
+            </Text>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { backgroundColor: theme.colors.surface }]}
             onPress={() => navigation.navigate('BreathHistory')}
           >
             <Ionicons name="time-outline" size={24} color={theme.colors.primary} />

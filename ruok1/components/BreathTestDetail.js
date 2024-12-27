@@ -8,12 +8,17 @@ import {
   Dimensions,
   Vibration,
   TextInput,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import * as Haptics from 'expo-haptics';
+import { Pedometer } from 'expo-sensors';
+import { db, auth } from '../config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.7;
@@ -89,6 +94,10 @@ export default function BreathTestDetail({ navigation, route }) {
   const timerRef = useRef(null);
   const startTime = useRef(null);
   const [steps, setSteps] = useState('');
+  const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
+  const [currentStepCount, setCurrentStepCount] = useState(0);
+  const subscription = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const scale = useRef(
     testConfig.type === 'timer' ? new Animated.Value(testConfig.initialScale) : null
@@ -105,7 +114,28 @@ export default function BreathTestDetail({ navigation, route }) {
     };
   }, []);
 
-  const startTest = () => {
+  useEffect(() => {
+    if (testConfig.type === 'steps') {
+      checkPedometerAvailability();
+    }
+    return () => {
+      if (subscription.current) {
+        subscription.current.remove();
+      }
+    };
+  }, []);
+
+  const checkPedometerAvailability = async () => {
+    try {
+      const isAvailable = await Pedometer.isAvailableAsync();
+      setIsPedometerAvailable(isAvailable);
+    } catch (error) {
+      console.log('Pedometer not available:', error);
+      setIsPedometerAvailable(false);
+    }
+  };
+
+  const startTest = async () => {
     setPhase('testing');
     if (testConfig.type === 'timer') {
       startTime.current = Date.now();
@@ -125,6 +155,16 @@ export default function BreathTestDetail({ navigation, route }) {
         duration: testConfig.duration,
         useNativeDriver: false,
       }).start();
+    } else if (testConfig.type === 'steps' && isPedometerAvailable) {
+      setCurrentStepCount(0);
+      const start = new Date();
+      try {
+        subscription.current = Pedometer.watchStepCount(result => {
+          setCurrentStepCount(result.steps);
+        });
+      } catch (error) {
+        console.log('Error starting pedometer:', error);
+      }
     }
   };
 
@@ -146,7 +186,15 @@ export default function BreathTestDetail({ navigation, route }) {
       scale.setValue(testConfig.initialScale);
       opacity.setValue(0.9);
     } else {
-      setPhase('input');
+      if (subscription.current) {
+        subscription.current.remove();
+      }
+      if (isPedometerAvailable) {
+        setResult(currentStepCount);
+        setPhase('complete');
+      } else {
+        setPhase('input');
+      }
     }
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -166,6 +214,31 @@ export default function BreathTestDetail({ navigation, route }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const saveTestResult = async (testData) => {
+    if (!auth.currentUser) return;
+    
+    setIsSaving(true);
+    try {
+      await addDoc(collection(db, 'breathingTests'), {
+        userId: auth.currentUser.uid,
+        testId: test.id,
+        testName: testConfig.title,
+        result: testData.result,
+        resultType: testConfig.type,
+        level: testConfig.getScore(testData.result),
+        timestamp: serverTimestamp(),
+      });
+      
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error saving test result:', error);
+      // Still allow going back even if save fails
+      navigation.goBack();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderContent = () => {
     switch (phase) {
       case 'ready':
@@ -176,6 +249,8 @@ export default function BreathTestDetail({ navigation, route }) {
             </Text>
             <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
               {testConfig.description}
+              {testConfig.type === 'steps' && !isPedometerAvailable && 
+                '\n\nNote: Automatic step counting is not available on your device. You will need to count steps manually.'}
             </Text>
             <View style={styles.instructionsContainer}>
               <Text style={[styles.instructionTitle, { color: theme.colors.text }]}>
@@ -253,9 +328,20 @@ export default function BreathTestDetail({ navigation, route }) {
             <View style={styles.contentContainer}>
               <View style={styles.walkingContainer}>
                 <Ionicons name="walk" size={64} color={theme.colors.primary} />
-                <Text style={[styles.walkingText, { color: theme.colors.text }]}>
-                  Count your steps as you walk
-                </Text>
+                {isPedometerAvailable ? (
+                  <View style={styles.stepCountContainer}>
+                    <Text style={[styles.stepCount, { color: theme.colors.text }]}>
+                      {currentStepCount}
+                    </Text>
+                    <Text style={[styles.stepLabel, { color: theme.colors.textSecondary }]}>
+                      steps
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.walkingText, { color: theme.colors.text }]}>
+                    Count your steps as you walk
+                  </Text>
+                )}
               </View>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: theme.colors.error }]}
@@ -324,14 +410,23 @@ export default function BreathTestDetail({ navigation, route }) {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.colors.primary }]}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={[styles.buttonText, { color: theme.colors.background }]}>
-                Done
-              </Text>
-            </TouchableOpacity>
+            {isSaving ? (
+              <View style={styles.savingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.savingText, { color: theme.colors.textSecondary }]}>
+                  Saving result...
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                onPress={() => saveTestResult({ result })}
+              >
+                <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+                  Save Result
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         );
     }
@@ -473,5 +568,27 @@ const styles = StyleSheet.create({
     borderRadius: Layout.borderRadius.medium,
     borderWidth: 1,
     textAlign: 'center',
+  },
+  stepCountContainer: {
+    alignItems: 'center',
+    marginTop: Layout.spacing.large,
+  },
+  stepCount: {
+    fontSize: Layout.text.xxxlarge,
+    fontFamily: Typography.fonts.bold,
+  },
+  stepLabel: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.small,
+  },
+  savingContainer: {
+    alignItems: 'center',
+    marginTop: Layout.spacing.large,
+  },
+  savingText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.medium,
   },
 }); 
