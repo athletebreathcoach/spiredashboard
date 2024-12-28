@@ -10,7 +10,18 @@ import { Ionicons } from '@expo/vector-icons';
 export default function AddSectionActivities({ navigation, route }) {
   const theme = useTheme();
   const { sectionData } = route.params;
-  const [activities, setActivities] = useState(sectionData.activities);
+  
+  console.log('Initial sectionData:', sectionData);
+  
+  // Ensure activities is always an array with valid structure
+  const initialActivities = sectionData.activities.map(activity => ({
+    type: activity.type,
+    items: activity.items || []
+  }));
+  
+  console.log('Structured initialActivities:', initialActivities);
+  
+  const [activities, setActivities] = useState(initialActivities);
 
   const handleAddActivity = (activityType) => {
     let screenName;
@@ -37,19 +48,36 @@ export default function AddSectionActivities({ navigation, route }) {
     navigation.navigate(screenName, {
       mode: 'selection',
       onSelect: (activity) => {
-        console.log('Activity selected:', activity);
+        console.log('Raw activity selected:', activity);
+        
+        // Clean the activity data to ensure it's serializable
+        const cleanActivity = {
+          id: activity.id || Date.now().toString(),
+          title: activity.title || '',
+          description: activity.description || '',
+          type: activityType,
+          // Only include serializable fields
+          primaryMuscleGroup: activity.primaryMuscleGroup ? {
+            id: activity.primaryMuscleGroup.id,
+            name: activity.primaryMuscleGroup.name
+          } : null,
+          secondaryMuscleGroups: activity.secondaryMuscleGroups ? 
+            activity.secondaryMuscleGroups.map(mg => ({
+              id: mg.id,
+              name: mg.name
+            })) : [],
+          imageUrl: activity.imageUrl || '',
+          metrics: activity.metrics || {},
+        };
+
+        console.log('Cleaned activity:', cleanActivity);
+
         setActivities(current => 
           current.map(a => {
             if (a.type === activityType) {
               return {
                 ...a,
-                items: [...(a.items || []), { 
-                  id: activity.id,
-                  title: activity.title,
-                  description: activity.description,
-                  type: activityType,
-                  data: activity
-                }]
+                items: [...(a.items || []), cleanActivity]
               };
             }
             return a;
@@ -76,30 +104,54 @@ export default function AddSectionActivities({ navigation, route }) {
 
   const handleSave = async () => {
     try {
+      console.log('Starting save operation...');
+      console.log('Initial activities:', activities);
+      
       const sectionsRef = collection(db, 'sections');
-      // Flatten the activities array to match SectionDetail's format
-      const flattenedActivities = activities.reduce((acc, activityGroup) => {
-        if (activityGroup.items && activityGroup.items.length > 0) {
-          return [...acc, ...activityGroup.items.map(item => ({
-            id: item.id,
-            type: activityGroup.type,
-            title: item.title,
-            description: item.description,
-            data: item
-          }))];
-        }
-        return acc;
-      }, []);
+      
+      const validActivities = activities
+        .map(activityGroup => ({
+          type: activityGroup.type,
+          items: (activityGroup.items || [])
+            .filter(item => item && item.id && item.title)
+            .map(item => ({
+              id: item.id,
+              title: item.title || '',
+              type: activityGroup.type,
+              description: item.description || '',
+              metrics: item.metrics || {},
+              data: item.data || {}
+            }))
+        }))
+        .filter(group => group.items && group.items.length > 0);
 
-      await addDoc(sectionsRef, {
-        ...sectionData,
-        activities: flattenedActivities,
+      console.log('Processed validActivities:', validActivities);
+
+      const sectionDoc = {
+        userId: auth.currentUser.uid,
+        title: sectionData.title || '',
+        description: sectionData.description || '',
+        activities: validActivities,
         createdBy: auth.currentUser.uid,
         createdAt: new Date().toISOString()
-      });
+      };
+
+      console.log('Final sectionDoc to save:', JSON.stringify(sectionDoc, null, 2));
+      
+      // Verify auth.currentUser exists
+      if (!auth.currentUser) {
+        console.error('No authenticated user found');
+        throw new Error('User not authenticated');
+      }
+
+      console.log('Current user ID:', auth.currentUser.uid);
+      
+      const docRef = await addDoc(sectionsRef, sectionDoc);
+      console.log('Successfully saved section with ID:', docRef.id);
+      
       navigation.navigate('Programs', { screen: 'Sections' });
     } catch (error) {
-      console.error('Error creating section:', error);
+      console.error('Detailed error in handleSave:', error);
       Alert.alert('Error', 'Failed to create section. Please try again.');
     }
   };

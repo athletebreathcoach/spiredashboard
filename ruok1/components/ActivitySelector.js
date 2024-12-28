@@ -26,7 +26,7 @@ const CATEGORIES = [
   { id: 'breathProtocols', label: 'Breath Protocols', icon: 'pulse-outline' },
 ];
 
-export default function ActivitySelector({ navigation }) {
+export default function ActivitySelector({ navigation, route }) {
   const theme = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('exercises');
   const [activities, setActivities] = useState({});
@@ -107,9 +107,13 @@ export default function ActivitySelector({ navigation }) {
   const handleNext = () => {
     if (selectedActivities.length === 0) return;
     
-    navigation.navigate('ConfigureSection', {
-      activities: selectedActivities
-    });
+    if (route.params?.onNext) {
+      route.params.onNext(selectedActivities);
+    } else {
+      navigation.navigate('ConfigureSection', {
+        activities: selectedActivities
+      });
+    }
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>

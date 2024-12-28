@@ -39,7 +39,13 @@ export default function Sections({ navigation, route }) {
   };
 
   const handleCreateSection = () => {
-    navigation.navigate('ActivitySelector');
+    navigation.navigate('ActivitySelector', {
+      onNext: (selectedActivities) => {
+        navigation.navigate('ConfigureSection', {
+          activities: selectedActivities
+        });
+      }
+    });
   };
 
   const handleSectionPress = (section) => {
@@ -82,6 +88,63 @@ export default function Sections({ navigation, route }) {
     });
   };
 
+  const renderSection = (section) => {
+    // Count activities by type
+    const activityCounts = section.activities?.reduce((acc, activity) => {
+      const type = activity.type || 'exercise';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {});
+
+    return (
+      <TouchableOpacity
+        key={section.id}
+        style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}
+        onPress={() => isSelectionMode ? handleSectionSelect(section) : handleSectionPress(section)}
+      >
+        <View style={styles.sectionContent}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            {section.title}
+          </Text>
+          {section.description && (
+            <Text 
+              style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}
+              numberOfLines={2}
+            >
+              {section.description}
+            </Text>
+          )}
+          <View style={styles.categoryInfo}>
+            {activityCounts?.exercise > 0 && (
+              <Text style={[styles.categoryCount, { color: theme.colors.textSecondary }]}>
+                {activityCounts.exercise} exercises
+              </Text>
+            )}
+            {activityCounts?.habit > 0 && (
+              <Text style={[styles.categoryCount, { color: theme.colors.textSecondary }]}>
+                {activityCounts.habit} habits/tasks
+              </Text>
+            )}
+          </View>
+        </View>
+        {isSelectionMode && (
+          <Ionicons 
+            name={selectedSections.some(s => s.id === section.id) 
+              ? "checkmark-circle" 
+              : "ellipse-outline"
+            } 
+            size={24} 
+            color={selectedSections.some(s => s.id === section.id)
+              ? theme.colors.primary
+              : theme.colors.textSecondary
+            } 
+            style={styles.selectionIcon}
+          />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -92,16 +155,22 @@ export default function Sections({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Sections
-        </Text>
+      <View style={styles.content}>
+        {isSelectionMode && selectedSections.length > 0 && (
+          <TouchableOpacity 
+            style={[styles.programButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handleProgramSelected}
+          >
+            <Text style={[styles.programButtonText, { color: theme.colors.white }]}>
+              Program Selected ({selectedSections.length})
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {sections.map(section => renderSection(section))}
+        </ScrollView>
+
         {!isSelectionMode && (
           <TouchableOpacity 
             style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
@@ -111,75 +180,6 @@ export default function Sections({ navigation, route }) {
           </TouchableOpacity>
         )}
       </View>
-
-      {isSelectionMode && selectedSections.length > 0 && (
-        <TouchableOpacity 
-          style={[styles.programButton, { 
-            backgroundColor: theme.colors.primary,
-            margin: Layout.spacing.medium,
-          }]}
-          onPress={handleProgramSelected}
-        >
-          <Text style={[styles.programButtonText, { color: theme.colors.white }]}>
-            Program Selected ({selectedSections.length})
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {sections.map(section => (
-          <TouchableOpacity
-            key={section.id}
-            style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}
-            onPress={() => isSelectionMode ? handleSectionSelect(section) : handleSectionPress(section)}
-          >
-            <View style={styles.sectionContent}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                  {section.title}
-                </Text>
-                <Text style={[styles.activityCount, { color: theme.colors.textSecondary }]}>
-                  {section.activities.length} activities
-                </Text>
-              </View>
-              {section.description && (
-                <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
-                  {section.description}
-                </Text>
-              )}
-              <View style={styles.activityTypes}>
-                {Array.from(new Set(section.activities.map(a => a.type))).map(type => (
-                  <View 
-                    key={type}
-                    style={[styles.activityTypeTag, { backgroundColor: theme.colors.border }]}
-                  >
-                    <Text style={[styles.activityTypeText, { color: theme.colors.text }]}>
-                      {type}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            {isSelectionMode && (
-              <Ionicons 
-                name={selectedSections.some(s => s.id === section.id) 
-                  ? "checkmark-circle" 
-                  : "ellipse-outline"
-                } 
-                size={24} 
-                color={selectedSections.some(s => s.id === section.id)
-                  ? theme.colors.primary
-                  : theme.colors.textSecondary
-                } 
-                style={styles.selectionIcon}
-              />
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
     </View>
   );
 }
@@ -192,38 +192,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Layout.spacing.medium,
-    height: 60,
-    borderBottomWidth: 1,
-    marginTop: 40,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 24,
-    fontFamily: Typography.fonts.semibold,
-    textAlign: 'center',
-    marginLeft: -28,
-  },
-  createButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  programButton: {
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
-    alignItems: 'center',
-  },
-  programButtonText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.medium,
-  },
   content: {
     flex: 1,
     padding: Layout.spacing.medium,
@@ -231,52 +199,60 @@ const styles = StyleSheet.create({
   sectionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
     marginBottom: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.medium,
+    backgroundColor: '#1C1C1E',
   },
   sectionContent: {
     flex: 1,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Layout.spacing.small,
-  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: Typography.fonts.semibold,
-  },
-  activityCount: {
-    fontSize: 14,
-    fontFamily: Typography.fonts.regular,
+    marginBottom: 4,
   },
   sectionDescription: {
     fontSize: 14,
     fontFamily: Typography.fonts.regular,
-    marginBottom: Layout.spacing.medium,
+    marginBottom: 8,
+    lineHeight: 20,
   },
-  activityTypes: {
+  categoryInfo: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Layout.spacing.small,
+    gap: 8,
   },
-  activityTypeTag: {
-    paddingHorizontal: Layout.spacing.small,
-    paddingVertical: Layout.spacing.xsmall,
-    borderRadius: Layout.borderRadius.small,
+  categoryCount: {
+    fontSize: 14,
+    fontFamily: Typography.fonts.regular,
   },
-  activityTypeText: {
-    fontSize: 12,
+  createButton: {
+    position: 'absolute',
+    bottom: Layout.spacing.medium,
+    right: Layout.spacing.medium,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  programButton: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+    marginBottom: Layout.spacing.medium,
+  },
+  programButtonText: {
+    fontSize: 17,
     fontFamily: Typography.fonts.medium,
   },
   selectionIcon: {
     marginLeft: Layout.spacing.medium,
-  },
-  backButton: {
-    padding: Layout.spacing.small,
-    marginRight: Layout.spacing.small,
-    zIndex: 1,
   },
 }); 

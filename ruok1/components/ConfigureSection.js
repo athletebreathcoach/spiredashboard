@@ -14,6 +14,8 @@ import Typography from '../constants/Typography';
 import { useTheme } from '../theme/ThemeContext';
 import { createSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 export default function ConfigureSection({ navigation, route }) {
   const theme = useTheme();
@@ -57,6 +59,7 @@ export default function ConfigureSection({ navigation, route }) {
     try {
       // Group activities by type
       const groupedActivities = activityConfigs.reduce((groups, activity) => {
+        console.log('Processing activity:', activity); // Debug log
         const type = activity.type.toLowerCase();
         if (!groups.find(g => g.type === type)) {
           groups.push({
@@ -65,26 +68,43 @@ export default function ConfigureSection({ navigation, route }) {
           });
         }
         const group = groups.find(g => g.type === type);
+        
+        // Ensure all config values are strings, even if empty
+        const config = {
+          sets: activity.config.sets?.toString() || '',
+          reps: activity.config.reps?.toString() || '',
+          weight: activity.config.weight?.toString() || '',
+          duration: activity.config.duration?.toString() || '',
+          intensity: activity.config.intensity?.toString() || '',
+          notes: activity.config.notes || ''
+        };
+
         group.items.push({
-          id: activity.id,
-          title: activity.title,
-          type: activity.type,
+          id: activity.id || '',
+          title: activity.title || '',
+          type: activity.type || '',
           description: activity.description || '',
           metrics: {
-            ...activity.metrics || {},
-            ...activity.config || {}
+            ...(activity.metrics || {}),
+            ...config
           },
-          data: activity.data
+          data: activity.data || {}
         });
         return groups;
       }, []);
 
-      await createSection({
+      console.log('Grouped Activities:', JSON.stringify(groupedActivities, null, 2)); // Debug log
+
+      const sectionData = {
         userId: auth.currentUser.uid,
-        title: sectionTitle,
-        description: sectionDescription,
-        activities: groupedActivities,
-      });
+        title: sectionTitle.trim(),
+        description: sectionDescription?.trim() || '',
+        activities: groupedActivities
+      };
+
+      console.log('Section Data:', JSON.stringify(sectionData, null, 2)); // Debug log
+
+      await createSection(sectionData);
       
       navigation.navigate('Sections');
     } catch (error) {
