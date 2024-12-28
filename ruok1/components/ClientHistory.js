@@ -129,11 +129,19 @@ export default function ClientHistory({ route, navigation }) {
       </View>
 
       <TouchableOpacity
-        style={[styles.breathingButton, { backgroundColor: colors.primary }]}
+        style={[styles.historyButton, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate('ClientBreathHistory', { clientId: clientId })}
       >
         <Ionicons name="fitness" size={24} color="#FFFFFF" />
-        <Text style={styles.breathingButtonText}>View Breathing History</Text>
+        <Text style={styles.historyButtonText}>View Breathing Exercises</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.historyButton, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate('ClientBreathTestHistory', { clientId: clientId })}
+      >
+        <Ionicons name="pulse" size={24} color="#FFFFFF" />
+        <Text style={styles.historyButtonText}>View Breathing Tests</Text>
       </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -170,7 +178,7 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.xlarge,
     fontFamily: Typography.fonts.bold,
   },
-  breathingButton: {
+  historyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -179,7 +187,7 @@ const styles = StyleSheet.create({
     borderRadius: Layout.borderRadius.medium,
     gap: Layout.spacing.small,
   },
-  breathingButtonText: {
+  historyButtonText: {
     color: '#FFFFFF',
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
