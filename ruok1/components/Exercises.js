@@ -33,7 +33,7 @@ export default function Exercises({ navigation, route }) {
   const isSectionBuilderMode = mode === 'section-builder';
   const isSelectionEnabled = isCalendarMode || isSectionBuilderMode;
   
-  const onExerciseSelect = route.params?.onExerciseSelect;
+  const onSelect = route.params?.onSelect;
   const onAddExercises = route.params?.onAddExercises;
   const selectedDate = route.params?.selectedDate;
 
@@ -53,20 +53,23 @@ export default function Exercises({ navigation, route }) {
   };
 
   const handleExercisePress = (exercise) => {
-    if (isSelectionEnabled && onSelect) {
-      onSelect(exercise);
+    if (isSelectionEnabled) {
+      toggleExerciseSelection(exercise.id);
     } else {
       navigation.navigate('ExerciseDetail', { exercise });
     }
   };
 
   const toggleExerciseSelection = (exerciseId) => {
-    if (!isSelectionEnabled) return;
-    
-    const exercise = exercises.find(ex => ex.id === exerciseId);
-    if (exercise) {
-      onSelect(exercise);
-    }
+    setSelectedExercises(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(exerciseId)) {
+        newSet.delete(exerciseId);
+      } else {
+        newSet.add(exerciseId);
+      }
+      return newSet;
+    });
   };
 
   const handleProgramSelected = async () => {
@@ -75,7 +78,7 @@ export default function Exercises({ navigation, route }) {
     const selectedExercisesList = exercises.filter(ex => selectedExercises.has(ex.id));
     
     try {
-      if (isSectionBuilderMode) {
+      if (isSectionBuilderMode && onAddExercises) {
         // Add exercises to section
         const exercisesToAdd = selectedExercisesList.map(exercise => ({
           id: exercise.id,
@@ -85,11 +88,9 @@ export default function Exercises({ navigation, route }) {
           data: exercise
         }));
         
-        if (onAddExercises) {
-          onAddExercises(exercisesToAdd);
-          navigation.goBack();
-          return;
-        }
+        onAddExercises(exercisesToAdd);
+        navigation.goBack();
+        return;
       }
 
       if (isCalendarMode) {
@@ -101,7 +102,7 @@ export default function Exercises({ navigation, route }) {
 
         for (const exercise of selectedExercisesList) {
           await scheduleExercise(
-            route.params?.selectedClient?.id || auth.currentUser.uid,
+            auth.currentUser.uid,
             exercise.id,
             selectedDate,
             { metrics: {} }

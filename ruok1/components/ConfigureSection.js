@@ -55,11 +55,35 @@ export default function ConfigureSection({ navigation, route }) {
     }
 
     try {
+      // Group activities by type
+      const groupedActivities = activityConfigs.reduce((groups, activity) => {
+        const type = activity.type.toLowerCase();
+        if (!groups.find(g => g.type === type)) {
+          groups.push({
+            type,
+            items: []
+          });
+        }
+        const group = groups.find(g => g.type === type);
+        group.items.push({
+          id: activity.id,
+          title: activity.title,
+          type: activity.type,
+          description: activity.description || '',
+          metrics: {
+            ...activity.metrics || {},
+            ...activity.config || {}
+          },
+          data: activity.data
+        });
+        return groups;
+      }, []);
+
       await createSection({
         userId: auth.currentUser.uid,
         title: sectionTitle,
         description: sectionDescription,
-        activities: activityConfigs,
+        activities: groupedActivities,
       });
       
       navigation.navigate('Sections');

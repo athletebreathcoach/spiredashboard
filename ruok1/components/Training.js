@@ -259,6 +259,24 @@ export default function Training({ navigation, route }) {
     });
   };
 
+  const handleActivityPress = (activity) => {
+    if (activity.type === 'section') {
+      // If it's a section, show the first exercise in the metrics form
+      const firstExercise = activity.activities[0];
+      if (firstExercise) {
+        setSelectedActivity({
+          ...firstExercise,
+          sectionId: activity.id,
+          sectionTitle: activity.exerciseTitle
+        });
+        setShowMetricsForm(true);
+      }
+    } else {
+      setSelectedActivity(activity);
+      setShowMetricsForm(true);
+    }
+  };
+
   const renderExercise = (exercise, timeOfDay) => {
     // If it's part of a section and not being viewed individually
     if (exercise.sectionId && !exercise.isExpanded) {
@@ -339,7 +357,7 @@ export default function Training({ navigation, route }) {
       >
         <View style={styles.exerciseContent}>
           <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-            {section.title}
+            {section.exerciseTitle || section.title}
           </Text>
           <View style={styles.sectionMetrics}>
             <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
@@ -371,6 +389,7 @@ export default function Training({ navigation, route }) {
           sections[exercise.sectionId] = {
             id: exercise.sectionId,
             title: exercise.sectionTitle,
+            exerciseTitle: exercise.sectionTitle,
             activities: [],
           };
         }

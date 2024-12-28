@@ -55,11 +55,12 @@ export default function Sections({ navigation, route }) {
       // Schedule all selected sections
       await Promise.all(
         selectedSections.map(section =>
-          scheduleSection({
-            userId: auth.currentUser.uid,
-            sectionId: section.id,
-            scheduledDate: selectedDate
-          })
+          scheduleSection(
+            auth.currentUser.uid,
+            section,
+            selectedDate,
+            'Unscheduled'
+          )
         )
       );
       navigation.goBack();
@@ -69,6 +70,16 @@ export default function Sections({ navigation, route }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSectionSelect = (section) => {
+    setSelectedSections(prev => {
+      const exists = prev.find(s => s.id === section.id);
+      if (exists) {
+        return prev.filter(s => s.id !== section.id);
+      }
+      return [...prev, section];
+    });
   };
 
   if (loading) {
@@ -82,6 +93,12 @@ export default function Sections({ navigation, route }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
           Sections
         </Text>
@@ -93,17 +110,21 @@ export default function Sections({ navigation, route }) {
             <Ionicons name="add" size={24} color={theme.colors.white} />
           </TouchableOpacity>
         )}
-        {isSelectionMode && selectedSections.length > 0 && (
-          <TouchableOpacity 
-            style={[styles.programButton, { backgroundColor: theme.colors.primary }]}
-            onPress={handleProgramSelected}
-          >
-            <Text style={[styles.programButtonText, { color: theme.colors.white }]}>
-              Add Selected ({selectedSections.length})
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
+
+      {isSelectionMode && selectedSections.length > 0 && (
+        <TouchableOpacity 
+          style={[styles.programButton, { 
+            backgroundColor: theme.colors.primary,
+            margin: Layout.spacing.medium,
+          }]}
+          onPress={handleProgramSelected}
+        >
+          <Text style={[styles.programButtonText, { color: theme.colors.white }]}>
+            Program Selected ({selectedSections.length})
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <ScrollView 
         style={styles.content}
@@ -113,7 +134,7 @@ export default function Sections({ navigation, route }) {
           <TouchableOpacity
             key={section.id}
             style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}
-            onPress={() => handleSectionPress(section)}
+            onPress={() => isSelectionMode ? handleSectionSelect(section) : handleSectionPress(section)}
           >
             <View style={styles.sectionContent}>
               <View style={styles.sectionHeader}>
@@ -181,8 +202,11 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   headerTitle: {
+    flex: 1,
     fontSize: 24,
     fontFamily: Typography.fonts.semibold,
+    textAlign: 'center',
+    marginLeft: -28,
   },
   createButton: {
     width: 40,
@@ -192,9 +216,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   programButton: {
-    paddingHorizontal: Layout.spacing.medium,
-    paddingVertical: Layout.spacing.small,
+    padding: Layout.spacing.medium,
     borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
   },
   programButtonText: {
     fontSize: 17,
@@ -249,5 +273,10 @@ const styles = StyleSheet.create({
   },
   selectionIcon: {
     marginLeft: Layout.spacing.medium,
+  },
+  backButton: {
+    padding: Layout.spacing.small,
+    marginRight: Layout.spacing.small,
+    zIndex: 1,
   },
 }); 

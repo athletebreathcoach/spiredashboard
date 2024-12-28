@@ -54,6 +54,7 @@ import BreathTestHistory from './components/BreathTestHistory';
 import ClientBreathTestHistory from './components/ClientBreathTestHistory';
 import ActivitySelector from './components/ActivitySelector';
 import ConfigureSection from './components/ConfigureSection';
+import SectionMetrics from './components/SectionMetrics';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -571,6 +572,14 @@ function AuthenticatedStack({ user }) {
         component={ConfigureSection}
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="SectionMetrics"
+        component={SectionMetrics}
+        options={{
+          headerShown: false,
+          presentation: 'modal'
         }}
       />
     </Stack.Navigator>

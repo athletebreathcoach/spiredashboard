@@ -1,4 +1,4 @@
-import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 export const getSections = async (userId) => {
@@ -33,27 +33,35 @@ export const createSection = async ({ userId, title, description, activities }) 
   }
 };
 
-export const scheduleSection = async ({ userId, sectionId, scheduledDate }) => {
+export const scheduleSection = async (userId, section, date, timeOfDay) => {
   try {
-    const section = await getSectionById(sectionId);
-    if (!section) throw new Error('Section not found');
+    const batch = writeBatch(db);
+    const scheduledExercisesRef = collection(db, 'scheduledExercises');
 
-    const scheduledActivitiesRef = collection(db, 'scheduledActivities');
-    const activities = section.activities.map(activity => ({
+    // Create the main section entry
+    const sectionEntry = {
       userId,
-      activityId: activity.id,
-      activityType: activity.type,
-      scheduledDate,
-      config: activity.config,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    }));
+      scheduledDateTime: date,
+      type: 'section',
+      exerciseTitle: section.title,
+      description: section.description || '',
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        timeOfDay: timeOfDay || 'Unscheduled',
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      sectionId: section.id,
+      activities: section.activities,  // Store all activities in the section entry
+      isSection: true  // Flag to identify this as a section entry
+    };
 
-    // Schedule all activities in parallel
-    await Promise.all(
-      activities.map(activity => addDoc(scheduledActivitiesRef, activity))
-    );
+    const sectionDocRef = doc(scheduledExercisesRef);
+    batch.set(sectionDocRef, sectionEntry);
 
+    await batch.commit();
     return true;
   } catch (error) {
     console.error('Error scheduling section:', error);
