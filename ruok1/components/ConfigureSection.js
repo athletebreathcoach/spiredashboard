@@ -106,7 +106,8 @@ export default function ConfigureSection({ navigation, route }) {
 
       await createSection(sectionData);
       
-      navigation.navigate('Sections');
+      // Navigate directly to Sections view
+      navigation.navigate('Programs', { screen: 'Sections' });
     } catch (error) {
       console.error('Error saving section:', error);
       Alert.alert('Error', 'Failed to save section. Please try again.');
