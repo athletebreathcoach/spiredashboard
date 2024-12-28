@@ -21,7 +21,7 @@ const categories = [
     id: 'sections',
     title: 'Sections',
     icon: 'layers-outline',
-    screen: 'Sections'
+    navigateTo: 'Sections'
   },
   {
     id: 1,
@@ -100,61 +100,16 @@ export default function CategorySelector({ navigation, route }) {
     }
   };
 
-  const handleCategoryPress = async (category) => {
-    if (category.id === 'sections') {
+  const handleCategoryPress = (category) => {
+    if (category.navigateTo === 'Sections') {
       navigation.navigate('Sections', {
-        mode: 'selection',
-        onSectionSelect: async (section) => {
-          try {
-            await scheduleSection(
-              selectedClient?.id || auth.currentUser.uid,
-              section,
-              selectedDate,
-              'Unscheduled'
-            );
-            navigation.navigate('Training');
-          } catch (error) {
-            console.error('Error scheduling section:', error);
-            Alert.alert('Error', 'Failed to schedule section. Please try again.');
-          }
-        }
+        selectedDate: selectedDate
       });
-    } else if (category.navigateTo === 'Programs') {
-      navigation.navigate('Programs');
-    } else if (category.navigateTo === 'Exercises') {
-      navigation.navigate('Exercises', {
+    } else {
+      navigation.navigate(category.navigateTo, {
         mode: 'selection',
-        selectedDate,
-        onSelect: async (exercises) => {
-          const exerciseArray = Array.isArray(exercises) ? exercises : [exercises];
-          for (const exercise of exerciseArray) {
-            setSelectedActivity({ ...exercise, type: 'exercise' });
-            setShowMetricsForm(true);
-            await new Promise(resolve => {
-              const unsubscribe = navigation.addListener('focus', () => {
-                unsubscribe();
-                resolve();
-              });
-            });
-          }
-        }
-      });
-    } else if (category.navigateTo === 'GuidedSessions') {
-      navigation.navigate(category.navigateTo, { 
-        mode: 'selection',
-        selectedDate,
-        onSessionSelect: async (session) => {
-          try {
-            await scheduleGuidedSession(
-              selectedClient?.id || auth.currentUser.uid,
-              session.id,
-              selectedDate
-            );
-            navigation.navigate('Training');
-          } catch (error) {
-            console.error('Error scheduling guided session:', error);
-          }
-        }
+        onSelect: route.params?.onSelect,
+        selectedDate: selectedDate
       });
     }
   };

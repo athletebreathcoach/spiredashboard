@@ -7,6 +7,8 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import ActivityMetricsForm from './ActivityMetricsForm';
+import { scheduleSection } from '../firebase/sections';
+import { auth } from '../config/firebase';
 
 const ACTIVITY_TYPES = [
   { id: 'exercises', label: 'Exercise', icon: 'barbell-outline' },
@@ -141,6 +143,13 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.semibold,
   },
+  scheduleButton: {
+    padding: Layout.spacing.small,
+    marginRight: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default function SectionDetail({ navigation, route }) {
@@ -272,6 +281,24 @@ export default function SectionDetail({ navigation, route }) {
     );
   };
 
+  const handleScheduleSection = async () => {
+    try {
+      setLoading(true);
+      await scheduleSection(
+        auth.currentUser.uid,
+        section,
+        route.params?.selectedDate,
+        'Unscheduled'
+      );
+      navigation.navigate('Training');
+    } catch (error) {
+      console.error('Error scheduling section:', error);
+      Alert.alert('Error', 'Failed to schedule section. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={themedContainerStyle}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
@@ -295,6 +322,13 @@ export default function SectionDetail({ navigation, route }) {
           }]}>
             {loading ? 'Saving...' : 'Save'}
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.scheduleButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleScheduleSection}
+          disabled={loading}
+        >
+          <Ionicons name="add-circle-outline" size={24} color={theme.colors.white} />
         </TouchableOpacity>
       </View>
 

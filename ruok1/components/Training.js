@@ -252,6 +252,13 @@ export default function Training({ navigation, route }) {
     }
   };
 
+  const handleSectionPress = (section) => {
+    navigation.navigate('SectionDetail', { 
+      section,
+      selectedDate: selectedDate
+    });
+  };
+
   const renderExercise = (exercise, timeOfDay) => {
     // If it's part of a section and not being viewed individually
     if (exercise.sectionId && !exercise.isExpanded) {
@@ -328,7 +335,7 @@ export default function Training({ navigation, route }) {
       <TouchableOpacity
         key={section.id}
         style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => navigation.navigate('SectionDetail', { section })}
+        onPress={() => handleSectionPress(section)}
       >
         <View style={styles.exerciseContent}>
           <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
