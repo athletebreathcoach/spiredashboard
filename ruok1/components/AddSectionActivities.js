@@ -47,16 +47,15 @@ export default function AddSectionActivities({ navigation, route }) {
                   id: activity.id,
                   title: activity.title,
                   description: activity.description,
-                  type: activityType
+                  type: activityType,
+                  data: activity
                 }]
               };
             }
             return a;
           })
         );
-        if (activityType === 'exercises' || activityType === 'breathProtocols' || activityType === 'breathingTests') {
-          navigation.goBack();
-        }
+        navigation.goBack();
       }
     });
   };

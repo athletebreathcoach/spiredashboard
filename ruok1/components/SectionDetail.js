@@ -165,6 +165,30 @@ export default function SectionDetail({ navigation, route }) {
     switch (type) {
       case 'exercises':
         screen = 'Exercises';
+        additionalParams = {
+          mode: 'section-builder',
+          fromSectionBuilder: true,
+          onAddExercises: (exercises) => {
+            const updatedActivities = [...localActivities];
+            const activityIndex = updatedActivities.findIndex(a => a.type === type);
+            
+            if (activityIndex >= 0) {
+              // Add to existing exercise activity
+              updatedActivities[activityIndex].items = [
+                ...updatedActivities[activityIndex].items,
+                ...exercises
+              ];
+            } else {
+              // Create new exercise activity
+              updatedActivities.push({
+                type,
+                items: exercises
+              });
+            }
+            
+            setLocalActivities(updatedActivities);
+          }
+        };
         break;
       case 'breathProtocols':
         screen = 'BreathProtocols';
@@ -183,15 +207,7 @@ export default function SectionDetail({ navigation, route }) {
         return;
     }
 
-    navigation.navigate(screen, {
-      mode: 'selection',
-      onSelect: (activity) => {
-        setSelectedActivity(activity);
-        setSelectedType(type);
-        setShowMetricsForm(true);
-      },
-      ...additionalParams
-    });
+    navigation.navigate(screen, additionalParams);
   };
 
   const handleMetricsSubmit = (metrics) => {

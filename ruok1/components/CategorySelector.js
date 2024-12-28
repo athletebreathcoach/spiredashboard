@@ -121,6 +121,24 @@ export default function CategorySelector({ navigation, route }) {
       });
     } else if (category.navigateTo === 'Programs') {
       navigation.navigate('Programs');
+    } else if (category.navigateTo === 'Exercises') {
+      navigation.navigate('Exercises', {
+        mode: 'selection',
+        selectedDate,
+        onSelect: async (exercises) => {
+          const exerciseArray = Array.isArray(exercises) ? exercises : [exercises];
+          for (const exercise of exerciseArray) {
+            setSelectedActivity({ ...exercise, type: 'exercise' });
+            setShowMetricsForm(true);
+            await new Promise(resolve => {
+              const unsubscribe = navigation.addListener('focus', () => {
+                unsubscribe();
+                resolve();
+              });
+            });
+          }
+        }
+      });
     } else if (category.navigateTo === 'GuidedSessions') {
       navigation.navigate(category.navigateTo, { 
         mode: 'selection',

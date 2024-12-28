@@ -52,6 +52,8 @@ import WorkoutHistory from './components/WorkoutHistory';
 import BreathTestDetail from './components/BreathTestDetail';
 import BreathTestHistory from './components/BreathTestHistory';
 import ClientBreathTestHistory from './components/ClientBreathTestHistory';
+import ActivitySelector from './components/ActivitySelector';
+import ConfigureSection from './components/ConfigureSection';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -555,6 +557,20 @@ function AuthenticatedStack({ user }) {
             fontFamily: Typography.fonts.bold,
             fontSize: Layout.text.large,
           }
+        }}
+      />
+      <Stack.Screen 
+        name="ActivitySelector" 
+        component={ActivitySelector}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen 
+        name="ConfigureSection" 
+        component={ConfigureSection}
+        options={{
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

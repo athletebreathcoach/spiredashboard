@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -13,6 +15,8 @@ import Typography from '../constants/Typography';
 import { getExercises } from '../firebase/exercises';
 import { useTheme } from '../theme/ThemeContext';
 import ActivityMetricsForm from './ActivityMetricsForm';
+import { scheduleExercise } from '../firebase/scheduledExercises';
+import { auth } from '../config/firebase';
 
 export default function Exercises({ navigation, route }) {
   const theme = useTheme();
@@ -20,8 +24,17 @@ export default function Exercises({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const isSelectionMode = route.params?.mode === 'selection';
+  const [selectedExercises, setSelectedExercises] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Mode handling
+  const mode = route.params?.mode;
+  const isCalendarMode = mode === 'selection';
+  const isSectionBuilderMode = mode === 'section-builder';
+  const isSelectionEnabled = isCalendarMode || isSectionBuilderMode;
+  
   const onExerciseSelect = route.params?.onExerciseSelect;
+  const onAddExercises = route.params?.onAddExercises;
   const selectedDate = route.params?.selectedDate;
 
   useEffect(() => {
@@ -40,14 +53,65 @@ export default function Exercises({ navigation, route }) {
   };
 
   const handleExercisePress = (exercise) => {
-    if (!isSelectionMode) {
+    if (isSelectionEnabled && onSelect) {
+      onSelect(exercise);
+    } else {
       navigation.navigate('ExerciseDetail', { exercise });
     }
   };
 
-  const handleAddPress = (exercise) => {
-    if (isSelectionMode && route.params?.onSelect) {
-      route.params.onSelect(exercise);
+  const toggleExerciseSelection = (exerciseId) => {
+    if (!isSelectionEnabled) return;
+    
+    const exercise = exercises.find(ex => ex.id === exerciseId);
+    if (exercise) {
+      onSelect(exercise);
+    }
+  };
+
+  const handleProgramSelected = async () => {
+    if (selectedExercises.size === 0) return;
+    
+    const selectedExercisesList = exercises.filter(ex => selectedExercises.has(ex.id));
+    
+    try {
+      if (isSectionBuilderMode) {
+        // Add exercises to section
+        const exercisesToAdd = selectedExercisesList.map(exercise => ({
+          id: exercise.id,
+          title: exercise.title,
+          description: exercise.description,
+          type: 'exercises',
+          data: exercise
+        }));
+        
+        if (onAddExercises) {
+          onAddExercises(exercisesToAdd);
+          navigation.goBack();
+          return;
+        }
+      }
+
+      if (isCalendarMode) {
+        // Schedule exercises to date
+        if (!selectedDate) {
+          Alert.alert('Error', 'No date selected for scheduling exercises.');
+          return;
+        }
+
+        for (const exercise of selectedExercisesList) {
+          await scheduleExercise(
+            route.params?.selectedClient?.id || auth.currentUser.uid,
+            exercise.id,
+            selectedDate,
+            { metrics: {} }
+          );
+        }
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error handling exercises:', error);
+      Alert.alert('Error', 'Failed to process exercises. Please try again.');
     }
   };
 
@@ -57,6 +121,12 @@ export default function Exercises({ navigation, route }) {
       setShowMetricsForm(false);
     }
   };
+
+  const filteredExercises = exercises.filter(exercise => 
+    exercise.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    exercise.type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    exercise.primaryMuscleGroup.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -69,18 +139,55 @@ export default function Exercises({ navigation, route }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text style={[styles.title, { color: theme.colors.text }]}>
-        {isSelectionMode ? 'Add Exercise' : 'Exercises'}
+        {isSectionBuilderMode ? 'Add to Section' : isCalendarMode ? 'Add to Schedule' : 'Exercises'}
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        {isSelectionMode ? 'Select an exercise to add to schedule' : 'Choose an exercise to begin your workout'}
+        {isSectionBuilderMode 
+          ? 'Select exercises to add to section'
+          : isCalendarMode 
+            ? 'Select exercises to add to schedule' 
+            : 'Choose an exercise to begin your workout'}
       </Text>
+
+      <View style={styles.searchContainer}>
+        <Ionicons 
+          name="search-outline" 
+          size={20} 
+          color={theme.colors.textSecondary} 
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { 
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+          }]}
+          placeholder="Search exercises..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {isSelectionEnabled && selectedExercises.size > 0 && (
+        <TouchableOpacity
+          style={[styles.programButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleProgramSelected}
+        >
+          <Text style={styles.programButtonText}>
+            {isSectionBuilderMode 
+              ? `Add Selected (${selectedExercises.size})`
+              : `Program Selected (${selectedExercises.size})`
+            }
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {exercises.map((exercise) => (
+        {filteredExercises.map((exercise) => (
           <TouchableOpacity
             key={exercise.id}
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -104,15 +211,17 @@ export default function Exercises({ navigation, route }) {
               </View>
             </View>
 
-            {isSelectionMode && (
-              <View style={styles.addButtonContainer}>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => handleAddPress(exercise)}
-                >
-                  <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
-                </TouchableOpacity>
-              </View>
+            {isSelectionEnabled && (
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => toggleExerciseSelection(exercise.id)}
+              >
+                <Ionicons 
+                  name={selectedExercises.has(exercise.id) ? "checkmark-circle" : "ellipse-outline"} 
+                  size={28} 
+                  color={selectedExercises.has(exercise.id) ? theme.colors.primary : theme.colors.textSecondary} 
+                />
+              </TouchableOpacity>
             )}
           </TouchableOpacity>
         ))}
@@ -146,6 +255,17 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
+  },
+  programButton: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+    marginBottom: Layout.spacing.large,
+  },
+  programButtonText: {
+    color: '#FFFFFF',
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
   },
   scrollView: {
     flex: 1,
@@ -190,22 +310,36 @@ const styles = StyleSheet.create({
   equipmentContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Layout.spacing.small,
   },
   equipmentTag: {
     paddingHorizontal: Layout.spacing.small,
-    paddingVertical: 4,
+    paddingVertical: Layout.spacing.xsmall,
     borderRadius: Layout.borderRadius.small,
   },
   equipmentText: {
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
   },
-  addButtonContainer: {
-    marginLeft: Layout.spacing.medium,
-    justifyContent: 'center',
-  },
-  addButton: {
+  selectButton: {
     padding: Layout.spacing.small,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.large,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: Layout.spacing.medium,
+    zIndex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.large,
+    paddingLeft: Layout.spacing.large * 2,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
 }); 

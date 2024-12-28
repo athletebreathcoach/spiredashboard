@@ -1,60 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Alert } from 'react-native';
-import { useTheme } from '../theme/ThemeContext';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeContext';
+import { getSections } from '../firebase/sections';
+import { auth } from '../config/firebase';
 
-const getActivityIcon = (type) => {
-  switch (type.toLowerCase()) {
-    case 'exercise':
-      return 'barbell-outline';
-    case 'breathprotocol':
-      return 'fitness-outline';
-    case 'breathingtest':
-      return 'pulse-outline';
-    case 'habit':
-    case 'task':
-      return 'checkbox-outline';
-    case 'guidedsession':
-      return 'play-circle-outline';
-    default:
-      return 'list-outline';
-  }
-};
-
-export default function Sections({ navigation, route }) {
+export default function Sections({ navigation }) {
   const theme = useTheme();
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const isSelectionMode = route.params?.mode === 'selection';
-  const onSelect = route.params?.onSelect;
-  const isEmbedded = !route.params?.mode; // If no mode is set, we're embedded in Programs tab
 
   useEffect(() => {
     loadSections();
   }, []);
 
-  // Add focus listener to reload sections when returning to this screen
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadSections();
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
   const loadSections = async () => {
     try {
-      setLoading(true);
-      const sectionsRef = collection(db, 'sections');
-      const snapshot = await getDocs(sectionsRef);
-      const sectionsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const sectionsData = await getSections(auth.currentUser.uid);
       setSections(sectionsData);
     } catch (error) {
       console.error('Error loading sections:', error);
@@ -63,28 +34,12 @@ export default function Sections({ navigation, route }) {
     }
   };
 
-  const handleSectionPress = (section) => {
-    if (isSelectionMode && onSelect) {
-      onSelect(section);
-      navigation.goBack();
-    } else {
-      navigation.navigate('SectionDetail', { section });
-    }
-  };
-
-  const handleAddPress = async (section) => {
-    try {
-      if (route.params?.onSectionSelect) {
-        route.params.onSectionSelect(section);
-      }
-    } catch (error) {
-      console.error('Error adding section:', error);
-      Alert.alert('Error', 'Failed to add section. Please try again.');
-    }
-  };
-
   const handleCreateSection = () => {
-    navigation.navigate('CreateSection');
+    navigation.navigate('ActivitySelector');
+  };
+
+  const handleSectionPress = (section) => {
+    navigation.navigate('SectionDetail', { section });
   };
 
   if (loading) {
@@ -97,89 +52,56 @@ export default function Sections({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {!isEmbedded && (
-        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            {isSelectionMode ? 'Select Section' : 'Sections'}
-          </Text>
-        </View>
-      )}
+      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Sections
+        </Text>
+        <TouchableOpacity 
+          style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleCreateSection}
+        >
+          <Ionicons name="add" size={24} color={theme.colors.white} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView 
-        style={styles.scrollView}
+        style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
       >
-        {sections.map((section) => (
+        {sections.map(section => (
           <TouchableOpacity
             key={section.id}
             style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}
             onPress={() => handleSectionPress(section)}
           >
-            <View style={styles.sectionContent}>
+            <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 {section.title}
               </Text>
-              {section.description && (
-                <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
-                  {section.description}
-                </Text>
-              )}
-              <View style={styles.activityTypes}>
-                {section.activities?.map((activity) => (
-                  <View 
-                    key={activity.type}
-                    style={[styles.activityTag, { backgroundColor: theme.colors.primary + '20' }]}
-                  >
-                    <Ionicons 
-                      name={getActivityIcon(activity.type)} 
-                      size={16} 
-                      color={theme.colors.primary} 
-                      style={styles.activityIcon}
-                    />
-                    <Text style={[styles.activityText, { color: theme.colors.primary }]}>
-                      {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}s
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={[styles.activityCount, { color: theme.colors.textSecondary }]}>
+                {section.activities.length} activities
+              </Text>
             </View>
-            {isSelectionMode ? (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleAddPress(section);
-                }}
-              >
-                <Ionicons 
-                  name="add-circle" 
-                  size={24} 
-                  color={theme.colors.primary} 
-                />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons 
-                name="chevron-forward" 
-                size={24} 
-                color={theme.colors.primary} 
-              />
+            {section.description && (
+              <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
+                {section.description}
+              </Text>
             )}
+            <View style={styles.activityTypes}>
+              {Array.from(new Set(section.activities.map(a => a.type))).map(type => (
+                <View 
+                  key={type}
+                  style={[styles.activityTypeTag, { backgroundColor: theme.colors.border }]}
+                >
+                  <Text style={[styles.activityTypeText, { color: theme.colors.text }]}>
+                    {type}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      <TouchableOpacity
-        style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
-        onPress={handleCreateSection}
-      >
-        <Ionicons name="add" size={24} color={theme.colors.white} />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -187,7 +109,6 @@ export default function Sections({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 44, // iOS status bar height
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -196,48 +117,48 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Layout.spacing.medium,
     height: 60,
     borderBottomWidth: 1,
+    marginTop: 40,
   },
-  backButton: {
-    padding: Layout.spacing.small,
-    marginRight: Layout.spacing.small,
-    width: 44,
-    height: 44,
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: Typography.fonts.semibold,
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
+  content: {
     flex: 1,
-    fontSize: 20,
-    fontFamily: Typography.fonts.semibold,
-    marginLeft: -44,
-    textAlign: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: Layout.spacing.large,
+    padding: Layout.spacing.medium,
   },
   sectionCard: {
-    padding: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
     marginBottom: Layout.spacing.medium,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
-  sectionContent: {
-    flex: 1,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.small,
   },
   sectionTitle: {
-    fontSize: Layout.text.large,
-    fontFamily: Typography.fonts.bold,
-    marginBottom: Layout.spacing.medium,
+    fontSize: 18,
+    fontFamily: Typography.fonts.semibold,
+  },
+  activityCount: {
+    fontSize: 14,
+    fontFamily: Typography.fonts.regular,
   },
   sectionDescription: {
-    fontSize: Layout.text.medium,
+    fontSize: 14,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.medium,
   },
@@ -246,36 +167,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Layout.spacing.small,
   },
-  activityTag: {
-    paddingHorizontal: Layout.spacing.medium,
-    paddingVertical: Layout.spacing.small,
-    borderRadius: Layout.borderRadius.full,
-    marginRight: Layout.spacing.small,
+  activityTypeTag: {
+    paddingHorizontal: Layout.spacing.small,
+    paddingVertical: Layout.spacing.xsmall,
+    borderRadius: Layout.borderRadius.small,
   },
-  activityIcon: {
-    marginRight: Layout.spacing.small,
-  },
-  activityText: {
-    fontSize: Layout.text.small,
+  activityTypeText: {
+    fontSize: 12,
     fontFamily: Typography.fonts.medium,
-  },
-  createButton: {
-    position: 'absolute',
-    right: Layout.spacing.large,
-    bottom: Layout.spacing.large,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.30,
-    shadowRadius: 4.65,
-    zIndex: 1000,
   },
 }); 

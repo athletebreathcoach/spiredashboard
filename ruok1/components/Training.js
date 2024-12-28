@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getScheduledExercises, scheduleExercise, deleteScheduledExercise, updateExerciseMetrics } from '../firebase/scheduledExercises';
+import { getScheduledExercises, scheduleExercise, deleteScheduledExercise, updateExerciseMetrics, updateExerciseStatus } from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
 import ActivityMetricsForm from './ActivityMetricsForm';
 
@@ -225,11 +225,24 @@ export default function Training({ navigation, route }) {
   const handleMetricsSubmit = async (metrics) => {
     try {
       if (selectedExercise) {
+        // Update the scheduled exercise
         await updateExerciseMetrics(selectedExercise.id, {
           ...selectedExercise.metrics,
           ...metrics,
           logged: true,
         });
+        await updateExerciseStatus(selectedExercise.id, 'completed');
+
+        // Save to exercise history
+        const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
+        await addDoc(historyRef, {
+          exerciseId: selectedExercise.exerciseId,
+          title: selectedExercise.exerciseTitle,
+          type: selectedExercise.exerciseType?.name || selectedExercise.exerciseType,
+          metrics,
+          completedAt: serverTimestamp(),
+        });
+
         setShowMetricsForm(false);
         loadExercisesForDate(selectedDate);
       }
