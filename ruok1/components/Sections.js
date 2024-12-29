@@ -41,8 +41,8 @@ export default function Sections({ navigation, route }) {
   const handleCreateSection = () => {
     navigation.navigate('ActivitySelector', {
       onNext: (selectedActivities) => {
-        navigation.navigate('ConfigureSection', {
-          activities: selectedActivities
+        navigation.navigate('SectionDetail', {
+          selectedActivities
         });
       }
     });

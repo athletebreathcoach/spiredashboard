@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -21,223 +21,270 @@ const ACTIVITY_TYPES = [
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 44,
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.medium,
-    height: 70,
+    height: 60,
     borderBottomWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    borderBottomColor: '#2C2C2E',
+    marginTop: 40,
   },
   backButton: {
     padding: Layout.spacing.small,
-    marginRight: Layout.spacing.small,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: Layout.borderRadius.medium,
-    zIndex: 1,
   },
   headerTitle: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: Typography.fonts.semibold,
-    marginLeft: -44,
     textAlign: 'center',
-    zIndex: 0,
+    color: '#fff',
+  },
+  headerButton: {
+    padding: Layout.spacing.small,
+    width: 44,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: Layout.spacing.large,
-  },
-  description: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.regular,
-    marginBottom: Layout.spacing.large,
-    lineHeight: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: Typography.fonts.bold,
-    marginBottom: Layout.spacing.medium,
-  },
-  activityTypes: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Layout.spacing.medium,
-    marginBottom: Layout.spacing.large,
-  },
-  activityTypeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.large,
-    flex: 1,
-    minWidth: '45%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  activityTypeText: {
-    marginLeft: Layout.spacing.small,
-    fontSize: 16,
-    fontFamily: Typography.fonts.medium,
-  },
-  activitiesList: {
-    gap: Layout.spacing.medium,
-    marginTop: Layout.spacing.large,
-  },
-  activityItem: {
-    flexDirection: 'column',
     padding: Layout.spacing.medium,
+  },
+  activityCard: {
+    backgroundColor: '#1C1C1E',
     borderRadius: Layout.borderRadius.large,
-    marginBottom: Layout.spacing.small,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    padding: Layout.spacing.medium,
+    marginBottom: Layout.spacing.medium,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
   },
   activityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 50,
-  },
-  activityInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: Layout.spacing.small,
+    marginBottom: Layout.spacing.medium,
   },
   activityIcon: {
-    marginRight: Layout.spacing.small,
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: Layout.spacing.medium,
+    backgroundColor: '#2C2C2E',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
-  },
-  activityContent: {
-    flex: 1,
-    marginRight: Layout.spacing.medium,
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: Typography.fonts.medium,
-    marginBottom: 0,
+    flex: 1,
+    color: '#fff',
   },
-  activityMetrics: {
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Layout.spacing.medium,
+  },
+  metricColumn: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  metricLabel: {
     fontSize: 14,
-    fontFamily: Typography.fonts.regular,
-    opacity: 0.8,
+    color: '#666',
+    marginBottom: 4,
+    fontFamily: Typography.fonts.medium,
   },
-  activityButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Layout.spacing.medium,
-  },
-  actionButton: {
-    padding: 4,
-    borderRadius: Layout.borderRadius.medium,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.large,
-    marginHorizontal: Layout.spacing.large,
-    marginTop: Layout.spacing.large,
-    marginBottom: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.large,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  deleteButtonText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.semibold,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.large,
-    marginBottom: Layout.spacing.large,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    gap: Layout.spacing.small,
-  },
-  addButtonText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.semibold,
+  metricValue: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.medium,
+    color: '#fff',
   },
   metricInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: '#ffffff15',
-    borderRadius: Layout.borderRadius.small,
-    paddingHorizontal: Layout.spacing.small,
-    marginLeft: Layout.spacing.small,
-    fontSize: 14,
-    fontFamily: Typography.fonts.regular,
+    fontSize: 20,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
+    width: 60,
+    padding: 0,
+    color: '#fff',
   },
-  activityActions: {
+  addSetButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    paddingVertical: Layout.spacing.small,
   },
-  reorderButtons: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    marginLeft: 2,
+  addSetText: {
+    color: '#4CAF50',
+    fontSize: 16,
+    fontFamily: Typography.fonts.medium,
+    marginLeft: Layout.spacing.small,
+  },
+  eachSideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.medium,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: '#666',
+    borderRadius: 4,
+    marginRight: Layout.spacing.small,
+  },
+  eachSideText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2C2C2E',
+    padding: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.medium,
+  },
+  notesInput: {
+    fontSize: 16,
+    color: '#fff',
+    padding: Layout.spacing.small,
+    height: 40,
+    backgroundColor: '#2C2C2E',
+    borderRadius: Layout.borderRadius.medium,
+    marginTop: Layout.spacing.small,
+  },
+  bottomBar: {
+    position: 'absolute',
+    right: Layout.spacing.medium,
+    bottom: Layout.spacing.medium,
+  },
+  addButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  supersetDivider: {
+    position: 'relative',
+    height: 40,
+    marginVertical: -20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  supersetButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1C1C1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
+  },
+  menuButton: {
+    padding: 8,
+    borderRadius: 16,
+  },
+  menuOptions: {
+    position: 'absolute',
+    right: 0,
+    top: 40,
+    backgroundColor: '#2C2C2E',
+    borderRadius: Layout.borderRadius.medium,
+    padding: Layout.spacing.small,
+    zIndex: 2,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Layout.spacing.small,
+    gap: Layout.spacing.small,
+  },
+  menuOptionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Typography.fonts.medium,
+  },
+  menuOptionDelete: {
+    color: '#FF453A',
+  },
+  sectionInfoContainer: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.medium,
+    marginBottom: Layout.spacing.medium,
+  },
+  titleInput: {
+    fontSize: 24,
+    fontFamily: Typography.fonts.semibold,
+    color: '#fff',
+    marginBottom: Layout.spacing.small,
+  },
+  descriptionInput: {
+    fontSize: 16,
+    fontFamily: Typography.fonts.regular,
+    color: '#fff',
+    minHeight: 60,
+  },
+  saveButton: {
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.medium,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
   },
 });
 
 export default function SectionDetail({ navigation, route }) {
   const theme = useTheme();
-  const [section, setSection] = useState(route.params.section);
-  const [loading, setLoading] = useState(false);
+  const [section, setSection] = useState(route.params.section || { title: '', description: '' });
   const [activities, setActivities] = useState(
-    route.params.section.activities?.reduce((acc, group) => 
+    route.params.section?.activities?.reduce((acc, group) => 
       [...acc, ...(group.items || []).map(item => ({
         ...item,
         type: group.type,
-        supersetWith: null,
-        metrics: item.metrics || {
-          sets: '',
-          reps: '',
-          weight: '',
-          duration: '',
-          intensity: '',
-          notes: ''
+        supersetWith: item.supersetWith !== undefined ? item.supersetWith : null,
+        metrics: {
+          sets: item.metrics?.sets?.map(set => ({
+            reps: set.reps || '',
+            weight: set.weight || '',
+            rest: set.rest || '00:00'
+          })) || [{
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          }],
+          eachSide: item.metrics?.eachSide || false,
+          notes: item.metrics?.notes || ''
         }
       }))], []
-    ) || []
+    ) || route.params.selectedActivities?.map(activity => ({
+      ...activity,
+      supersetWith: null,
+      metrics: {
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false,
+        notes: ''
+      }
+    })) || []
   );
-  const [expandedActivity, setExpandedActivity] = useState(null);
-
-  const themedContainerStyle = [
-    styles.container,
-    { backgroundColor: theme.colors.background }
-  ];
+  const [menuOpen, setMenuOpen] = useState(null);
 
   const handleAddActivity = () => {
     navigation.navigate('ActivitySelector', {
@@ -248,11 +295,12 @@ export default function SectionDetail({ navigation, route }) {
             ...activity,
             supersetWith: null,
             metrics: {
-              sets: '',
-              reps: '',
-              weight: '',
-              duration: '',
-              intensity: '',
+              sets: [{
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              }],
+              eachSide: false,
               notes: ''
             }
           }))
@@ -261,18 +309,76 @@ export default function SectionDetail({ navigation, route }) {
     });
   };
 
-  const handleUpdateMetrics = (index, metrics) => {
-    setActivities(current => {
-      const updated = [...current];
-      updated[index] = {
-        ...updated[index],
-        metrics: {
-          ...updated[index].metrics,
-          ...metrics
+  const handleSave = async () => {
+    try {
+      if (!section.title.trim()) {
+        Alert.alert('Error', 'Please enter a title for the section');
+        return;
+      }
+
+      // Group activities by type for Firebase
+      const groupedActivities = activities.reduce((groups, activity, index) => {
+        const type = activity.type.toLowerCase();
+        const group = groups.find(g => g.type === type);
+        
+        // Prepare activity data with superset information
+        const activityData = {
+          ...activity,
+          supersetWith: activity.supersetWith,  // Preserve superset relationship
+          metrics: {
+            sets: activity.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })),
+            eachSide: activity.metrics.eachSide || false,
+            notes: activity.metrics.notes || ''
+          }
+        };
+
+        if (group) {
+          group.items.push(activityData);
+        } else {
+          groups.push({
+            type,
+            items: [activityData]
+          });
         }
-      };
-      return updated;
-    });
+        return groups;
+      }, []);
+
+      if (section.id) {
+        // Update existing section
+        const sectionRef = doc(db, 'sections', section.id);
+        await updateDoc(sectionRef, {
+          title: section.title,
+          description: section.description,
+          activities: groupedActivities,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // Create new section
+        const sectionData = {
+          title: section.title,
+          description: section.description,
+          activities: groupedActivities,
+          userId: auth.currentUser.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'sections'), sectionData);
+      }
+
+      navigation.navigate('Search', {
+        screen: 'Programs',
+        params: {
+          screen: 'Sections'
+        }
+      });
+    } catch (error) {
+      console.error('Error saving section:', error);
+      Alert.alert('Error', 'Failed to save section. Please try again.');
+    }
   };
 
   const handleToggleSuperset = (index) => {
@@ -284,9 +390,35 @@ export default function SectionDetail({ navigation, route }) {
       if (!nextActivity) return updated;
 
       if (currentActivity.supersetWith === null) {
+        // Link the activities
         currentActivity.supersetWith = index + 1;
         nextActivity.supersetWith = index;
+        
+        // Sync the number of sets
+        const maxSets = Math.max(
+          currentActivity.metrics.sets.length,
+          nextActivity.metrics.sets.length
+        );
+        
+        // Add sets to current activity if needed
+        while (currentActivity.metrics.sets.length < maxSets) {
+          currentActivity.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
+        
+        // Add sets to next activity if needed
+        while (nextActivity.metrics.sets.length < maxSets) {
+          nextActivity.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
       } else {
+        // Unlink the activities
         currentActivity.supersetWith = null;
         nextActivity.supersetWith = null;
       }
@@ -295,51 +427,56 @@ export default function SectionDetail({ navigation, route }) {
     });
   };
 
-  const handleMoveActivity = (index, direction) => {
+  const handleAddSet = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
-      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      const activity = updated[activityIndex];
       
-      if (newIndex < 0 || newIndex >= updated.length) return current;
-      
-      [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+      // Add set to the current activity
+      activity.metrics.sets.push({
+        reps: '',
+        weight: '',
+        rest: '00:00'
+      });
+
+      // If this activity is part of a superset, add a set to the linked activity
+      if (activity.supersetWith !== null) {
+        const linkedActivity = updated[activity.supersetWith];
+        if (linkedActivity) {
+          linkedActivity.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
+      }
+
       return updated;
     });
   };
 
-  const handleSave = async () => {
-    try {
-      setLoading(true);
-      const groupedActivities = activities.reduce((groups, activity) => {
-        const type = activity.type.toLowerCase();
-        const group = groups.find(g => g.type === type);
-        if (group) {
-          group.items.push(activity);
-        } else {
-          groups.push({
-            type,
-            items: [activity]
-          });
-        }
-        return groups;
-      }, []);
-
-      const sectionRef = doc(db, 'sections', section.id);
-      await updateDoc(sectionRef, {
-        activities: groupedActivities
-      });
-      navigation.goBack();
-    } catch (error) {
-      console.error('Error saving section:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleUpdateSet = (activityIndex, setIndex, field, value) => {
+    setActivities(current => {
+      const updated = [...current];
+      const activity = updated[activityIndex];
+      activity.metrics.sets[setIndex][field] = value;
+      return updated;
+    });
   };
 
-  const handleDelete = async () => {
+  const handleToggleEachSide = (activityIndex) => {
+    setActivities(current => {
+      const updated = [...current];
+      const activity = updated[activityIndex];
+      activity.metrics.eachSide = !activity.metrics.eachSide;
+      return updated;
+    });
+  };
+
+  const handleDeleteActivity = (activityIndex) => {
     Alert.alert(
-      "Delete Section",
-      "Are you sure you want to delete this section? This action cannot be undone.",
+      "Delete Activity",
+      "Are you sure you want to delete this activity?",
       [
         {
           text: "Cancel",
@@ -348,280 +485,224 @@ export default function SectionDetail({ navigation, route }) {
         {
           text: "Delete",
           style: "destructive",
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const sectionRef = doc(db, 'sections', section.id);
-              await deleteDoc(sectionRef);
-              navigation.goBack();
-            } catch (error) {
-              console.error('Error deleting section:', error);
-            } finally {
-              setLoading(false);
-            }
+          onPress: () => {
+            setActivities(current => {
+              const updated = [...current];
+              // If this activity is part of a superset, unlink it
+              const activity = updated[activityIndex];
+              if (activity.supersetWith !== null) {
+                const linkedActivity = updated[activity.supersetWith];
+                if (linkedActivity) {
+                  linkedActivity.supersetWith = null;
+                }
+              }
+              // If the next activity is linked to this one, unlink it
+              if (updated[activityIndex + 1]?.supersetWith === activityIndex) {
+                updated[activityIndex + 1].supersetWith = null;
+              }
+              // Remove the activity
+              updated.splice(activityIndex, 1);
+              return updated;
+            });
+            setMenuOpen(null);
           }
         }
       ]
     );
   };
 
-  const handleScheduleSection = async () => {
-    try {
-      setLoading(true);
-      await scheduleSection(
-        auth.currentUser.uid,
-        section,
-        route.params?.selectedDate,
-        'Unscheduled'
-      );
-      navigation.navigate('Training');
-    } catch (error) {
-      console.error('Error scheduling section:', error);
-      Alert.alert('Error', 'Failed to schedule section. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderMetrics = (activity, index) => {
-    const metrics = activity.metrics || {};
-    return (
-      <View style={[styles.metricsContainer, { borderTopColor: theme.colors.border }]}>
-        {activity.type === 'exercises' ? (
-          <>
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Sets:</Text>
-              <TextInput
-                style={[styles.metricInput, { 
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                }]}
-                value={metrics.sets?.toString() || ''}
-                onChangeText={(value) => handleUpdateMetrics(index, { sets: value })}
-                keyboardType="numeric"
-                placeholder="Enter sets"
-                placeholderTextColor={theme.colors.textSecondary}
-              />
-            </View>
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Reps:</Text>
-              <TextInput
-                style={[styles.metricInput, { 
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                }]}
-                value={metrics.reps?.toString() || ''}
-                onChangeText={(value) => handleUpdateMetrics(index, { reps: value })}
-                keyboardType="numeric"
-                placeholder="Enter reps"
-                placeholderTextColor={theme.colors.textSecondary}
-              />
-            </View>
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Weight:</Text>
-              <TextInput
-                style={[styles.metricInput, { 
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                }]}
-                value={metrics.weight?.toString() || ''}
-                onChangeText={(value) => handleUpdateMetrics(index, { weight: value })}
-                keyboardType="numeric"
-                placeholder="Enter weight"
-                placeholderTextColor={theme.colors.textSecondary}
-              />
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Duration:</Text>
-              <TextInput
-                style={[styles.metricInput, { 
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                }]}
-                value={metrics.duration?.toString() || ''}
-                onChangeText={(value) => handleUpdateMetrics(index, { duration: value })}
-                keyboardType="numeric"
-                placeholder="Enter duration (min)"
-                placeholderTextColor={theme.colors.textSecondary}
-              />
-            </View>
-            <View style={styles.metricRow}>
-              <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Intensity:</Text>
-              <TextInput
-                style={[styles.metricInput, { 
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                }]}
-                value={metrics.intensity?.toString() || ''}
-                onChangeText={(value) => handleUpdateMetrics(index, { intensity: value })}
-                placeholder="Enter intensity"
-                placeholderTextColor={theme.colors.textSecondary}
-              />
-            </View>
-          </>
-        )}
-        <View style={styles.metricRow}>
-          <Text style={[styles.metricLabel, { color: theme.colors.text }]}>Notes:</Text>
-          <TextInput
-            style={[styles.metricInput, { 
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text,
-              minHeight: 40,
-              textAlignVertical: 'top',
-            }]}
-            value={metrics.notes || ''}
-            onChangeText={(value) => handleUpdateMetrics(index, { notes: value })}
-            placeholder="Add notes"
-            placeholderTextColor={theme.colors.textSecondary}
-            multiline
-          />
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <View style={themedContainerStyle}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+    <View style={styles.container}>
+      <View style={styles.header}>
         <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: theme.colors.surface }]} 
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          {section.title}
+        <Text style={styles.headerTitle}>
+          {section.id ? 'Edit Section' : 'Create Section'}
         </Text>
         <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: theme.colors.primary }]} 
+          style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
           onPress={handleSave}
         >
-          <Ionicons name="save-outline" size={24} color={theme.colors.white} />
+          <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
+            Save
+          </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView 
         style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {section.description && (
-          <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-            {section.description}
-          </Text>
-        )}
+        <View style={styles.sectionInfoContainer}>
+          <TextInput
+            style={styles.titleInput}
+            placeholder="Section Title"
+            placeholderTextColor="#666"
+            value={section.title}
+            onChangeText={(text) => setSection(prev => ({ ...prev, title: text }))}
+          />
+          <TextInput
+            style={styles.descriptionInput}
+            placeholder="Description (optional)"
+            placeholderTextColor="#666"
+            value={section.description}
+            onChangeText={(text) => setSection(prev => ({ ...prev, description: text }))}
+            multiline
+          />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleAddActivity}
-        >
-          <Ionicons name="add-circle-outline" size={24} color={theme.colors.white} />
-          <Text style={[styles.addButtonText, { color: theme.colors.white }]}>
-            Add Activity
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.activitiesList}>
-          {activities.map((activity, index) => (
+        {activities.map((activity, activityIndex) => (
+          <React.Fragment key={activityIndex}>
             <View 
-              key={index} 
               style={[
-                styles.activityItem, 
+                styles.activityCard, 
                 { 
                   backgroundColor: theme.colors.surface,
-                  borderLeftWidth: activity.supersetWith !== null ? 4 : 0,
-                  borderLeftColor: theme.colors.primary
+                  borderLeftColor: activity.supersetWith !== null ? '#4CAF50' : 'transparent',
                 }
               ]}
             >
               <View style={styles.activityHeader}>
-                <View style={styles.activityInfo}>
-                  <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                    <Ionicons 
-                      name={ACTIVITY_TYPES.find(t => t.id === activity.type)?.icon || 'fitness'} 
-                      size={20} 
-                      color={theme.colors.primary} 
-                    />
-                  </View>
-                  <View style={styles.activityContent}>
-                    <Text 
-                      style={[styles.activityTitle, { color: theme.colors.text }]}
-                      numberOfLines={2}
-                    >
-                      {activity.title || activity.name}
-                    </Text>
-                  </View>
+                <View style={styles.activityIcon}>
+                  <Ionicons 
+                    name={ACTIVITY_TYPES.find(t => t.id === activity.type)?.icon || 'fitness'} 
+                    size={24} 
+                    color="#4CAF50" 
+                  />
                 </View>
-                <View style={styles.activityActions}>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => setExpandedActivity(expandedActivity === index ? null : index)}
-                  >
-                    <Ionicons 
-                      name={expandedActivity === index ? "chevron-up" : "chevron-down"} 
-                      size={20} 
-                      color={theme.colors.primary} 
-                    />
-                  </TouchableOpacity>
-                  {index < activities.length - 1 && (
+                <Text style={styles.activityTitle}>
+                  {activity.title || activity.name}
+                  {activity.supersetWith !== null && " (Superset)"}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.menuButton}
+                  onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
+                </TouchableOpacity>
+                {menuOpen === activityIndex && (
+                  <View style={styles.menuOptions}>
                     <TouchableOpacity 
-                      style={styles.actionButton}
-                      onPress={() => handleToggleSuperset(index)}
+                      style={styles.menuOption}
+                      onPress={() => handleDeleteActivity(activityIndex)}
                     >
-                      <Ionicons 
-                        name={activity.supersetWith !== null ? "link" : "link-outline"} 
-                        size={20} 
-                        color={theme.colors.primary} 
-                      />
+                      <Ionicons name="trash-outline" size={20} color="#FF453A" />
+                      <Text style={[styles.menuOptionText, styles.menuOptionDelete]}>Delete</Text>
                     </TouchableOpacity>
-                  )}
-                  <View style={styles.reorderButtons}>
-                    {index > 0 && (
-                      <TouchableOpacity 
-                        style={styles.actionButton}
-                        onPress={() => handleMoveActivity(index, 'up')}
-                      >
-                        <Ionicons name="chevron-up" size={18} color={theme.colors.primary} />
-                      </TouchableOpacity>
-                    )}
-                    {index < activities.length - 1 && (
-                      <TouchableOpacity 
-                        style={styles.actionButton}
-                        onPress={() => handleMoveActivity(index, 'down')}
-                      >
-                        <Ionicons name="chevron-down" size={18} color={theme.colors.primary} />
-                      </TouchableOpacity>
-                    )}
                   </View>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => {
-                      const updated = activities.filter((_, i) => i !== index);
-                      setActivities(updated);
-                    }}
-                  >
-                    <Ionicons name="close-circle" size={20} color={theme.colors.error} />
-                  </TouchableOpacity>
-                </View>
+                )}
               </View>
-              {expandedActivity === index && renderMetrics(activity, index)}
-            </View>
-          ))}
-        </View>
 
-        <TouchableOpacity
-          style={[styles.deleteButton, { backgroundColor: theme.colors.error + '20' }]}
-          onPress={handleDelete}
-        >
-          <Ionicons name="trash-outline" size={24} color={theme.colors.error} />
-          <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>
-            Delete Section
-          </Text>
-        </TouchableOpacity>
+              {activity.metrics.sets.map((set, setIndex) => (
+                <View 
+                  key={`${activityIndex}-set-${setIndex}`} 
+                  style={styles.metricsRow}
+                >
+                  <View style={styles.metricColumn}>
+                    <Text style={styles.metricLabel}>SET</Text>
+                    <Text style={styles.metricValue}>{setIndex + 1}</Text>
+                  </View>
+                  <View style={styles.metricColumn}>
+                    <Text style={styles.metricLabel}>LB</Text>
+                    <TextInput
+                      style={styles.metricInput}
+                      value={set.weight}
+                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'weight', value)}
+                      keyboardType="numeric"
+                      placeholder="-"
+                    />
+                  </View>
+                  <View style={styles.metricColumn}>
+                    <Text style={styles.metricLabel}>REPS</Text>
+                    <TextInput
+                      style={styles.metricInput}
+                      value={set.reps}
+                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'reps', value)}
+                      keyboardType="numeric"
+                      placeholder="-"
+                    />
+                  </View>
+                  <View style={styles.metricColumn}>
+                    <Text style={styles.metricLabel}>REST</Text>
+                    <TextInput
+                      style={styles.metricInput}
+                      value={set.rest}
+                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'rest', value)}
+                      placeholder="00:00"
+                    />
+                  </View>
+                </View>
+              ))}
+
+              <TouchableOpacity 
+                style={styles.addSetButton}
+                onPress={() => handleAddSet(activityIndex)}
+              >
+                <Ionicons name="add" size={20} color="#6B4EFF" />
+                <Text style={styles.addSetText}>Add Set</Text>
+              </TouchableOpacity>
+
+              <View style={styles.eachSideRow}>
+                <TouchableOpacity 
+                  style={[
+                    styles.checkbox,
+                    activity.metrics.eachSide && { backgroundColor: '#6B4EFF', borderColor: '#6B4EFF' }
+                  ]}
+                  onPress={() => handleToggleEachSide(activityIndex)}
+                >
+                  {activity.metrics.eachSide && (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.eachSideText}>Each side</Text>
+              </View>
+
+              <View style={styles.progressRow}>
+                <Text style={{ color: '#666' }}>0-0-0-0</Text>
+              </View>
+
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Add note..."
+                value={activity.metrics.notes}
+                onChangeText={(value) => {
+                  const updated = [...activities];
+                  updated[activityIndex].metrics.notes = value;
+                  setActivities(updated);
+                }}
+              />
+            </View>
+            
+            {activityIndex < activities.length - 1 && (
+              <View style={styles.supersetDivider}>
+                <TouchableOpacity 
+                  style={styles.supersetButton}
+                  onPress={() => handleToggleSuperset(activityIndex)}
+                >
+                  <Ionicons 
+                    name={activity.supersetWith !== null ? "link" : "link-outline"} 
+                    size={20} 
+                    color={activity.supersetWith !== null ? '#4CAF50' : '#666'} 
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+          </React.Fragment>
+        ))}
       </ScrollView>
+
+      <View style={styles.bottomBar}>
+        <TouchableOpacity 
+          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleAddActivity}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 } 
