@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -16,6 +16,7 @@ const TABS = [
 export default function Programs({ navigation }) {
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState('programs');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -26,9 +27,9 @@ export default function Programs({ navigation }) {
           </ScrollView>
         );
       case 'sessions':
-        return <Sessions navigation={navigation} />;
+        return <Sessions navigation={navigation} searchQuery={searchQuery} />;
       case 'sections':
-        return <Sections navigation={navigation} route={{ params: {} }} />;
+        return <Sections navigation={navigation} route={{ params: {} }} searchQuery={searchQuery} />;
       default:
         return null;
     }
@@ -36,10 +37,23 @@ export default function Programs({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Programs
-        </Text>
+      <View style={styles.searchContainer}>
+        <Ionicons 
+          name="search-outline" 
+          size={20} 
+          color={theme.colors.textSecondary} 
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { 
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+          }]}
+          placeholder="Search..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       <View style={[styles.tabBar, { borderBottomColor: theme.colors.border }]}>
@@ -77,16 +91,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Layout.spacing.large,
-    height: 60,
-    borderBottomWidth: 1,
+    margin: Layout.spacing.medium,
+    marginBottom: Layout.spacing.small,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: Typography.fonts.bold,
+  searchIcon: {
+    position: 'absolute',
+    left: Layout.spacing.medium,
+    zIndex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.large,
+    paddingLeft: Layout.spacing.large * 2,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
   tabBar: {
     flexDirection: 'row',
@@ -108,17 +130,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  comingSoonContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Layout.spacing.large,
-  },
-  comingSoonText: {
-    fontSize: 17,
-    fontFamily: Typography.fonts.medium,
-    textAlign: 'center',
   },
   scrollView: {
     flex: 1,

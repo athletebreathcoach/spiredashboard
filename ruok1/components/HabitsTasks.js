@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -17,6 +18,7 @@ export default function HabitsTasks({ navigation, route }) {
   const theme = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const isSelectionMode = route.params?.mode === 'selection';
   const onSelect = route.params?.onSelect;
   const selectedDate = route.params?.selectedDate;
@@ -46,6 +48,12 @@ export default function HabitsTasks({ navigation, route }) {
     }
   };
 
+  const filteredItems = items.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.categoryId.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -65,12 +73,31 @@ export default function HabitsTasks({ navigation, route }) {
           : 'Build consistent practices and complete tasks'}
       </Text>
 
+      <View style={styles.searchContainer}>
+        <Ionicons 
+          name="search-outline" 
+          size={20} 
+          color={theme.colors.textSecondary} 
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { 
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+          }]}
+          placeholder="Search habits and tasks..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <TouchableOpacity
             key={item.id}
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -126,6 +153,24 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.large,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: Layout.spacing.medium,
+    zIndex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.large,
+    paddingLeft: Layout.spacing.large * 2,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
   scrollView: {
     flex: 1,

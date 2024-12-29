@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Image,
-  ActivityIndicator 
+  ActivityIndicator,
+  TextInput
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -19,6 +20,7 @@ export default function GuidedSessions({ navigation }) {
   const theme = useTheme();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchGuidedSessions();
@@ -45,6 +47,12 @@ export default function GuidedSessions({ navigation }) {
     return `${duration} min`;
   };
 
+  const filteredSessions = sessions.filter(session =>
+    session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    session.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    session.type.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -62,12 +70,31 @@ export default function GuidedSessions({ navigation }) {
         Follow along with expert-led breathing sessions
       </Text>
 
+      <View style={styles.searchContainer}>
+        <Ionicons 
+          name="search-outline" 
+          size={20} 
+          color={theme.colors.textSecondary} 
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { 
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+          }]}
+          placeholder="Search guided sessions..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {sessions.map((session) => (
+        {filteredSessions.map((session) => (
           <TouchableOpacity
             key={session.id}
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -130,6 +157,24 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.large,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: Layout.spacing.medium,
+    zIndex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.large,
+    paddingLeft: Layout.spacing.large * 2,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
   scrollView: {
     flex: 1,

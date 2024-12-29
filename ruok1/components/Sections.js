@@ -15,7 +15,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { getSections, scheduleSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
 
-export default function Sections({ navigation, route }) {
+export default function Sections({ navigation, route, searchQuery = '' }) {
   const theme = useTheme();
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,6 @@ export default function Sections({ navigation, route }) {
   const handleProgramSelected = async () => {
     try {
       setLoading(true);
-      // Schedule all selected sections
       await Promise.all(
         selectedSections.map(section =>
           scheduleSection(
@@ -145,6 +144,11 @@ export default function Sections({ navigation, route }) {
     );
   };
 
+  const filteredSections = sections.filter(section =>
+    section.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (section.description && section.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -168,7 +172,7 @@ export default function Sections({ navigation, route }) {
         )}
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {sections.map(section => renderSection(section))}
+          {filteredSections.map(section => renderSection(section))}
         </ScrollView>
 
         {!isSelectionMode && (

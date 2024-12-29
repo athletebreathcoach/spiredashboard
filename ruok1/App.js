@@ -63,28 +63,14 @@ const Tab = createBottomTabNavigator();
 function HomeScreen({ navigation }) {
   const theme = useTheme();
 
-  const handleBreathGuide = () => {
-    navigation.navigate('BreathGuide');
-  };
-
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: theme?.colors?.background }]}
       showsVerticalScrollIndicator={false}
     >
       <FeaturedVideos />
-      <FeaturedProtocols />
+      <FeaturedProtocols navigation={navigation} />
       <FeaturedBlogs />
-      <View style={styles.breathGuideContainer}>
-        <TouchableOpacity 
-          style={[styles.breathButton, { backgroundColor: theme?.colors?.primary }]}
-          onPress={handleBreathGuide}
-        >
-          <Text style={[styles.breathButtonText, { color: theme?.colors?.background }]}>
-            Breath Guide
-          </Text>
-        </TouchableOpacity>
-      </View>
     </ScrollView>
   );
 }
@@ -589,18 +575,5 @@ function AuthenticatedStack({ user }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  breathGuideContainer: {
-    padding: Layout.spacing.large,
-  },
-  breathButton: {
-    padding: Layout.spacing.large,
-    borderRadius: Layout.borderRadius.large,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  breathButtonText: {
-    fontSize: Layout.text.large,
-    fontFamily: Typography.fonts.medium,
   },
 });

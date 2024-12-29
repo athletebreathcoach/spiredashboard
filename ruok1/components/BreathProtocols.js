@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -18,6 +19,7 @@ export default function BreathProtocols({ navigation, route }) {
   const theme = useTheme();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const isSelectionMode = route.params?.mode === 'selection';
   const onProtocolSelect = route.params?.onProtocolSelect;
 
@@ -64,6 +66,11 @@ export default function BreathProtocols({ navigation, route }) {
     }
   };
 
+  const filteredProtocols = protocols.filter(protocol =>
+    protocol.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    protocol.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -74,14 +81,15 @@ export default function BreathProtocols({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]} numberOfLines={1}>
           {isSelectionMode ? 'Add Breath Protocol' : 'Breath Protocols'}
         </Text>
       </View>
@@ -91,7 +99,33 @@ export default function BreathProtocols({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {protocols.map((protocol) => (
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          {isSelectionMode ? 'Add Breath Protocol' : 'Breath Protocols'}
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          Explore and practice different breathing techniques
+        </Text>
+
+        <View style={styles.searchContainer}>
+          <Ionicons 
+            name="search-outline" 
+            size={20} 
+            color={theme.colors.textSecondary} 
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[styles.searchInput, { 
+              backgroundColor: theme.colors.surface,
+              color: theme.colors.text,
+            }]}
+            placeholder="Search breath protocols..."
+            placeholderTextColor={theme.colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {filteredProtocols.map((protocol) => (
           <TouchableOpacity
             key={protocol.id}
             style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -135,11 +169,34 @@ export default function BreathProtocols({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.large,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Layout.spacing.medium,
+    height: 60,
+    marginTop: 40,
+  },
+  backButton: {
+    padding: Layout.spacing.small,
+    marginRight: Layout.spacing.small,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: Typography.fonts.semibold,
+    textAlign: 'center',
+    marginRight: Layout.spacing.xlarge,
   },
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: Layout.spacing.large,
   },
   title: {
     fontSize: Layout.text.xlarge,
@@ -151,11 +208,23 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.regular,
     marginBottom: Layout.spacing.large,
   },
-  scrollView: {
-    flex: 1,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.large,
   },
-  scrollContent: {
-    paddingBottom: Layout.spacing.large,
+  searchIcon: {
+    position: 'absolute',
+    left: Layout.spacing.medium,
+    zIndex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    height: Layout.minTouchSize,
+    borderRadius: Layout.borderRadius.large,
+    paddingLeft: Layout.spacing.large * 2,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
   },
   card: {
     padding: Layout.spacing.large,
@@ -197,20 +266,5 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: Layout.spacing.small,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.spacing.medium,
-    height: 60,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: Layout.spacing.small,
-    marginRight: Layout.spacing.small,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: Typography.fonts.semibold,
   },
 }); 

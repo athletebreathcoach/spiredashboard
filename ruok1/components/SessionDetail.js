@@ -257,7 +257,7 @@ export default function SessionDetail({ navigation, route }) {
   const renderItem = (item, index) => {
     if (item.type === 'section') {
       return (
-        <View key={item.id} style={styles.sectionGroup}>
+        <View key={`section-${item.id}-${index}`} style={styles.sectionGroup}>
           <TouchableOpacity 
             style={styles.sectionHeader}
             onPress={() => toggleSectionExpanded(item.id)}
@@ -277,9 +277,9 @@ export default function SessionDetail({ navigation, route }) {
           </TouchableOpacity>
           {expandedSections[item.id] && (
             <View style={styles.sectionContent}>
-              {item.activities?.map((group) => 
-                group.items?.map((activity) => (
-                  <View key={activity.id} style={styles.activityCard}>
+              {item.activities?.map((group, groupIndex) => 
+                group.items?.map((activity, activityIndex) => (
+                  <View key={`activity-${activity.id}-${groupIndex}-${activityIndex}`} style={styles.activityCard}>
                     <View style={styles.activityHeader}>
                       <View style={styles.activityIcon}>
                         <Ionicons name="fitness" size={16} color="#666" />
@@ -309,7 +309,7 @@ export default function SessionDetail({ navigation, route }) {
     }
 
     return (
-      <View key={item.id} style={styles.activityCard}>
+      <View key={`item-${item.id}-${index}`} style={styles.activityCard}>
         <View style={styles.activityHeader}>
           <View style={styles.activityIcon}>
             <Ionicons name="fitness" size={16} color="#666" />

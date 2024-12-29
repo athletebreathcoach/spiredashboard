@@ -7,7 +7,7 @@ import Typography from '../constants/Typography';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 
-export default function Sessions({ navigation }) {
+export default function Sessions({ navigation, searchQuery = '' }) {
   const theme = useTheme();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +47,11 @@ export default function Sessions({ navigation }) {
     navigation.navigate('SessionDetail', { session });
   };
 
+  const filteredSessions = sessions.filter(session =>
+    session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (session.description && session.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -58,7 +63,7 @@ export default function Sessions({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        {sessions.map(session => (
+        {filteredSessions.map(session => (
           <TouchableOpacity
             key={session.id}
             style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}

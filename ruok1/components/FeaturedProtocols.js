@@ -30,7 +30,7 @@ const protocols = [
   }
 ];
 
-export default function FeaturedProtocols() {
+export default function FeaturedProtocols({ navigation }) {
   const theme = useTheme();
 
   const handleProtocolPress = (protocol) => {
@@ -38,11 +38,26 @@ export default function FeaturedProtocols() {
     console.log('Protocol pressed:', protocol.title);
   };
 
+  const handleBreathGuide = () => {
+    navigation.navigate('BreathGuide');
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Featured Protocols
-      </Text>
+      <View style={styles.headerContainer}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Featured Protocols
+        </Text>
+        <TouchableOpacity 
+          style={[styles.breathGuideButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleBreathGuide}
+        >
+          <Ionicons name="pulse" size={20} color={theme.colors.background} style={styles.buttonIcon} />
+          <Text style={[styles.breathGuideText, { color: theme.colors.background }]}>
+            Breath Guide
+          </Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -89,11 +104,29 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: Layout.spacing.large,
   },
+  headerContainer: {
+    paddingHorizontal: Layout.spacing.large,
+    marginBottom: Layout.spacing.medium,
+  },
   sectionTitle: {
     fontSize: Layout.text.large,
     fontFamily: Typography.fonts.medium,
-    marginBottom: Layout.spacing.medium,
-    paddingHorizontal: Layout.spacing.large,
+    marginBottom: Layout.spacing.small,
+  },
+  breathGuideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginTop: Layout.spacing.small,
+  },
+  buttonIcon: {
+    marginRight: Layout.spacing.small,
+  },
+  breathGuideText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
   },
   scrollContent: {
     paddingHorizontal: Layout.spacing.large,
