@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { doc, updateDoc, getDoc, deleteDoc, addDoc, collection } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { Ionicons } from '@expo/vector-icons';
-import ActivityMetricsForm from './ActivityMetricsForm';
-import { scheduleSection } from '../firebase/sections';
+import { createSection, updateSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
 
 const ACTIVITY_TYPES = [
@@ -245,6 +242,17 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: Typography.fonts.medium,
   },
+  activityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moveButton: {
+    padding: 4,
+    marginHorizontal: 2,
+  },
+  moveButtonDisabled: {
+    opacity: 0.3,
+  }
 });
 
 export default function SectionDetail({ navigation, route }) {
@@ -257,11 +265,15 @@ export default function SectionDetail({ navigation, route }) {
         type: group.type,
         supersetWith: item.supersetWith !== undefined ? item.supersetWith : null,
         metrics: {
-          sets: item.metrics?.sets?.map(set => ({
+          sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
             reps: set.reps || '',
             weight: set.weight || '',
             rest: set.rest || '00:00'
-          })) || [{
+          })) : item.metrics?.sets ? [{
+            reps: item.metrics.sets.reps || '',
+            weight: item.metrics.sets.weight || '',
+            rest: item.metrics.sets.rest || '00:00'
+          }] : [{
             reps: '',
             weight: '',
             rest: '00:00'
@@ -287,27 +299,30 @@ export default function SectionDetail({ navigation, route }) {
   const [menuOpen, setMenuOpen] = useState(null);
 
   const handleAddActivity = () => {
-    navigation.navigate('ActivitySelector', {
-      onNext: (selectedActivities) => {
-        setActivities(current => [
-          ...current,
-          ...selectedActivities.map(activity => ({
-            ...activity,
-            supersetWith: null,
-            metrics: {
-              sets: [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: false,
-              notes: ''
-            }
-          }))
-        ]);
-      }
-    });
+    navigation.navigate('ActivitySelector');
   };
+
+  useEffect(() => {
+    if (route.params?.selectedActivities) {
+      setActivities(current => [
+        ...current,
+        ...route.params.selectedActivities.map(activity => ({
+          ...activity,
+          supersetWith: null,
+          metrics: {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          }
+        }))
+      ]);
+      navigation.setParams({ selectedActivities: undefined });
+    }
+  }, [route.params?.selectedActivities]);
 
   const handleSave = async () => {
     try {
@@ -324,7 +339,7 @@ export default function SectionDetail({ navigation, route }) {
         // Prepare activity data with superset information
         const activityData = {
           ...activity,
-          supersetWith: activity.supersetWith,  // Preserve superset relationship
+          supersetWith: activity.supersetWith,
           metrics: {
             sets: activity.metrics.sets.map(set => ({
               reps: set.reps || '',
@@ -349,11 +364,11 @@ export default function SectionDetail({ navigation, route }) {
 
       if (section.id) {
         // Update existing section
-        const sectionRef = doc(db, 'sections', section.id);
-        await updateDoc(sectionRef, {
+        await updateSection(section.id, {
           title: section.title,
           description: section.description,
           activities: groupedActivities,
+          updatedBy: auth.currentUser.uid,
           updatedAt: new Date().toISOString()
         });
       } else {
@@ -362,11 +377,13 @@ export default function SectionDetail({ navigation, route }) {
           title: section.title,
           description: section.description,
           activities: groupedActivities,
-          userId: auth.currentUser.uid,
+          userId: route.params.clientId || auth.currentUser.uid,
+          createdBy: auth.currentUser.uid,
           createdAt: new Date().toISOString(),
+          updatedBy: auth.currentUser.uid,
           updatedAt: new Date().toISOString()
         };
-        await addDoc(collection(db, 'sections'), sectionData);
+        await createSection(sectionData);
       }
 
       navigation.navigate('Search', {
@@ -511,6 +528,67 @@ export default function SectionDetail({ navigation, route }) {
     );
   };
 
+  const handleMoveActivity = (index, direction) => {
+    if ((direction === 'up' && index === 0) || 
+        (direction === 'down' && index === activities.length - 1)) {
+      return;
+    }
+
+    setActivities(current => {
+      const updated = [...current];
+      const activity = updated[index];
+      
+      // If this activity is part of a superset, move both activities together
+      if (activity.supersetWith !== null || (index > 0 && updated[index - 1]?.supersetWith === index)) {
+        const firstIndex = activity.supersetWith !== null ? index : index - 1;
+        const secondIndex = activity.supersetWith !== null ? activity.supersetWith : index;
+        
+        if (direction === 'up') {
+          if (firstIndex <= 0) return current;
+          
+          // Move both activities up
+          const temp = updated[firstIndex - 1];
+          updated[firstIndex - 1] = updated[firstIndex];
+          updated[firstIndex] = updated[secondIndex];
+          updated[secondIndex] = temp;
+          
+          // Update superset references
+          updated[firstIndex - 1].supersetWith = firstIndex;
+          updated[firstIndex].supersetWith = firstIndex - 1;
+        } else {
+          if (secondIndex >= updated.length - 1) return current;
+          
+          // Move both activities down
+          const temp = updated[secondIndex + 1];
+          updated[secondIndex + 1] = updated[secondIndex];
+          updated[secondIndex] = updated[firstIndex];
+          updated[firstIndex] = temp;
+          
+          // Update superset references
+          updated[secondIndex].supersetWith = secondIndex + 1;
+          updated[secondIndex + 1].supersetWith = secondIndex;
+        }
+      } else {
+        // Normal swap for non-superset activities
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        
+        // Check if we're trying to move into the middle of a superset
+        if (updated[newIndex]?.supersetWith !== null || 
+            (newIndex > 0 && updated[newIndex - 1]?.supersetWith === newIndex)) {
+          // Skip over the superset pair
+          const skipIndex = direction === 'up' ? newIndex - 1 : newIndex + 1;
+          if (skipIndex < 0 || skipIndex >= updated.length) return current;
+          
+          [updated[index], updated[skipIndex]] = [updated[skipIndex], updated[index]];
+        } else {
+          [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+        }
+      }
+      
+      return updated;
+    });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -576,14 +654,37 @@ export default function SectionDetail({ navigation, route }) {
                 </View>
                 <Text style={styles.activityTitle}>
                   {activity.title || activity.name}
-                  {activity.supersetWith !== null && " (Superset)"}
                 </Text>
-                <TouchableOpacity 
-                  style={styles.menuButton}
-                  onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
-                </TouchableOpacity>
+                <View style={styles.activityControls}>
+                  <TouchableOpacity 
+                    style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
+                    onPress={() => handleMoveActivity(activityIndex, 'up')}
+                    disabled={activityIndex === 0}
+                  >
+                    <Ionicons 
+                      name="chevron-up" 
+                      size={20} 
+                      color={activityIndex === 0 ? "#444" : "#666"} 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
+                    onPress={() => handleMoveActivity(activityIndex, 'down')}
+                    disabled={activityIndex === activities.length - 1}
+                  >
+                    <Ionicons 
+                      name="chevron-down" 
+                      size={20} 
+                      color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.menuButton}
+                    onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
                 {menuOpen === activityIndex && (
                   <View style={styles.menuOptions}>
                     <TouchableOpacity 

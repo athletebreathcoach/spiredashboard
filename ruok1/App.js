@@ -54,6 +54,7 @@ import ClientBreathTestHistory from './components/ClientBreathTestHistory';
 import ActivitySelector from './components/ActivitySelector';
 import ConfigureSection from './components/ConfigureSection';
 import SectionMetrics from './components/SectionMetrics';
+import SessionDetail from './components/SessionDetail';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -575,6 +576,11 @@ function AuthenticatedStack({ user }) {
           headerShown: false,
           presentation: 'modal'
         }}
+      />
+      <Stack.Screen 
+        name="SessionDetail" 
+        component={SessionDetail}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

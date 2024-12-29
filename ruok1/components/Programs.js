@@ -5,6 +5,7 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
 import Sections from './Sections';
+import Sessions from './Sessions';
 
 const TABS = [
   { id: 'programs', label: 'Programs' },
@@ -25,11 +26,7 @@ export default function Programs({ navigation }) {
           </ScrollView>
         );
       case 'sessions':
-        return (
-          <ScrollView style={styles.scrollView}>
-            {/* Existing sessions content */}
-          </ScrollView>
-        );
+        return <Sessions navigation={navigation} />;
       case 'sections':
         return <Sections navigation={navigation} route={{ params: {} }} />;
       default:

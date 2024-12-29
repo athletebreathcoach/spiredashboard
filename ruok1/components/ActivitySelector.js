@@ -16,14 +16,17 @@ import { getExercises } from '../firebase/exercises';
 import { getHabits, getTasks } from '../firebase/habits';
 import { getBreathingTests } from '../firebase/breathingTests';
 import { getBreathProtocols } from '../firebase/breathProtocols';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { auth } from '../config/firebase';
 
 const CATEGORIES = [
+  { id: 'sections', label: 'Sections', icon: 'layers-outline' },
   { id: 'exercises', label: 'Exercises', icon: 'barbell-outline' },
   { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
   { id: 'breathingTests', label: 'Breathing Tests', icon: 'fitness-outline' },
   { id: 'breathProtocols', label: 'Breath Protocols', icon: 'pulse-outline' },
+  { id: 'guidedSessions', label: 'Guided Sessions', icon: 'play-circle-outline' },
 ];
 
 export default function ActivitySelector({ navigation, route }) {
@@ -40,52 +43,47 @@ export default function ActivitySelector({ navigation, route }) {
 
   const loadActivities = async () => {
     try {
-      // Get exercises and habits/tasks
-      const [exercises, habits, tasks] = await Promise.all([
-        getExercises().catch(() => []),
-        getHabits().catch(() => []),
-        getTasks().catch(() => []),
+      setLoading(true);
+      const [exercises, habits, tasks, breathingTests, breathProtocols] = await Promise.all([
+        getExercises(),
+        getHabits(),
+        getTasks(),
+        getBreathingTests(),
+        getBreathProtocols()
       ]);
 
-      // Get breathing tests from the static list
-      const breathingTests = [
-        {
-          id: 1,
-          title: 'Exhale Test',
-          description: 'Measure your exhale control and capacity',
-          type: 'breathingTests',
-          category: 'Assessment',
-        },
-        {
-          id: 2,
-          title: 'CO2 Walking Test',
-          description: 'Test your CO2 tolerance while walking',
-          type: 'breathingTests',
-          category: 'Assessment',
-        },
-        {
-          id: 3,
-          title: 'BOLT Test',
-          description: 'Body Oxygen Level Test - Measure your CO2 tolerance',
-          type: 'breathingTests',
-          category: 'Assessment',
-        },
-      ];
-
-      // Get breath protocols from Firebase
-      const protocolsRef = collection(db, 'breathProtocols');
-      const protocolsSnapshot = await getDocs(protocolsRef);
-      const breathProtocols = protocolsSnapshot.docs.map(doc => ({
+      // Fetch sections
+      const sectionsRef = collection(db, 'sections');
+      const sectionsQuery = query(
+        sectionsRef, 
+        where('userId', '==', auth.currentUser.uid)
+      );
+      const sectionsSnapshot = await getDocs(sectionsQuery);
+      const sections = sectionsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        type: 'breathProtocols',
+        type: 'section'
+      }));
+      // Sort sections by title on the client side
+      sections.sort((a, b) => a.title.localeCompare(b.title));
+
+      // Fetch guided sessions
+      const guidedSessionsRef = collection(db, 'guidedSessions');
+      const q = query(guidedSessionsRef, orderBy('title'));
+      const snapshot = await getDocs(q);
+      const guidedSessions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        title: doc.data().title || doc.data().name
       }));
 
       setActivities({
+        sections,
         exercises: exercises || [],
         habitstasks: [...(habits || []), ...(tasks || [])],
         breathingTests,
         breathProtocols,
+        guidedSessions
       });
     } catch (error) {
       console.error('Error loading activities:', error);
@@ -107,13 +105,9 @@ export default function ActivitySelector({ navigation, route }) {
   const handleNext = () => {
     if (selectedActivities.length === 0) return;
     
-    if (route.params?.onNext) {
-      route.params.onNext(selectedActivities);
-    } else {
-      navigation.navigate('ConfigureSection', {
-        activities: selectedActivities
-      });
-    }
+    navigation.navigate('SessionDetail', {
+      selectedItems: selectedActivities
+    });
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>
