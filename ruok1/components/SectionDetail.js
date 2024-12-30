@@ -309,7 +309,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#666',
     marginHorizontal: Layout.spacing.small,
   },
+  logButton: {
+    position: 'absolute',
+    bottom: Layout.spacing.large,
+    left: Layout.spacing.large,
+    right: Layout.spacing.large,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+  },
 });
+
+// Helper function to get metrics preview for an activity
+const getMetricsPreview = (activity) => {
+  if (!activity.metrics?.sets || activity.metrics.sets.length === 0) return [];
+  
+  const { sets, eachSide } = activity.metrics;
+  
+  // Format each set
+  const setPreviews = sets.map((set, index) => {
+    const parts = [];
+    if (set.reps) parts.push(`${set.reps}`);
+    if (set.weight) parts.push(`@ ${set.weight}lb`);
+    return parts.join(' ');
+  });
+
+  // If all sets are the same, just show one number with the total sets
+  const allSetsEqual = setPreviews.every(preview => preview === setPreviews[0]);
+  let preview = allSetsEqual 
+    ? [`${sets.length} x ${setPreviews[0]}`]
+    : setPreviews;
+
+  // Add each side indicator if needed
+  if (eachSide) {
+    preview.push('each side');
+  }
+
+  return preview;
+};
 
 // Helper function to get all superset chains
 const getAllSupersetChains = (activities) => {
@@ -390,197 +432,20 @@ export default function SectionDetail({ navigation, route }) {
           }
         }))], []
       );
-    } else if (route.params.selectedActivities) {
-      return route.params.selectedActivities.map(activity => ({
-        ...activity,
-        supersetWith: null,
-        metrics: {
-          sets: [{
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          }],
-          eachSide: false,
-          notes: ''
-        }
-      }));
     }
     return [];
   });
-  const [menuOpen, setMenuOpen] = useState(null);
   const [expandedCards, setExpandedCards] = useState({});
+  const [menuOpen, setMenuOpen] = useState(null);
+  const isLogging = route.params.isLogging;
 
-  const handleAddActivity = () => {
-    navigation.navigate('ActivitySelector');
-  };
-
-  useEffect(() => {
-    if (route.params?.selectedActivities) {
-      setActivities(current => [
-        ...current,
-        ...route.params.selectedActivities.map(activity => ({
-          ...activity,
-          supersetWith: null,
-          metrics: {
-            sets: [{
-              reps: '',
-              weight: '',
-              rest: '00:00'
-            }],
-            eachSide: false,
-            notes: ''
-          }
-        }))
-      ]);
-      navigation.setParams({ selectedActivities: undefined });
-    }
-  }, [route.params?.selectedActivities]);
-
-  const handleSave = async () => {
-    try {
-      if (!section.title.trim()) {
-        Alert.alert('Error', 'Please enter a title for the section');
-        return;
-      }
-
-      // Group activities by type for Firebase
-      const groupedActivities = activities.reduce((groups, activity, index) => {
-        const type = activity.type.toLowerCase();
-        const group = groups.find(g => g.type === type);
-        
-        // Prepare activity data with superset information
-        const activityData = {
-          ...activity,
-          supersetWith: activity.supersetWith,
-          metrics: {
-            sets: activity.metrics.sets.map(set => ({
-              reps: set.reps || '',
-              weight: set.weight || '',
-              rest: set.rest || '00:00'
-            })),
-            eachSide: activity.metrics.eachSide || false,
-            notes: activity.metrics.notes || ''
-          }
-        };
-
-        if (group) {
-          group.items.push(activityData);
-        } else {
-          groups.push({
-            type,
-            items: [activityData]
-          });
-        }
-        return groups;
-      }, []);
-
-      if (section.id) {
-        // Update existing section
-        await updateSection(section.id, {
-          title: section.title,
-          description: section.description,
-          activities: groupedActivities,
-          updatedBy: auth.currentUser.uid,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        // Create new section
-        const sectionData = {
-          title: section.title,
-          description: section.description,
-          activities: groupedActivities,
-          userId: route.params.clientId || auth.currentUser.uid,
-          createdBy: auth.currentUser.uid,
-          createdAt: new Date().toISOString(),
-          updatedBy: auth.currentUser.uid,
-          updatedAt: new Date().toISOString()
-        };
-        await createSection(sectionData);
-      }
-
-      navigation.navigate('Search', {
-        screen: 'Programs',
-        params: {
-          screen: 'Sections'
-        }
-      });
-    } catch (error) {
-      console.error('Error saving section:', error);
-      Alert.alert('Error', 'Failed to save section. Please try again.');
-    }
-  };
-
-  const handleToggleSuperset = (index) => {
+  const handleUpdateSet = (activityIndex, setIndex, field, value) => {
     setActivities(current => {
       const updated = [...current];
-      const currentActivity = updated[index];
-      const nextActivity = updated[index + 1];
-
-      if (!nextActivity) return updated;
-
-      // Find all activities in the current superset chain
-      const findSupersetChain = (startIndex) => {
-        const chain = [];
-        let currentIndex = startIndex;
-        while (currentIndex < updated.length) {
-          chain.push(currentIndex);
-          const nextIndex = updated[currentIndex].supersetWith;
-          if (nextIndex === null || nextIndex <= currentIndex) break;
-          currentIndex = nextIndex;
-        }
-        return chain;
+      updated[activityIndex].metrics.sets[setIndex] = {
+        ...updated[activityIndex].metrics.sets[setIndex],
+        [field]: value
       };
-
-      if (currentActivity.supersetWith === index + 1) {
-        // If unlinking from the middle of a chain, we need to maintain the rest of the chain
-        const supersetChain = findSupersetChain(index);
-        if (supersetChain.length > 2) {
-          // If we're breaking a chain of 3+ exercises
-          const prevActivity = index > 0 ? updated[index - 1] : null;
-          if (prevActivity?.supersetWith === index) {
-            // We're unlinking in the middle, connect the previous to the next
-            prevActivity.supersetWith = index + 1;
-            nextActivity.supersetWith = index - 1;
-          } else {
-            // We're unlinking at the bottom of the chain
-            // Only unlink the current pair
-            currentActivity.supersetWith = null;
-            nextActivity.supersetWith = null;
-          }
-          currentActivity.supersetWith = null;
-        } else {
-          // Just unlinking a pair
-          currentActivity.supersetWith = null;
-          nextActivity.supersetWith = null;
-        }
-      } else {
-        // Check if we can add to an existing chain or start a new one
-        const prevActivity = index > 0 ? updated[index - 1] : null;
-        const isPartOfPreviousChain = prevActivity?.supersetWith === index;
-        const nextChain = findSupersetChain(index + 1);
-        
-        if (isPartOfPreviousChain || nextChain.length > 0 || currentActivity.supersetWith === null) {
-          // Link the activities
-          currentActivity.supersetWith = index + 1;
-          nextActivity.supersetWith = index;
-          
-          // Sync the number of sets across all linked activities
-          const supersetChain = findSupersetChain(isPartOfPreviousChain ? index - 1 : index);
-          const linkedActivities = supersetChain.map(idx => updated[idx]);
-          const maxSets = Math.max(...linkedActivities.map(act => act.metrics.sets.length));
-          
-          linkedActivities.forEach(activity => {
-            while (activity.metrics.sets.length < maxSets) {
-              activity.metrics.sets.push({
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              });
-            }
-          });
-        }
-      }
-
       return updated;
     });
   };
@@ -588,36 +453,11 @@ export default function SectionDetail({ navigation, route }) {
   const handleAddSet = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
-      const activity = updated[activityIndex];
-      
-      // Add set to the current activity
-      activity.metrics.sets.push({
+      updated[activityIndex].metrics.sets.push({
         reps: '',
         weight: '',
         rest: '00:00'
       });
-
-      // If this activity is part of a superset, add a set to the linked activity
-      if (activity.supersetWith !== null) {
-        const linkedActivity = updated[activity.supersetWith];
-        if (linkedActivity) {
-          linkedActivity.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          });
-        }
-      }
-
-      return updated;
-    });
-  };
-
-  const handleUpdateSet = (activityIndex, setIndex, field, value) => {
-    setActivities(current => {
-      const updated = [...current];
-      const activity = updated[activityIndex];
-      activity.metrics.sets[setIndex][field] = value;
       return updated;
     });
   };
@@ -625,149 +465,9 @@ export default function SectionDetail({ navigation, route }) {
   const handleToggleEachSide = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
-      const activity = updated[activityIndex];
-      activity.metrics.eachSide = !activity.metrics.eachSide;
+      updated[activityIndex].metrics.eachSide = !updated[activityIndex].metrics.eachSide;
       return updated;
     });
-  };
-
-  const handleDeleteActivity = (activityIndex) => {
-    Alert.alert(
-      "Delete Activity",
-      "Are you sure you want to delete this activity?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            setActivities(current => {
-              const updated = [...current];
-              // If this activity is part of a superset, unlink it
-              const activity = updated[activityIndex];
-              if (activity.supersetWith !== null) {
-                const linkedActivity = updated[activity.supersetWith];
-                if (linkedActivity) {
-                  linkedActivity.supersetWith = null;
-                }
-              }
-              // If the next activity is linked to this one, unlink it
-              if (updated[activityIndex + 1]?.supersetWith === activityIndex) {
-                updated[activityIndex + 1].supersetWith = null;
-              }
-              // Remove the activity
-              updated.splice(activityIndex, 1);
-              return updated;
-            });
-            setMenuOpen(null);
-          }
-        }
-      ]
-    );
-  };
-
-  const handleMoveActivity = (index, direction) => {
-    if ((direction === 'up' && index === 0) || 
-        (direction === 'down' && index === activities.length - 1)) {
-      return;
-    }
-
-    setActivities(current => {
-      const updated = [...current];
-
-      // Find the complete superset chain
-      const findSupersetChain = (startIndex) => {
-        if (startIndex < 0 || startIndex >= updated.length) return [];
-        
-        // Find the start of the chain
-        let chainStart = startIndex;
-        while (chainStart > 0 && updated[chainStart - 1]?.supersetWith === chainStart) {
-          chainStart--;
-        }
-
-        // Get all activities in the chain
-        const chain = [];
-        let currentIndex = chainStart;
-        while (currentIndex < updated.length) {
-          chain.push(currentIndex);
-          const nextIndex = updated[currentIndex].supersetWith;
-          if (nextIndex === null || nextIndex <= currentIndex) break;
-          currentIndex = nextIndex;
-        }
-        return chain;
-      };
-
-      // Get the chain we're moving (if any)
-      const currentChain = findSupersetChain(index);
-      const isMovingSuperset = currentChain.length > 1;
-      const moveStartIndex = isMovingSuperset ? Math.min(...currentChain) : index;
-      const moveEndIndex = isMovingSuperset ? Math.max(...currentChain) : index;
-
-      // Calculate target position
-      let targetIndex;
-      if (direction === 'up') {
-        // Moving up
-        const aboveChain = findSupersetChain(moveStartIndex - 1);
-        targetIndex = aboveChain.length > 0 ? Math.min(...aboveChain) : moveStartIndex - 1;
-      } else {
-        // Moving down
-        const belowChain = findSupersetChain(moveEndIndex + 1);
-        targetIndex = belowChain.length > 0 ? Math.max(...belowChain) + 1 : moveEndIndex + 1;
-      }
-
-      // Validate target position
-      if (targetIndex < 0 || targetIndex >= updated.length) return current;
-
-      // Extract items to move
-      const itemsToMove = updated.slice(moveStartIndex, moveEndIndex + 1);
-      updated.splice(moveStartIndex, itemsToMove.length);
-
-      // Calculate insert position
-      const insertIndex = targetIndex > moveStartIndex ? targetIndex - itemsToMove.length : targetIndex;
-      
-      // Insert items at new position
-      updated.splice(insertIndex, 0, ...itemsToMove);
-
-      // Update superset references if moving a superset
-      if (isMovingSuperset) {
-        const newStartIndex = insertIndex;
-        for (let i = 0; i < itemsToMove.length; i++) {
-          if (i < itemsToMove.length - 1) {
-            updated[newStartIndex + i].supersetWith = newStartIndex + i + 1;
-          } else {
-            updated[newStartIndex + i].supersetWith = null;
-          }
-          if (i > 0) {
-            updated[newStartIndex + i].supersetWith = newStartIndex + i - 1;
-          }
-        }
-      }
-
-      return updated;
-    });
-  };
-
-  const getMetricsPreview = (activity) => {
-    const { sets, eachSide } = activity.metrics;
-    
-    // Format each set
-    const setPreviews = sets.map((set, index) => {
-      const parts = [];
-      parts.push(`${index + 1}x${set.reps || '-'}`);
-      if (set.weight) parts.push(`@ ${set.weight}lb`);
-      if (set.rest !== '00:00') parts.push(`rest ${set.rest}`);
-      return parts.join(' ');
-    });
-
-    // Add each side indicator if needed
-    if (eachSide) {
-      setPreviews.push('(each side)');
-    }
-
-    return setPreviews;
   };
 
   const toggleCardExpansion = (index) => {
@@ -775,6 +475,95 @@ export default function SectionDetail({ navigation, route }) {
       ...prev,
       [index]: !prev[index]
     }));
+  };
+
+  const handleToggleSuperset = (index) => {
+    setActivities(current => {
+      const updated = [...current];
+      const currentItem = updated[index];
+      const nextItem = updated[index + 1];
+
+      if (!nextItem) return updated;
+
+      if (currentItem.supersetWith === null) {
+        // Link the items
+        currentItem.supersetWith = index + 1;
+        
+        // Sync the number of sets
+        const maxSets = Math.max(
+          currentItem.metrics.sets.length,
+          nextItem.metrics.sets.length
+        );
+        
+        // Add sets to current item if needed
+        while (currentItem.metrics.sets.length < maxSets) {
+          currentItem.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
+        
+        // Add sets to next item if needed
+        while (nextItem.metrics.sets.length < maxSets) {
+          nextItem.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
+      } else {
+        // Unlink the items
+        currentItem.supersetWith = null;
+      }
+
+      return updated;
+    });
+  };
+
+  const handleSave = () => {
+    if (isLogging || route.params.isScheduling) {
+      // When logging or scheduling, call onComplete with the updated activities
+      route.params.onComplete?.(activities.map(activity => ({
+        ...activity,
+        exerciseId: activity.id
+      })));
+      navigation.goBack();
+    } else {
+      // Normal save for editing/creating section
+      if (!section.title) {
+        Alert.alert('Required Field', 'Please enter a section title.');
+        return;
+      }
+
+      const groupedActivities = ACTIVITY_TYPES.map(type => ({
+        type: type.id,
+        items: activities.filter(a => a.type === type.id)
+      })).filter(group => group.items.length > 0);
+
+      const sectionData = {
+        ...section,
+        activities: groupedActivities,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth.currentUser.uid
+      };
+
+      if (section.id) {
+        updateSection(section.id, sectionData)
+          .then(() => navigation.goBack())
+          .catch(error => {
+            console.error('Error updating section:', error);
+            Alert.alert('Error', 'Failed to update section. Please try again.');
+          });
+      } else {
+        createSection(sectionData)
+          .then(() => navigation.goBack())
+          .catch(error => {
+            console.error('Error creating section:', error);
+            Alert.alert('Error', 'Failed to create section. Please try again.');
+          });
+      }
+    }
   };
 
   return (
@@ -787,39 +576,52 @@ export default function SectionDetail({ navigation, route }) {
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {section.id ? 'Edit Section' : 'Create Section'}
+          {isLogging || route.params.isScheduling ? section.title : (section.id ? 'Edit Section' : 'Create Section')}
         </Text>
-        <TouchableOpacity 
-          style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleSave}
-        >
-          <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
-            Save
-          </Text>
-        </TouchableOpacity>
+        {(isLogging || route.params.isScheduling) ? (
+          <TouchableOpacity 
+            style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handleSave}
+          >
+            <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
+              {route.params.isScheduling ? 'Schedule' : 'Complete'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handleSave}
+          >
+            <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
+              Save
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.sectionInfoContainer}>
-          <TextInput
-            style={styles.titleInput}
-            placeholder="Section Title"
-            placeholderTextColor="#666"
-            value={section.title}
-            onChangeText={(text) => setSection(prev => ({ ...prev, title: text }))}
-          />
-          <TextInput
-            style={styles.descriptionInput}
-            placeholder="Description (optional)"
-            placeholderTextColor="#666"
-            value={section.description}
-            onChangeText={(text) => setSection(prev => ({ ...prev, description: text }))}
-            multiline
-          />
-        </View>
+        {!isLogging && (
+          <View style={styles.sectionInfoContainer}>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="Section Title"
+              placeholderTextColor="#666"
+              value={section.title}
+              onChangeText={(text) => setSection(prev => ({ ...prev, title: text }))}
+            />
+            <TextInput
+              style={styles.descriptionInput}
+              placeholder="Description (optional)"
+              placeholderTextColor="#666"
+              value={section.description}
+              onChangeText={(text) => setSection(prev => ({ ...prev, description: text }))}
+              multiline
+            />
+          </View>
+        )}
 
         {activities.map((activity, activityIndex) => {
           const supersetInfo = getSupersetInfo(activityIndex, activities);
@@ -855,44 +657,35 @@ export default function SectionDetail({ navigation, route }) {
                       {activity.title || activity.name}
                     </Text>
                   </View>
-                  <View style={styles.activityControls}>
-                    <TouchableOpacity 
-                      style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
-                      onPress={() => handleMoveActivity(activityIndex, 'up')}
-                      disabled={activityIndex === 0}
-                    >
-                      <Ionicons 
-                        name="chevron-up" 
-                        size={20} 
-                        color={activityIndex === 0 ? "#444" : "#666"} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
-                      onPress={() => handleMoveActivity(activityIndex, 'down')}
-                      disabled={activityIndex === activities.length - 1}
-                    >
-                      <Ionicons 
-                        name="chevron-down" 
-                        size={20} 
-                        color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.menuButton}
-                      onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-                  {menuOpen === activityIndex && (
-                    <View style={styles.menuOptions}>
+                  {!isLogging && (
+                    <View style={styles.activityControls}>
                       <TouchableOpacity 
-                        style={styles.menuOption}
-                        onPress={() => handleDeleteActivity(activityIndex)}
+                        style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
+                        onPress={() => handleMoveActivity(activityIndex, 'up')}
+                        disabled={activityIndex === 0}
                       >
-                        <Ionicons name="trash-outline" size={20} color="#FF453A" />
-                        <Text style={[styles.menuOptionText, styles.menuOptionDelete]}>Delete</Text>
+                        <Ionicons 
+                          name="chevron-up" 
+                          size={20} 
+                          color={activityIndex === 0 ? "#444" : "#666"} 
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
+                        onPress={() => handleMoveActivity(activityIndex, 'down')}
+                        disabled={activityIndex === activities.length - 1}
+                      >
+                        <Ionicons 
+                          name="chevron-down" 
+                          size={20} 
+                          color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.menuButton}
+                        onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -977,10 +770,6 @@ export default function SectionDetail({ navigation, route }) {
                       <Text style={styles.eachSideText}>Each side</Text>
                     </View>
 
-                    <View style={styles.progressRow}>
-                      <Text style={{ color: '#666' }}>0-0-0-0</Text>
-                    </View>
-
                     <TextInput
                       style={styles.notesInput}
                       placeholder="Add note..."
@@ -1008,23 +797,27 @@ export default function SectionDetail({ navigation, route }) {
                   />
                 </TouchableOpacity>
               </View>
-              
-              {activityIndex < activities.length - 1 && (
-                <View style={[
-                  styles.supersetDivider,
-                  supersetInfo.isInSuperset && {
-                    height: 20,
-                    marginVertical: -10,
-                  }
-                ]}>
-                  <TouchableOpacity 
-                    style={styles.supersetButton}
+
+              {!isLogging && activityIndex < activities.length - 1 && (
+                <View style={styles.supersetDivider}>
+                  <TouchableOpacity
+                    style={[
+                      styles.supersetButton,
+                      activities[activityIndex].supersetWith === activityIndex + 1 && {
+                        backgroundColor: SUPERSET_COLORS[
+                          getAllSupersetChains(activities).findIndex(chain => 
+                            chain.includes(activityIndex)
+                          ) % SUPERSET_COLORS.length
+                        ],
+                        borderColor: 'transparent'
+                      }
+                    ]}
                     onPress={() => handleToggleSuperset(activityIndex)}
                   >
-                    <Ionicons 
-                      name={activity.supersetWith === activityIndex + 1 ? "link" : "link-outline"} 
-                      size={20} 
-                      color={activity.supersetWith === activityIndex + 1 ? supersetInfo.color : '#666'} 
+                    <Ionicons
+                      name={activities[activityIndex].supersetWith === activityIndex + 1 ? "link" : "link-outline"}
+                      size={20}
+                      color={activities[activityIndex].supersetWith === activityIndex + 1 ? "#fff" : "#666"}
                     />
                   </TouchableOpacity>
                 </View>
@@ -1033,15 +826,6 @@ export default function SectionDetail({ navigation, route }) {
           );
         })}
       </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleAddActivity}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 } 

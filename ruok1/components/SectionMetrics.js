@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -13,11 +13,10 @@ import Typography from '../constants/Typography';
 import { useTheme } from '../theme/ThemeContext';
 import ExerciseMetricsForm from './ExerciseMetricsForm';
 import { updateScheduledExercise } from '../firebase/scheduledExercises';
-import { auth } from '../config/firebase';
 
 export default function SectionMetrics({ navigation, route }) {
   const theme = useTheme();
-  const { section } = route.params;
+  const { section, date } = route.params;
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -62,7 +61,7 @@ export default function SectionMetrics({ navigation, route }) {
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          {section.exerciseTitle}
+          {section.title}
         </Text>
       </View>
 
@@ -105,19 +104,13 @@ export default function SectionMetrics({ navigation, route }) {
         ))}
       </ScrollView>
 
-      <Modal
-        visible={selectedActivity !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        {selectedActivity && (
-          <ExerciseMetricsForm
-            exercise={selectedActivity}
-            onSubmit={handleMetricsSubmit}
-            onCancel={() => setSelectedActivity(null)}
-          />
-        )}
-      </Modal>
+      {selectedActivity && (
+        <ExerciseMetricsForm
+          exercise={selectedActivity}
+          onSubmit={handleMetricsSubmit}
+          onCancel={() => setSelectedActivity(null)}
+        />
+      )}
     </View>
   );
 }

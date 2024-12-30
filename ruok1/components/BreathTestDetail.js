@@ -25,7 +25,7 @@ const CIRCLE_SIZE = width * 0.7;
 
 const getTestConfig = (testId) => {
   switch (testId) {
-    case 1: // Exhale Test
+    case 'exhale-test':
       return {
         title: 'Exhale Test',
         type: 'timer',
@@ -58,7 +58,7 @@ const getTestConfig = (testId) => {
           return 'Expert';
         }
       };
-    case 2: // CO2 Walking Test
+    case 'co2-walking-test':
       return {
         title: 'CO2 Walking Test',
         type: 'steps',
@@ -79,7 +79,7 @@ const getTestConfig = (testId) => {
           return 'Expert';
         }
       };
-    case 3: // BOLT Test
+    case 'bolt-test':
       return {
         title: 'BOLT Test',
         type: 'timer',
@@ -101,6 +101,7 @@ const getTestConfig = (testId) => {
         }
       };
     default:
+      console.error('Unknown test ID:', testId);
       return null;
   }
 };
@@ -109,6 +110,26 @@ export default function BreathTestDetail({ navigation, route }) {
   const { test } = route.params;
   const testConfig = getTestConfig(test.id);
   const theme = useTheme();
+
+  // Handle case where test config is not found
+  if (!testConfig) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          Test configuration not found
+        </Text>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+            Go Back
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const [phase, setPhase] = useState('ready');
   const [timer, setTimer] = useState(0);
   const [result, setResult] = useState(null);
@@ -121,10 +142,10 @@ export default function BreathTestDetail({ navigation, route }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const scale = useRef(
-    testConfig.type === 'timer' && test.id === 1 ? new Animated.Value(testConfig.initialScale) : null
+    testConfig.type === 'timer' && test.id === 'exhale-test' ? new Animated.Value(testConfig.initialScale) : null
   ).current;
   const opacity = useRef(
-    testConfig.type === 'timer' && test.id === 1 ? new Animated.Value(0.9) : null
+    testConfig.type === 'timer' && test.id === 'exhale-test' ? new Animated.Value(0.9) : null
   ).current;
 
   useEffect(() => {
@@ -165,7 +186,7 @@ export default function BreathTestDetail({ navigation, route }) {
         setTimer(prev => prev + 1);
       }, 1000);
 
-      if (test.id === 1) { // Only animate for Exhale Test
+      if (test.id === 'exhale-test') { // Only animate for Exhale Test
         Animated.timing(scale, {
           toValue: testConfig.finalScale,
           duration: testConfig.duration,
@@ -302,7 +323,7 @@ export default function BreathTestDetail({ navigation, route }) {
         );
 
       case 'testing':
-        if (test.id === 3) { // BOLT Test
+        if (test.id === 'bolt-test') { // BOLT Test
           return (
             <View style={styles.contentContainer}>
               <View style={styles.timerContainer}>
@@ -639,5 +660,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: Layout.spacing.xlarge,
+  },
+  errorText: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
+    marginBottom: Layout.spacing.large,
   },
 }); 

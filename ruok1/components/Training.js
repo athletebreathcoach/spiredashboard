@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert, PanResponder, RefreshControl, ActivityIndicator, Modal, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
@@ -25,6 +25,16 @@ export default function Training({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
+  const [metrics, setMetrics] = useState({
+    sets: [{
+      reps: '',
+      weight: '',
+      rest: '00:00'
+    }],
+    eachSide: false,
+    notes: ''
+  });
+  const [showMetricsEditor, setShowMetricsEditor] = useState(false);
 
   // Add theme check right after hooks declarations
   if (!theme) {
@@ -314,32 +324,49 @@ export default function Training({ navigation, route }) {
       }
     } else {
       setSelectedExercise(exercise);
-      setShowMetricsForm(true);
+      setMetrics(exercise.metrics || {
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false,
+        notes: ''
+      });
+      setShowMetricsEditor(true);
     }
   };
 
-  const handleMetricsSubmit = async (metrics) => {
+  const handleMetricsSubmit = async (updatedMetrics) => {
     try {
       if (selectedExercise) {
         // Update the scheduled exercise
-        await updateExerciseMetrics(selectedExercise.id, {
-          ...selectedExercise.metrics,
-          ...metrics,
-          logged: true,
-        });
+        await updateExerciseMetrics(selectedExercise.id, updatedMetrics);
         await updateExerciseStatus(selectedExercise.id, 'completed');
 
         // Save to exercise history
         const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
         await addDoc(historyRef, {
-          exerciseId: selectedExercise.exerciseId,
-          title: selectedExercise.exerciseTitle,
-          type: selectedExercise.exerciseType?.name || selectedExercise.exerciseType,
-          metrics,
+          exerciseId: selectedExercise.exerciseId || selectedExercise.id, // Use exerciseId if available, fallback to id
+          title: selectedExercise.title || selectedExercise.exerciseTitle,
+          type: selectedExercise.type || 'exercise',
+          metrics: updatedMetrics,
           completedAt: serverTimestamp(),
+          timeOfDay: selectedExercise.metrics?.timeOfDay || 'anytime',
+          scheduledDateTime: selectedExercise.scheduledDateTime || new Date().toISOString()
         });
 
-        setShowMetricsForm(false);
+        setShowMetricsEditor(false);
+        setSelectedExercise(null);
+        setMetrics({
+          sets: [{
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          }],
+          eachSide: false,
+          notes: ''
+        });
         loadExercisesForDate(selectedDate);
       }
     } catch (error) {
@@ -349,9 +376,72 @@ export default function Training({ navigation, route }) {
   };
 
   const handleSectionPress = (section) => {
+    // Get all exercises that belong to this section
+    const sectionExercises = exercises.filter(ex => 
+      ex.sectionId === section.id && !ex.isParent && ex.type !== 'section' // Exclude parent section and section type documents
+    );
+
+    // Group the exercises and preserve superset relationships
+    const groupedExercises = sectionExercises.map(ex => ({
+      id: ex.id,
+      title: ex.title || ex.exerciseTitle,
+      type: ex.type || 'exercise',
+      description: ex.description || '',
+      exerciseId: ex.exerciseId,
+      metrics: {
+        ...(ex.metrics || {}),
+        sets: ex.metrics?.sets || [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: ex.metrics?.eachSide || false,
+        notes: ex.metrics?.notes || ''
+      },
+      supersetIndex: ex.supersetIndex,
+      supersetWith: ex.supersetWith
+    }));
+
+    // Navigate to SectionDetail with the properly structured data
     navigation.navigate('SectionDetail', { 
-      section,
-      selectedDate: selectedDate
+      section: {
+        id: section.id,
+        title: section.title || section.sectionTitle,
+        activities: [{
+          type: 'exercises',
+          items: groupedExercises
+        }]
+      },
+      isLogging: true,
+      onComplete: async (updatedActivities) => {
+        try {
+          // Update metrics for each activity in the section
+          for (const activity of updatedActivities) {
+            await updateExerciseMetrics(activity.id, activity.metrics);
+            await updateExerciseStatus(activity.id, 'completed');
+
+            // Save to exercise history
+            const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
+            await addDoc(historyRef, {
+              exerciseId: activity.exerciseId,
+              title: activity.title || activity.exerciseTitle,
+              type: activity.type || 'exercise',
+              metrics: activity.metrics,
+              completedAt: serverTimestamp(),
+              timeOfDay: activity.metrics?.timeOfDay || 'anytime',
+              scheduledDateTime: section.scheduledDateTime || new Date().toISOString(),
+              sectionId: section.id,
+              sectionTitle: section.title || section.sectionTitle
+            });
+          }
+          
+          // Refresh the exercises list
+          loadExercisesForDate(selectedDate);
+        } catch (error) {
+          console.error('Error updating section metrics:', error);
+          Alert.alert('Error', 'Failed to save section metrics. Please try again.');
+        }
+      }
     });
   };
 
@@ -386,6 +476,33 @@ export default function Training({ navigation, route }) {
     }
   };
 
+  const getMetricsPreview = (exercise) => {
+    if (!exercise.metrics?.sets || exercise.metrics.sets.length === 0) return '';
+    
+    const { sets, eachSide } = exercise.metrics;
+    
+    // Format each set
+    const setPreviews = sets.map((set, index) => {
+      const parts = [];
+      if (set.reps) parts.push(`${set.reps}`);
+      if (set.weight) parts.push(`@ ${set.weight}lb`);
+      return parts.join(' ');
+    });
+
+    // If all sets are the same, just show one number with the total sets
+    const allSetsEqual = setPreviews.every(preview => preview === setPreviews[0]);
+    let preview = allSetsEqual 
+      ? `${sets.length} x ${setPreviews[0]}`
+      : setPreviews.join(' | ');
+
+    // Add each side indicator if needed
+    if (eachSide) {
+      preview += ' (each side)';
+    }
+
+    return preview;
+  };
+
   const showExerciseOptions = (exercise) => {
     Alert.alert(
       "Exercise Options",
@@ -406,7 +523,33 @@ export default function Training({ navigation, route }) {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => handleDeleteExercise(exercise.id)
+          onPress: () => {
+            Alert.alert(
+              exercise.type === 'section' ? "Delete Section" : "Delete Exercise",
+              exercise.type === 'section' 
+                ? "Are you sure you want to remove this section from your schedule?"
+                : "Are you sure you want to remove this exercise from your schedule?",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel"
+                },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await deleteScheduledExercise(exercise.id);
+                      loadExercisesForDate(selectedDate);
+                    } catch (error) {
+                      console.error('Error deleting exercise:', error);
+                      Alert.alert('Error', 'Failed to delete exercise. Please try again.');
+                    }
+                  }
+                }
+              ]
+            );
+          }
         },
         {
           text: "Cancel",
@@ -426,12 +569,14 @@ export default function Training({ navigation, route }) {
     const isTask = exercise.type === 'task';
     const isBreathProtocol = exercise.type === 'breathProtocol';
     const isGuidedSession = exercise.type === 'guidedSession';
+    const isBreathTest = exercise.type === 'breathTest';
 
     console.log('Rendering exercise:', {
       type: exercise.type,
       title: exercise.title,
       exerciseTitle: exercise.exerciseTitle,
-      isGuidedSession
+      isGuidedSession,
+      isBreathTest
     });
 
     const handlePress = () => {
@@ -469,6 +614,17 @@ export default function Training({ navigation, route }) {
       }
     };
 
+    const handleStartTest = () => {
+      navigation.navigate('BreathTestDetail', { 
+        test: {
+          id: exercise.testId,
+          title: exercise.title || exercise.exerciseTitle,
+          type: exercise.type,
+          icon: exercise.icon
+        }
+      });
+    };
+
     return (
       <TouchableOpacity
         key={exercise.id}
@@ -493,6 +649,12 @@ export default function Training({ navigation, route }) {
             </Text>
           </View>
 
+          {!isGuidedSession && !isBreathProtocol && !isHabit && !isTask && !isBreathTest && (
+            <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
+              {getMetricsPreview(exercise)}
+            </Text>
+          )}
+
           {isGuidedSession && (
             <View style={styles.guidedSessionMetrics}>
               <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
@@ -516,6 +678,19 @@ export default function Training({ navigation, route }) {
                 onPress={handlePress}
               >
                 <Text style={[styles.startButtonText, { color: theme.colors.background }]}>Start</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isBreathTest && (
+            <View style={styles.breathTestMetrics}>
+              <TouchableOpacity
+                style={[styles.startButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleStartTest}
+              >
+                <Text style={[styles.startButtonText, { color: theme.colors.background }]}>
+                  Start Test
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -554,8 +729,9 @@ export default function Training({ navigation, route }) {
   };
 
   const renderSection = (section, timeOfDay) => {
-    const activities = section.activities;
-    const completedActivities = activities.filter(a => a.metrics?.completed).length;
+    // Get the metrics preview for the first exercise
+    const firstExercise = section.activities?.[0];
+    const metricsPreview = firstExercise ? getMetricsPreview(firstExercise) : '';
 
     return (
       <TouchableOpacity
@@ -564,23 +740,29 @@ export default function Training({ navigation, route }) {
         onPress={() => handleSectionPress(section)}
       >
         <View style={styles.exerciseContent}>
-          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-            {section.exerciseTitle || section.title}
-          </Text>
-          <View style={styles.sectionMetrics}>
-            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-              {completedActivities}/{activities.length} Activities
-            </Text>
-            <Text style={[styles.timeOfDayText, { color: theme.colors.textSecondary }]}>
-              {timeOfDay}
+          <View style={styles.exerciseHeader}>
+            <Ionicons 
+              name="barbell-outline"
+              size={24} 
+              color={theme.colors.primary}
+              style={styles.exerciseIcon}
+            />
+            <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+              {section.title || section.exerciseTitle || section.sectionTitle}
             </Text>
           </View>
+          {metricsPreview && (
+            <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
+              {metricsPreview}
+            </Text>
+          )}
         </View>
+
         <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteExercise(section.id)}
+          style={styles.optionsButton}
+          onPress={() => showExerciseOptions(section)}
         >
-          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -592,17 +774,28 @@ export default function Training({ navigation, route }) {
     const standaloneExercises = [];
 
     exercises.forEach(exercise => {
-      if (exercise.sectionId) {
+      // Skip parent section documents and untitled sections
+      if (exercise.isParent || (exercise.type === 'section' && !exercise.title)) {
+        return;
+      }
+
+      if (exercise.sectionId && !exercise.isParent) {
         if (!sections[exercise.sectionId]) {
+          // Create new section with proper structure
           sections[exercise.sectionId] = {
             id: exercise.sectionId,
             title: exercise.sectionTitle,
-            exerciseTitle: exercise.sectionTitle,
+            type: 'section',
             activities: [],
+            scheduledDateTime: exercise.scheduledDateTime,
+            metrics: exercise.metrics
           };
         }
-        sections[exercise.sectionId].activities.push(exercise);
-      } else {
+        sections[exercise.sectionId].activities.push({
+          ...exercise,
+          type: exercise.type || 'exercise'
+        });
+      } else if (!exercise.sectionId) {  // Only add standalone exercises that aren't sections
         standaloneExercises.push(exercise);
       }
     });
@@ -623,6 +816,54 @@ export default function Training({ navigation, route }) {
         {Object.values(sections).map(section => renderSection(section, timeOfDay))}
         {standaloneExercises.map(exercise => renderExercise(exercise, timeOfDay))}
       </View>
+    );
+  };
+
+  const renderActivity = (activity, date) => {
+    const isSection = activity.type === 'section';
+    const isCompleted = activity.metrics?.completed;
+
+    return (
+      <TouchableOpacity
+        key={activity.id}
+        style={[
+          styles.activityCard,
+          { backgroundColor: theme.colors.surface },
+          isCompleted && styles.completedActivity
+        ]}
+        onPress={() => {
+          if (isSection) {
+            navigation.navigate('SectionMetrics', { section: activity, date });
+          } else {
+            handleActivityPress(activity);
+          }
+        }}
+      >
+        <View style={styles.exerciseHeader}>
+          <View style={[styles.exerciseIcon, { backgroundColor: theme.colors.primary }]}>
+            <Ionicons
+              name={isSection ? "layers-outline" : "barbell-outline"}
+              size={24}
+              color={theme.colors.white}
+            />
+          </View>
+          <View style={styles.titleContainer}>
+            <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
+              {activity.title}
+            </Text>
+            {isSection && (
+              <Text style={[styles.sectionMetrics, { color: theme.colors.textSecondary }]}>
+                {activity.activities?.length || 0} exercises
+              </Text>
+            )}
+          </View>
+          {isCompleted ? (
+            <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
+          ) : (
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -770,12 +1011,160 @@ export default function Training({ navigation, route }) {
         <Ionicons name="add" size={24} color={theme.colors.background} />
       </TouchableOpacity>
 
-      <ActivityMetricsForm
-        visible={showMetricsForm}
-        onClose={() => setShowMetricsForm(false)}
-        onSubmit={handleMetricsSubmit}
-        activity={selectedExercise}
-      />
+      {/* Metrics Editor Modal */}
+      <Modal
+        visible={showMetricsEditor}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Log Exercise
+            </Text>
+
+            {metrics.sets.map((set, setIndex) => (
+              <View 
+                key={`set-${setIndex}`} 
+                style={styles.metricsRow}
+              >
+                <View style={styles.metricColumn}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>SET</Text>
+                  <Text style={[styles.metricValue, { color: theme.colors.text }]}>{setIndex + 1}</Text>
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>LB</Text>
+                  <TextInput
+                    style={[styles.metricInput, { color: theme.colors.text }]}
+                    value={set.weight}
+                    onChangeText={(value) => {
+                      const updatedSets = [...metrics.sets];
+                      updatedSets[setIndex] = { ...set, weight: value };
+                      setMetrics({ ...metrics, sets: updatedSets });
+                    }}
+                    keyboardType="numeric"
+                    placeholder="-"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    returnKeyType="done"
+                    keyboardAppearance="dark"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>REPS</Text>
+                  <TextInput
+                    style={[styles.metricInput, { color: theme.colors.text }]}
+                    value={set.reps}
+                    onChangeText={(value) => {
+                      const updatedSets = [...metrics.sets];
+                      updatedSets[setIndex] = { ...set, reps: value };
+                      setMetrics({ ...metrics, sets: updatedSets });
+                    }}
+                    keyboardType="numeric"
+                    placeholder="-"
+                    placeholderTextColor={theme.colors.textSecondary}
+                    returnKeyType="done"
+                    keyboardAppearance="dark"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>REST</Text>
+                  <TextInput
+                    style={[styles.metricInput, { color: theme.colors.text }]}
+                    value={set.rest}
+                    onChangeText={(value) => {
+                      const updatedSets = [...metrics.sets];
+                      updatedSets[setIndex] = { ...set, rest: value };
+                      setMetrics({ ...metrics, sets: updatedSets });
+                    }}
+                    placeholder="00:00"
+                    placeholderTextColor={theme.colors.textSecondary}
+                  />
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity 
+              style={styles.addSetButton}
+              onPress={() => setMetrics(current => ({
+                ...current,
+                sets: [
+                  ...current.sets,
+                  {
+                    reps: '',
+                    weight: '',
+                    rest: '00:00'
+                  }
+                ]
+              }))}
+            >
+              <Ionicons name="add" size={20} color={theme.colors.primary} />
+              <Text style={[styles.addSetText, { color: theme.colors.primary }]}>Add Set</Text>
+            </TouchableOpacity>
+
+            <View style={styles.eachSideRow}>
+              <TouchableOpacity 
+                style={[
+                  styles.checkbox,
+                  metrics.eachSide && { 
+                    backgroundColor: theme.colors.primary, 
+                    borderColor: theme.colors.primary 
+                  }
+                ]}
+                onPress={() => setMetrics(current => ({
+                  ...current,
+                  eachSide: !current.eachSide
+                }))}
+              >
+                {metrics.eachSide && (
+                  <Ionicons name="checkmark" size={16} color={theme.colors.white} />
+                )}
+              </TouchableOpacity>
+              <Text style={[styles.eachSideText, { color: theme.colors.textSecondary }]}>Each side</Text>
+            </View>
+
+            <TextInput
+              style={[styles.notesInput, { 
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text 
+              }]}
+              placeholder="Add note..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={metrics.notes}
+              onChangeText={(value) => setMetrics(current => ({ ...current, notes: value }))}
+              multiline
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                onPress={() => {
+                  setShowMetricsEditor(false);
+                  setSelectedExercise(null);
+                  setMetrics({
+                    sets: [{
+                      reps: '',
+                      weight: '',
+                      rest: '00:00'
+                    }],
+                    eachSide: false,
+                    notes: ''
+                  });
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => handleMetricsSubmit(metrics)}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Complete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -963,17 +1352,135 @@ const styles = StyleSheet.create({
     marginLeft: Layout.spacing.small,
   },
   exerciseSubtitle: {
-    fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.medium,
-    marginBottom: Layout.spacing.xsmall,
+    fontSize: 14,
+    fontFamily: Typography.fonts.regular,
+    marginTop: 4,
   },
   startButton: {
-    paddingHorizontal: Layout.spacing.xlarge,
-    paddingVertical: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.large,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   startButtonText: {
-    fontSize: 17,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+  },
+  modalTitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+    marginBottom: Layout.spacing.large,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.small,
+  },
+  metricColumn: {
+    flex: 1,
+    marginRight: Layout.spacing.small,
+  },
+  metricLabel: {
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.medium,
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+  },
+  metricInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    padding: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+  },
+  addSetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.spacing.small,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: Layout.borderRadius.small,
+    marginTop: Layout.spacing.small,
+  },
+  addSetText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+    marginLeft: Layout.spacing.small,
+  },
+  eachSideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.small,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: Layout.borderRadius.small,
+    marginRight: Layout.spacing.small,
+  },
+  eachSideText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    padding: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+    marginTop: Layout.spacing.small,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.large,
+  },
+  modalButton: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.small,
+  },
+  modalButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  breathTestMetrics: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  activityTitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: Layout.spacing.medium,
+  },
+  completedActivity: {
+    backgroundColor: 'rgba(0, 181, 224, 0.1)',
   },
 }); 

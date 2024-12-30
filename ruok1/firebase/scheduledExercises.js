@@ -28,6 +28,9 @@ export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, op
     const exercise = exerciseDoc.data();
     const scheduledExerciseRef = collection(db, 'scheduledExercises');
     
+    // Destructure timeOfDay from options to handle it separately
+    const { timeOfDay, metrics, ...restOptions } = options;
+    
     const scheduledExercise = {
       exerciseId,
       userId,
@@ -36,21 +39,15 @@ export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, op
       scheduledDateTime,
       status: 'scheduled',
       metrics: {
-        reps: null,
-        weights: null,
-        sets: null,
-        rir: null, // Reps In Reserve
-        time: null,
-        distance: null,
-        calories: null,
-        oneRmPercentage: null, // %1RM
+        ...(metrics || {}),
+        timeOfDay: timeOfDay || 'anytime',  // Ensure timeOfDay is stored in metrics
       },
       clientComments: '',
       coachNotes: '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      createdBy: userId, // Track who created this scheduled exercise (could be coach or user)
-      ...options
+      createdBy: userId,
+      ...restOptions  // Spread the rest of the options, excluding timeOfDay
     };
 
     const docRef = await addDoc(scheduledExerciseRef, scheduledExercise);
@@ -204,8 +201,20 @@ export const getClientScheduledExercises = async (clientIds, startDate, endDate)
 // Delete a scheduled exercise
 export const deleteScheduledExercise = async (exerciseId) => {
   try {
-    const exerciseRef = doc(db, 'scheduledExercises', exerciseId);
-    await deleteDoc(exerciseRef);
+    // Get all exercises with this sectionId
+    const exercisesRef = collection(db, 'scheduledExercises');
+    const q = query(exercisesRef, where('sectionId', '==', exerciseId));
+    const snapshot = await getDocs(q);
+    
+    // If there are related exercises, delete them in a batch
+    if (!snapshot.empty) {
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+    }
+    
     return true;
   } catch (error) {
     console.error('Error deleting scheduled exercise:', error);
@@ -397,16 +406,111 @@ export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTi
   }
 };
 
+// Schedule a breath test
+export const scheduleBreathTest = async (userId, testId, scheduledDateTime, options = {}) => {
+  try {
+    console.log('Scheduling breath test with dates:', {
+      inputDate: scheduledDateTime,
+      inputDateISO: scheduledDateTime.toISOString(),
+    });
+
+    const testRef = doc(db, 'breathingTests', testId);
+    const testDoc = await getDoc(testRef);
+    
+    if (!testDoc.exists()) {
+      throw new Error('Breath test not found');
+    }
+
+    const test = testDoc.data();
+    const scheduledExerciseRef = collection(db, 'scheduledExercises');
+    
+    // Use the date as-is since we'll set it correctly in the UI
+    const date = scheduledDateTime;
+    
+    console.log('Using provided date:', {
+      date: date,
+      dateISO: date.toISOString(),
+      dateLocale: date.toLocaleString(),
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate()
+    });
+
+    const scheduledTest = {
+      testId,
+      userId,
+      exerciseTitle: test.title,
+      type: 'breathTest',
+      scheduledDateTime: date,
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        timeOfDay: options.metrics?.timeOfDay || 'Anytime',
+      },
+      test: {
+        ...test,
+      },
+      clientComments: '',
+      coachNotes: '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      ...options
+    };
+
+    console.log('Final scheduled test date:', {
+      scheduledDateTime: scheduledTest.scheduledDateTime,
+      scheduledDateTimeISO: scheduledTest.scheduledDateTime.toISOString(),
+      timeOfDay: scheduledTest.metrics.timeOfDay,
+      year: scheduledTest.scheduledDateTime.getFullYear(),
+      month: scheduledTest.scheduledDateTime.getMonth() + 1,
+      day: scheduledTest.scheduledDateTime.getDate()
+    });
+
+    const docRef = await addDoc(scheduledExerciseRef, scheduledTest);
+    return { id: docRef.id, ...scheduledTest };
+  } catch (error) {
+    console.error('Error scheduling breath test:', error);
+    throw error;
+  }
+};
+
 export const scheduleSection = async (userId, section, date, timeOfDay) => {
   try {
     const batch = writeBatch(db);
     const scheduledExercisesRef = collection(db, 'scheduledExercises');
 
-    console.log('Scheduling section:', section);
+    console.log('Scheduling section:', {
+      section,
+      activities: section.activities,
+      firstActivity: section.activities[0]?.items?.[0],
+      firstActivityMetrics: section.activities[0]?.items?.[0]?.metrics
+    });
 
-    // Iterate through each activity group (exercises, habitstasks, guidedSessions)
+    // Create the section document first
+    const sectionDocRef = doc(scheduledExercisesRef);
+    const sectionDoc = {
+      userId,
+      scheduledDateTime: date,
+      type: 'section',
+      exerciseTitle: section.title,
+      title: section.title,
+      description: section.description || '',
+      status: 'scheduled',
+      metrics: {
+        completed: false,
+        timeOfDay: timeOfDay || 'Unscheduled'
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      isSection: true,
+      activities: section.activities // Store the full activities array
+    };
+    batch.set(sectionDocRef, sectionDoc);
+
+    // Then create documents for each activity in the section
     for (const activityGroup of section.activities) {
-      // Each activity group has an items array
       if (!activityGroup.items) {
         console.error('Activity group missing items:', activityGroup);
         continue;
@@ -418,30 +522,54 @@ export const scheduleSection = async (userId, section, date, timeOfDay) => {
           continue;
         }
 
+        console.log('Processing item:', {
+          title: item.title,
+          metrics: item.metrics,
+          supersetIndex: item.supersetIndex,
+          supersetWith: item.supersetWith
+        });
+
         const scheduledExercise = {
           userId,
           scheduledDateTime: date,
-          type: item.type,
+          type: item.type || 'exercise',
           exerciseTitle: item.title,
+          title: item.title,
           description: item.description || '',
           status: 'scheduled',
-          metrics: {
+          metrics: item.metrics ? {
+            ...item.metrics,
+            completed: false,
+            timeOfDay: timeOfDay || 'Unscheduled'
+          } : {
             completed: false,
             timeOfDay: timeOfDay || 'Unscheduled',
-            ...(item.metrics || {})
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
           },
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           createdBy: userId,
-          sectionId: section.id,
+          sectionId: sectionDocRef.id,
           sectionTitle: section.title,
-          activityId: item.id // Store the original activity ID
+          activityId: item.id,
+          exerciseId: item.exerciseId,
+          supersetIndex: item.supersetIndex,
+          supersetWith: item.supersetWith,
+          data: item.data || {}
         };
 
-        // Only add data field if it exists
-        if (item.data) {
-          scheduledExercise.data = item.data;
-        }
+        console.log('Created scheduledExercise:', {
+          title: scheduledExercise.title,
+          metrics: scheduledExercise.metrics,
+          supersetIndex: scheduledExercise.supersetIndex,
+          supersetWith: scheduledExercise.supersetWith
+        });
 
         const newDocRef = doc(scheduledExercisesRef);
         batch.set(newDocRef, scheduledExercise);

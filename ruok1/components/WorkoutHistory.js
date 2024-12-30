@@ -146,31 +146,54 @@ export default function WorkoutHistory({ navigation }) {
                 <View style={styles.metricItem}>
                   <Ionicons name="layers-outline" size={16} color={colors.textSecondary} />
                   <Text style={[styles.metrics, { color: colors.text }]}>
-                    {item.metrics.sets} sets
+                    {item.metrics?.sets?.length || 0} sets
                   </Text>
                 </View>
 
                 <View style={styles.metricItem}>
                   <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
                   <Text style={[styles.metrics, { color: colors.text }]}>
-                    {item.metrics.reps} reps
+                    {item.metrics?.sets?.[0]?.reps || 0} reps
                   </Text>
                 </View>
 
-                {item.metrics.weight && (
+                {item.metrics?.sets?.[0]?.weight && (
                   <View style={styles.metricItem}>
                     <Ionicons name="barbell-outline" size={16} color={colors.textSecondary} />
                     <Text style={[styles.metrics, { color: colors.text }]}>
-                      {item.metrics.weight} lbs
+                      {item.metrics.sets[0].weight} lbs
+                    </Text>
+                  </View>
+                )}
+
+                {item.metrics?.eachSide && (
+                  <View style={styles.metricItem}>
+                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.metrics, { color: colors.text }]}>
+                      Each side
                     </Text>
                   </View>
                 )}
               </View>
 
-              {item.metrics.notes && (
+              {item.metrics?.notes && (
                 <Text style={[styles.notes, { color: colors.textSecondary }]}>
                   Notes: {item.metrics.notes}
                 </Text>
+              )}
+
+              {/* Show all sets if they're different */}
+              {item.metrics?.sets?.length > 1 && !item.metrics.sets.every(set => 
+                set.reps === item.metrics.sets[0].reps && 
+                set.weight === item.metrics.sets[0].weight
+              ) && (
+                <View style={styles.setsContainer}>
+                  {item.metrics.sets.map((set, index) => (
+                    <Text key={index} style={[styles.setDetails, { color: colors.textSecondary }]}>
+                      Set {index + 1}: {set.reps} reps @ {set.weight}lb
+                    </Text>
+                  ))}
+                </View>
               )}
             </View>
           ))
@@ -253,6 +276,13 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.medium,
   },
   notes: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+  },
+  setsContainer: {
+    marginBottom: Layout.spacing.medium,
+  },
+  setDetails: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
   },
