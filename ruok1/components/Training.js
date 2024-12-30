@@ -269,12 +269,41 @@ export default function Training({ navigation, route }) {
             completed: !exercise.metrics?.completed,
             streak: newStreak
           });
+
+          // Save completed habits to habitHistory
+          if (!exercise.metrics?.completed) {
+            const historyRef = collection(db, 'users', auth.currentUser.uid, 'habitHistory');
+            await addDoc(historyRef, {
+              habitId: exercise.habitId,
+              title: exercise.title || exercise.exerciseTitle,
+              type: 'habit',
+              metrics: {
+                streak: newStreak,
+                timeOfDay: exercise.metrics?.timeOfDay || 'Anytime'
+              },
+              completedAt: serverTimestamp(),
+            });
+          }
         } else {
           // For tasks, just toggle completion without streak
           await updateExerciseMetrics(exercise.id, {
             ...exercise.metrics,
             completed: !exercise.metrics?.completed
           });
+
+          // Save completed tasks to taskHistory
+          if (!exercise.metrics?.completed) {
+            const historyRef = collection(db, 'users', auth.currentUser.uid, 'taskHistory');
+            await addDoc(historyRef, {
+              taskId: exercise.taskId,
+              title: exercise.title || exercise.exerciseTitle,
+              type: 'task',
+              metrics: {
+                timeOfDay: exercise.metrics?.timeOfDay || 'Anytime'
+              },
+              completedAt: serverTimestamp(),
+            });
+          }
         }
         
         await updateExerciseStatus(exercise.id, exercise.metrics?.completed ? 'incomplete' : 'completed');
@@ -397,11 +426,39 @@ export default function Training({ navigation, route }) {
     const isBreathProtocol = exercise.type === 'breathProtocol';
     const isGuidedSession = exercise.type === 'guidedSession';
 
+    console.log('Rendering exercise:', {
+      type: exercise.type,
+      title: exercise.title,
+      exerciseTitle: exercise.exerciseTitle,
+      isGuidedSession
+    });
+
+    const handlePress = () => {
+      if (isGuidedSession) {
+        // Navigate to GuidedSessionDetail with the session data and isScheduled flag
+        navigation.navigate('GuidedSessionDetail', { 
+          session: {
+            id: exercise.sessionId,
+            title: exercise.title || exercise.exerciseTitle,
+            description: exercise.description,
+            duration: exercise.duration,
+            videoUrl: exercise.videoUrl,
+            type: exercise.type,
+            intensity: exercise.intensity
+          },
+          isScheduled: true,
+          scheduledExerciseId: exercise.id
+        });
+      } else {
+        handleLogExercise(exercise);
+      }
+    };
+
     return (
       <TouchableOpacity
         key={exercise.id}
         style={[styles.exerciseCard, { backgroundColor: theme.colors.surface }]}
-        onPress={() => handleLogExercise(exercise)}
+        onPress={handlePress}
       >
         <View style={styles.exerciseContent}>
           {exercise.sectionTitle && (
@@ -411,20 +468,27 @@ export default function Training({ navigation, route }) {
           )}
           <View style={styles.exerciseHeader}>
             <Ionicons 
-              name={isHabit ? 'repeat-outline' : isTask ? 'checkbox-outline' : exercise.icon || 'barbell-outline'} 
+              name={isHabit ? 'repeat-outline' : isTask ? 'checkbox-outline' : isGuidedSession ? 'play-circle-outline' : exercise.icon || 'barbell-outline'} 
               size={24} 
               color={theme.colors.primary} 
               style={styles.exerciseIcon}
             />
             <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-              {exercise.exerciseTitle}
+              {exercise.title || exercise.exerciseTitle}
             </Text>
           </View>
 
           {isGuidedSession && (
-            <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-              {exercise.duration}
-            </Text>
+            <View style={styles.guidedSessionMetrics}>
+              <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
+                {exercise.duration} min
+              </Text>
+              {exercise.metrics?.completed && (
+                <Text style={[styles.completedText, { color: theme.colors.success }]}>
+                  Completed
+                </Text>
+              )}
+            </View>
           )}
 
           {isBreathProtocol && (
@@ -536,6 +600,11 @@ export default function Training({ navigation, route }) {
       }
     });
 
+    // Only render the time of day group if there are exercises or sections to show
+    if (Object.keys(sections).length === 0 && standaloneExercises.length === 0) {
+      return null;
+    }
+
     return (
       <View key={timeOfDay}>
         <View style={styles.timeOfDayHeader}>
@@ -638,7 +707,10 @@ export default function Training({ navigation, route }) {
               {(() => {
                 // Group exercises by time of day
                 const groupedExercises = [...exercises].reverse().reduce((acc, exercise) => {
-                  const timeOfDay = exercise.metrics?.timeOfDay || 'Anytime';
+                  // Normalize time of day when grouping
+                  const rawTimeOfDay = exercise.metrics?.timeOfDay || 'Anytime';
+                  const timeOfDay = rawTimeOfDay.charAt(0).toUpperCase() + rawTimeOfDay.slice(1).toLowerCase();
+                  
                   if (!acc[timeOfDay]) {
                     acc[timeOfDay] = [];
                   }
@@ -655,9 +727,11 @@ export default function Training({ navigation, route }) {
                 };
 
                 // Sort groups by time of day
-                const sortedGroups = Object.entries(groupedExercises).sort((a, b) => {
-                  return (timeOrder[a[0]] ?? 4) - (timeOrder[b[0]] ?? 4);
-                });
+                const sortedGroups = Object.entries(groupedExercises)
+                  .sort((a, b) => {
+                    // Default to Anytime (3) if time not found in order
+                    return (timeOrder[a[0]] ?? 3) - (timeOrder[b[0]] ?? 3);
+                  });
 
                 // Render each group
                 return sortedGroups.map(([timeOfDay, groupExercises]) => (
@@ -711,6 +785,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Layout.spacing.large,
+    paddingBottom: 120,
   },
   exerciseCard: {
     flexDirection: 'row',

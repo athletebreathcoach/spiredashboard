@@ -55,17 +55,21 @@ export const scheduleGuidedSession = async (userId, sessionId, scheduledDate, ti
       userId,
       type: 'guidedSession',
       sessionId,
+      exerciseTitle: sessionData.title,
       title: sessionData.title,
       description: sessionData.description,
       duration: sessionData.duration,
       videoUrl: sessionData.videoUrl,
+      intensity: sessionData.intensity,
       scheduledDateTime: scheduledDate,
       status: 'scheduled',
       metrics: {
         timeOfDay: timeOfDay || 'Anytime',
-        completed: false
+        completed: false,
+        logged: false
       },
-      createdAt: new Date()
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
   } catch (error) {
     console.error('Error scheduling guided session:', error);

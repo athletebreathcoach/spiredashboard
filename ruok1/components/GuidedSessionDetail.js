@@ -19,13 +19,14 @@ import { db, auth } from '../config/firebase';
 import { Calendar } from 'react-native-calendars';
 import ClientSelector from './ClientSelector';
 import { scheduleGuidedSession } from '../firebase/guidedSessions';
+import { updateExerciseMetrics } from '../firebase/scheduledExercises';
 
 const { width } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 9/16; // 16:9 aspect ratio
 
 export default function GuidedSessionDetail({ navigation, route }) {
   const theme = useTheme();
-  const { session } = route.params;
+  const { session, isScheduled, scheduledExerciseId } = route.params;
   const [playing, setPlaying] = useState(false);
   const [isCoach, setIsCoach] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -84,14 +85,20 @@ export default function GuidedSessionDetail({ navigation, route }) {
     }
   };
 
+  const handleTimeSelection = (timeOfDay, client) => {
+    console.log('Handling time selection:', timeOfDay);
+    setSelectedTimeOfDay(timeOfDay);
+    // Small delay before showing calendar
+    setTimeout(() => {
+      console.log('Showing calendar after delay');
+      setShowCalendar(true);
+    }, 100);
+  };
+
   const handleClientSelect = (client) => {
     console.log('Client selected:', client);
     setSelectedClient(client);
     setShowClientSelector(false);
-    showTimeOfDayPicker(session, client.id);
-  };
-
-  const showTimeOfDayPicker = (session, clientId) => {
     Alert.alert(
       "Select Time of Day",
       "When would you like to schedule this session?",
@@ -134,9 +141,47 @@ export default function GuidedSessionDetail({ navigation, route }) {
 
   const handleCalendarPress = () => {
     if (isCoach) {
+      // Show client selector dropdown immediately
       setShowClientSelector(true);
     } else {
-      showTimeOfDayPicker(session, auth.currentUser.uid);
+      Alert.alert(
+        "Select Time of Day",
+        "When would you like to schedule this session?",
+        [
+          {
+            text: "Morning",
+            onPress: () => {
+              setSelectedTimeOfDay('morning');
+              setShowCalendar(true);
+            }
+          },
+          {
+            text: "Afternoon",
+            onPress: () => {
+              setSelectedTimeOfDay('afternoon');
+              setShowCalendar(true);
+            }
+          },
+          {
+            text: "Evening",
+            onPress: () => {
+              setSelectedTimeOfDay('evening');
+              setShowCalendar(true);
+            }
+          },
+          {
+            text: "Anytime",
+            onPress: () => {
+              setSelectedTimeOfDay('anytime');
+              setShowCalendar(true);
+            }
+          },
+          {
+            text: "Cancel",
+            style: "cancel"
+          }
+        ]
+      );
     }
   };
 
@@ -173,6 +218,41 @@ export default function GuidedSessionDetail({ navigation, route }) {
     } catch (error) {
       console.error('Error saving guided session:', error);
       Alert.alert('Error', 'Failed to save session to history');
+    }
+  };
+
+  const handleLogSession = async () => {
+    try {
+      // Update the scheduled exercise as completed
+      await updateExerciseMetrics(scheduledExerciseId, {
+        completed: true,
+        logged: true
+      });
+
+      // Save to guided sessions collection
+      const guidedSessionsRef = collection(db, 'users', auth.currentUser.uid, 'guidedSessions');
+      await addDoc(guidedSessionsRef, {
+        sessionId: session.id,
+        title: session.title,
+        type: 'guidedSession',
+        duration: session.duration,
+        intensity: session.intensity,
+        completedAt: serverTimestamp(),
+      });
+
+      Alert.alert(
+        "Session Logged!",
+        "Great job completing the guided session!",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error logging guided session:', error);
+      Alert.alert('Error', 'Failed to log session. Please try again.');
     }
   };
 
@@ -259,42 +339,37 @@ export default function GuidedSessionDetail({ navigation, route }) {
       </ScrollView>
 
       {/* Floating Action Buttons */}
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          onPress={handleCalendarPress}
-        >
-          <Ionicons name="calendar-outline" size={24} color={theme.colors.white} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Client Selector Modal */}
-      <Modal
-        visible={showClientSelector}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Select Client
-            </Text>
-            <TouchableOpacity
-              style={[styles.clientOption, { backgroundColor: theme.colors.background }]}
-              onPress={() => handleClientSelect({ id: auth.currentUser.uid, name: 'My Training' })}
-            >
-              <Text style={[styles.clientName, { color: theme.colors.text }]}>My Training</Text>
-            </TouchableOpacity>
-            <ClientSelector onClientSelect={handleClientSelect} />
-            <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: theme.colors.error }]}
-              onPress={() => setShowClientSelector(false)}
-            >
-              <Text style={[styles.cancelButtonText, { color: theme.colors.white }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+      {!isCoach && !isScheduled && (
+        <View style={styles.fabContainer}>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+            onPress={handleCalendarPress}
+          >
+            <Ionicons name="calendar-outline" size={24} color={theme.colors.white} />
+          </TouchableOpacity>
         </View>
-      </Modal>
+      )}
+
+      {/* Log Button for Scheduled Sessions */}
+      {isScheduled && (
+        <View style={styles.fabContainer}>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+            onPress={handleLogSession}
+          >
+            <Ionicons name="checkmark" size={24} color={theme.colors.white} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Client Selector */}
+      {isCoach && (
+        <ClientSelector
+          isOpen={showClientSelector}
+          onClientSelect={handleClientSelect}
+          selectedClientId={selectedClient?.id}
+        />
+      )}
 
       {/* Calendar Modal */}
       <Modal

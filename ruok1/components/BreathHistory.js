@@ -67,8 +67,19 @@ export default function BreathHistory() {
         timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
       }));
 
+      // Fetch exercise history (habits and additional guided sessions)
+      const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
+      const historyQuery = query(historyRef, orderBy('completedAt', 'desc'));
+      const historySnapshot = await getDocs(historyQuery);
+      
+      const historyData = historySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
+      }));
+
       // Combine and sort all sessions by timestamp
-      const allSessions = [...breathingData, ...guidedData].sort((a, b) => b.timestamp - a.timestamp);
+      const allSessions = [...breathingData, ...guidedData, ...historyData].sort((a, b) => b.timestamp - a.timestamp);
       setHistory(allSessions);
       setLoading(false);
     } catch (error) {
