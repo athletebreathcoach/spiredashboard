@@ -16,8 +16,10 @@ import { useTheme } from '../theme/ThemeContext';
 import { createSection, updateSection, getSections, scheduleSection, deleteSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
 import { Calendar } from 'react-native-calendars';
+import { useSelectedClient } from '../context/SelectedClientContext';
 
 export default function Sections({ navigation, route, searchQuery = '' }) {
+  const { selectedClient } = useSelectedClient();
   const theme = useTheme();
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
 
   const handleScheduleSection = async () => {
     try {
-      const userId = auth.currentUser.uid;
+      const userId = selectedClient?.id || auth.currentUser.uid;
       
       // Schedule the section for each selected date
       const dates = Object.keys(selectedDates);
@@ -133,7 +135,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
             items: group.items.map(item => ({
               ...item,
               metrics: {
-                ...(item.metrics || {}),  // Preserve all existing metrics
+                ...(item.metrics || {}),
                 sets: item.metrics?.sets || [{
                   reps: '',
                   weight: '',
@@ -248,6 +250,15 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   };
 
   const handleCalendarPress = (section) => {
+    if (!selectedClient) {
+      Alert.alert(
+        "No Client Selected",
+        "Please select a client before scheduling a section.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     Alert.alert(
       "Select Time of Day",
       "When would you like to schedule this section?",
