@@ -198,26 +198,53 @@ export const getClientScheduledExercises = async (clientIds, startDate, endDate)
   }
 };
 
-// Delete a scheduled exercise
+// Unschedule an exercise (remove it from calendar)
 export const deleteScheduledExercise = async (exerciseId) => {
   try {
-    // Get all exercises with this sectionId
-    const exercisesRef = collection(db, 'scheduledExercises');
-    const q = query(exercisesRef, where('sectionId', '==', exerciseId));
-    const snapshot = await getDocs(q);
+    const exerciseRef = doc(db, 'scheduledExercises', exerciseId);
     
-    // If there are related exercises, delete them in a batch
-    if (!snapshot.empty) {
+    // First, check if this is a section
+    const exerciseDoc = await getDoc(exerciseRef);
+    if (!exerciseDoc.exists()) {
+      throw new Error('Exercise not found');
+    }
+
+    const exerciseData = exerciseDoc.data();
+    
+    // If it's a section, unschedule all related exercises
+    if (exerciseData.type === 'section' || exerciseData.isParent) {
+      const exercisesRef = collection(db, 'scheduledExercises');
+      const q = query(exercisesRef, where('sectionId', '==', exerciseId));
+      const snapshot = await getDocs(q);
+      
       const batch = writeBatch(db);
-      snapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
+      
+      // Unschedule the section itself
+      batch.update(exerciseRef, {
+        scheduledDateTime: null,
+        'metrics.timeOfDay': null
       });
+
+      // Unschedule all related exercises
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, {
+          scheduledDateTime: null,
+          'metrics.timeOfDay': null
+        });
+      });
+      
       await batch.commit();
+    } else {
+      // For regular exercises, just unschedule the single document
+      await updateDoc(exerciseRef, {
+        scheduledDateTime: null,
+        'metrics.timeOfDay': null
+      });
     }
     
     return true;
   } catch (error) {
-    console.error('Error deleting scheduled exercise:', error);
+    console.error('Error unscheduling exercise:', error);
     throw error;
   }
 };

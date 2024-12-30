@@ -4,7 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { getScheduledExercises, scheduleExercise, deleteScheduledExercise, updateExerciseMetrics, updateExerciseStatus } from '../firebase/scheduledExercises';
+import { 
+  getScheduledExercises, 
+  scheduleExercise, 
+  deleteScheduledExercise, 
+  updateExerciseMetrics, 
+  updateExerciseStatus 
+} from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
@@ -524,11 +530,18 @@ export default function Training({ navigation, route }) {
           text: "Delete",
           style: "destructive",
           onPress: () => {
+            // Get the appropriate type name for the alert
+            let typeName = 'Exercise';
+            if (exercise.type === 'section') typeName = 'Section';
+            if (exercise.type === 'habit') typeName = 'Habit';
+            if (exercise.type === 'task') typeName = 'Task';
+            if (exercise.type === 'breathProtocol') typeName = 'Breath Protocol';
+            if (exercise.type === 'breathTest') typeName = 'Breath Test';
+            if (exercise.type === 'guidedSession') typeName = 'Guided Session';
+
             Alert.alert(
-              exercise.type === 'section' ? "Delete Section" : "Delete Exercise",
-              exercise.type === 'section' 
-                ? "Are you sure you want to remove this section from your schedule?"
-                : "Are you sure you want to remove this exercise from your schedule?",
+              `Delete ${typeName}`,
+              `Are you sure you want to remove this ${typeName.toLowerCase()} from your schedule?`,
               [
                 {
                   text: "Cancel",
@@ -539,11 +552,22 @@ export default function Training({ navigation, route }) {
                   style: "destructive",
                   onPress: async () => {
                     try {
-                      await deleteScheduledExercise(exercise.id);
+                      // If it's a section, delete all related exercises too
+                      if (exercise.type === 'section' || exercise.isParent) {
+                        const exercisesToDelete = exercises.filter(ex => 
+                          ex.sectionId === exercise.id || ex.id === exercise.id
+                        );
+                        await Promise.all(
+                          exercisesToDelete.map(ex => deleteScheduledExercise(ex.id))
+                        );
+                      } else {
+                        // For all other types, just delete the single exercise
+                        await deleteScheduledExercise(exercise.id);
+                      }
                       loadExercisesForDate(selectedDate);
                     } catch (error) {
                       console.error('Error deleting exercise:', error);
-                      Alert.alert('Error', 'Failed to delete exercise. Please try again.');
+                      Alert.alert('Error', `Failed to delete ${typeName.toLowerCase()}. Please try again.`);
                     }
                   }
                 }
