@@ -6,7 +6,7 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { getScheduledExercises, scheduleExercise, deleteScheduledExercise, updateExerciseMetrics, updateExerciseStatus } from '../firebase/scheduledExercises';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
 import ActivityMetricsForm from './ActivityMetricsForm';
 
@@ -34,53 +34,50 @@ export default function Training({ navigation, route }) {
     );
   }
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        const { dx, dy } = gestureState;
-        return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10;
-      },
-      onMoveShouldSetPanResponderCapture: () => false,
-      onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dx) > 50) {
-          // Find current date index in weekDates
-          const currentIndex = weekDates.findIndex(
-            date => date.toDateString() === selectedDate.toDateString()
-          );
-          
-          if (currentIndex !== -1) {
-            let newIndex;
-            if (gestureState.dx > 0) {
-              // Swipe right - go to previous day
-              newIndex = currentIndex - 1;
-              if (newIndex < 0) {
-                // If we're at the start of the week, generate new week dates
-                const newDate = new Date(weekDates[0]);
-                newDate.setDate(newDate.getDate() - 7);
-                generateWeekDates(newDate);
-                setSelectedDate(newDate);
-                return;
-              }
-            } else {
-              // Swipe left - go to next day
-              newIndex = currentIndex + 1;
-              if (newIndex >= weekDates.length) {
-                // If we're at the end of the week, generate new week dates
-                const newDate = new Date(weekDates[6]);
-                newDate.setDate(newDate.getDate() + 1);
-                generateWeekDates(newDate);
-                setSelectedDate(newDate);
-                return;
-              }
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      const { dx, dy } = gestureState;
+      return Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5;
+    },
+    onMoveShouldSetPanResponderCapture: () => false,
+    onPanResponderRelease: (_, gestureState) => {
+      if (Math.abs(gestureState.dx) > 30) {
+        const currentIndex = weekDates.findIndex(
+          date => date.toDateString() === selectedDate.toDateString()
+        );
+        
+        if (currentIndex !== -1) {
+          let newIndex;
+          if (gestureState.dx > 0) {
+            // Swipe right - go to previous day
+            newIndex = currentIndex - 1;
+            if (newIndex < 0) {
+              const newDate = new Date(weekDates[0]);
+              newDate.setDate(newDate.getDate() - 7);
+              generateWeekDates(newDate);
+              setSelectedDate(newDate);
+              return;
             }
-            setSelectedDate(weekDates[newIndex]);
+          } else {
+            // Swipe left - go to next day
+            newIndex = currentIndex + 1;
+            if (newIndex >= weekDates.length) {
+              const newDate = new Date(weekDates[6]);
+              newDate.setDate(newDate.getDate() + 1);
+              generateWeekDates(newDate);
+              setSelectedDate(newDate);
+              return;
+            }
           }
+          setSelectedDate(weekDates[newIndex]);
         }
-      },
-    })
-  ).current;
+      }
+    }
+  });
+
+  const panResponderRef = useRef(panResponder).current;
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -217,9 +214,78 @@ export default function Training({ navigation, route }) {
     );
   };
 
-  const handleLogExercise = (exercise) => {
-    setSelectedExercise(exercise);
-    setShowMetricsForm(true);
+  const handleLogExercise = async (exercise) => {
+    if (exercise.type === 'habit' || exercise.type === 'task') {
+      try {
+        if (exercise.type === 'habit') {
+          // Get all scheduled instances of this habit from the past week
+          const startOfPastWeek = new Date(selectedDate);
+          startOfPastWeek.setDate(startOfPastWeek.getDate() - 7);
+          startOfPastWeek.setHours(0, 0, 0, 0);
+
+          const exercisesRef = collection(db, 'scheduledExercises');
+          const q = query(
+            exercisesRef,
+            where('userId', '==', auth.currentUser.uid),
+            where('habitId', '==', exercise.habitId),
+            where('scheduledDateTime', '<=', selectedDate),
+            where('scheduledDateTime', '>=', startOfPastWeek),
+            orderBy('scheduledDateTime', 'desc')
+          );
+          
+          const snapshot = await getDocs(q);
+          const pastScheduledDays = snapshot.docs
+            .filter(doc => doc.id !== exercise.id)
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+
+          let newStreak = 0;
+          if (!exercise.metrics?.completed) {
+            // If marking as complete
+            // Find the most recent scheduled day before this one
+            const previousScheduledDay = pastScheduledDays[0];
+            
+            if (previousScheduledDay?.metrics?.completed) {
+              // If previous scheduled day was completed, increment that streak
+              newStreak = (previousScheduledDay.metrics?.streak || 0) + 1;
+            } else {
+              // Start new streak
+              newStreak = 1;
+            }
+          } else {
+            // If marking as incomplete
+            // Check if there's a completed scheduled day before this one
+            const previousScheduledDay = pastScheduledDays[0];
+            if (previousScheduledDay?.metrics?.completed) {
+              // Keep previous scheduled day's streak
+              newStreak = previousScheduledDay.metrics?.streak || 0;
+            }
+          }
+
+          await updateExerciseMetrics(exercise.id, {
+            ...exercise.metrics,
+            completed: !exercise.metrics?.completed,
+            streak: newStreak
+          });
+        } else {
+          // For tasks, just toggle completion without streak
+          await updateExerciseMetrics(exercise.id, {
+            ...exercise.metrics,
+            completed: !exercise.metrics?.completed
+          });
+        }
+        
+        await updateExerciseStatus(exercise.id, exercise.metrics?.completed ? 'incomplete' : 'completed');
+        loadExercisesForDate(selectedDate);
+      } catch (error) {
+        console.error('Error updating habit/task status:', error);
+      }
+    } else {
+      setSelectedExercise(exercise);
+      setShowMetricsForm(true);
+    }
   };
 
   const handleMetricsSubmit = async (metrics) => {
@@ -277,11 +343,59 @@ export default function Training({ navigation, route }) {
     }
   };
 
+  const handleMoveExercise = async (exercise, newTimeOfDay) => {
+    try {
+      await updateExerciseMetrics(exercise.id, {
+        ...exercise.metrics,
+        timeOfDay: newTimeOfDay
+      });
+      loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error moving exercise:', error);
+      Alert.alert('Error', 'Failed to move exercise. Please try again.');
+    }
+  };
+
+  const showExerciseOptions = (exercise) => {
+    Alert.alert(
+      "Exercise Options",
+      "Choose an action",
+      [
+        {
+          text: "Move to Morning",
+          onPress: () => handleMoveExercise(exercise, 'morning')
+        },
+        {
+          text: "Move to Afternoon",
+          onPress: () => handleMoveExercise(exercise, 'afternoon')
+        },
+        {
+          text: "Move to Evening",
+          onPress: () => handleMoveExercise(exercise, 'evening')
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleDeleteExercise(exercise.id)
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
+
   const renderExercise = (exercise, timeOfDay) => {
     // If it's part of a section and not being viewed individually
     if (exercise.sectionId && !exercise.isExpanded) {
       return null; // Don't render individual activities from sections
     }
+
+    const isHabit = exercise.type === 'habit';
+    const isTask = exercise.type === 'task';
+    const isBreathProtocol = exercise.type === 'breathProtocol';
+    const isGuidedSession = exercise.type === 'guidedSession';
 
     return (
       <TouchableOpacity
@@ -295,14 +409,25 @@ export default function Training({ navigation, route }) {
               {exercise.sectionTitle}
             </Text>
           )}
-          <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
-            {exercise.exerciseTitle}
-          </Text>
-          {exercise.type === 'guidedSession' ? (
+          <View style={styles.exerciseHeader}>
+            <Ionicons 
+              name={isHabit ? 'repeat-outline' : isTask ? 'checkbox-outline' : exercise.icon || 'barbell-outline'} 
+              size={24} 
+              color={theme.colors.primary} 
+              style={styles.exerciseIcon}
+            />
+            <Text style={[styles.exerciseTitle, { color: theme.colors.text }]}>
+              {exercise.exerciseTitle}
+            </Text>
+          </View>
+
+          {isGuidedSession && (
             <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
               {exercise.duration}
             </Text>
-          ) : exercise.type === 'breathProtocol' ? (
+          )}
+
+          {isBreathProtocol && (
             <View style={styles.breathProtocolMetrics}>
               <View style={styles.exerciseMetricsContainer}>
                 {exercise.metrics?.rounds && (
@@ -322,24 +447,36 @@ export default function Training({ navigation, route }) {
                 )}
               </View>
             </View>
-          ) : exercise.type === 'habit' || exercise.type === 'task' ? (
-            <View style={styles.habitMetrics}>
-              <Ionicons 
-                name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
-                size={20} 
-                color={theme.colors.primary} 
-              />
-              <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                {exercise.type === 'habit' ? `Streak: ${exercise.metrics?.streak || 0}` : `Priority: ${exercise.metrics?.priority || 'medium'}`}
+          )}
+
+          {(isHabit || isTask) && (
+            <View style={styles.habitTaskMetrics}>
+              <TouchableOpacity
+                style={styles.completionButton}
+                onPress={() => handleLogExercise(exercise)}
+              >
+                <Ionicons 
+                  name={exercise.metrics?.completed ? "checkmark-circle" : "ellipse-outline"} 
+                  size={24} 
+                  color={exercise.metrics?.completed ? theme.colors.success : theme.colors.primary} 
+                />
+              </TouchableOpacity>
+              <Text style={[styles.exerciseMetrics, { color: theme.colors.textSecondary }]}>
+                {isHabit ? (
+                  exercise.metrics?.streak > 0 ? `${exercise.metrics.streak} day streak` : 'Start your streak'
+                ) : (
+                  `Priority: ${exercise.metrics?.priority || 'medium'}`
+                )}
               </Text>
             </View>
-          ) : null}
+          )}
         </View>
+
         <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteExercise(exercise.id)}
+          style={styles.optionsButton}
+          onPress={() => showExerciseOptions(exercise)}
         >
-          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -416,7 +553,7 @@ export default function Training({ navigation, route }) {
   return (
     <View 
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      {...panResponder.panHandlers}
+      {...panResponderRef.panHandlers}
     >
       {/* Client Selector for Coaches */}
       {isCoach && (
@@ -428,11 +565,17 @@ export default function Training({ navigation, route }) {
 
       <View style={styles.contentContainer}>
         {/* Week Selector */}
-        <View style={styles.weekSelectorContainer}>
+        <View style={[
+          styles.weekSelectorContainer, 
+          { 
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: 'rgba(255, 255, 255, 0.1)'
+          }
+        ]}>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            style={[styles.weekSelector, { borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}
+            style={styles.weekSelector}
             contentContainerStyle={styles.weekSelectorContent}
           >
             {weekDates.map((date, index) => {
@@ -445,8 +588,8 @@ export default function Training({ navigation, route }) {
                   key={index}
                   style={[
                     styles.dayButton,
-                    isSelected && [styles.selectedDay, { borderBottomColor: theme.colors.primary }],
-                    { width: DAY_WIDTH }
+                    { width: DAY_WIDTH },
+                    isSelected && [styles.selectedDay, { borderBottomColor: theme.colors.primary }]
                   ]}
                   onPress={() => setSelectedDate(date)}
                 >
@@ -680,5 +823,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: Layout.spacing.xsmall,
+  },
+  weekSelectorContainer: {
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+  },
+  weekSelector: {
+    flexDirection: 'row',
+  },
+  weekSelectorContent: {
+    paddingHorizontal: Layout.spacing.small,
+  },
+  dayButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  selectedDay: {
+    borderBottomWidth: 2,
+  },
+  dayText: {
+    fontSize: 13,
+    fontFamily: Typography.fonts.medium,
+    opacity: 0.7,
+    marginBottom: 2,
+  },
+  dateText: {
+    fontSize: 15,
+    fontFamily: Typography.fonts.semibold,
+  },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 2,
+  },
+  exerciseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Layout.spacing.small,
+  },
+  exerciseIcon: {
+    marginRight: Layout.spacing.medium,
+  },
+  habitTaskMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Layout.spacing.small,
+  },
+  completionButton: {
+    marginRight: Layout.spacing.medium,
+  },
+  optionsButton: {
+    padding: Layout.spacing.small,
+    marginLeft: Layout.spacing.small,
   },
 }); 

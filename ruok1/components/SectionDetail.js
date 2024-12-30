@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, Animated } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -13,6 +13,14 @@ const ACTIVITY_TYPES = [
   { id: 'breathingTests', label: 'Breathing Test', icon: 'pulse-outline' },
   { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
   { id: 'guidedSessions', label: 'Guided Session', icon: 'play-circle-outline' },
+];
+
+const SUPERSET_COLORS = [
+  '#4CAF50',  // Green
+  '#2196F3',  // Blue
+  '#9C27B0',  // Purple
+  '#FF9800',  // Orange
+  '#E91E63',  // Pink
 ];
 
 const styles = StyleSheet.create({
@@ -252,51 +260,155 @@ const styles = StyleSheet.create({
   },
   moveButtonDisabled: {
     opacity: 0.3,
-  }
+  },
+  titleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.small,
+  },
+  supersetLabel: {
+    fontSize: 16,
+    fontFamily: Typography.fonts.medium,
+    marginRight: Layout.spacing.small,
+  },
+  expandButton: {
+    position: 'absolute',
+    right: Layout.spacing.small,
+    padding: 8,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandButtonCollapsed: {
+    bottom: Layout.spacing.medium,
+  },
+  expandButtonExpanded: {
+    bottom: Layout.spacing.small,
+  },
+  metricsPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: Layout.spacing.small,
+    marginBottom: Layout.spacing.small,
+    paddingRight: Layout.spacing.medium,
+  },
+  metricsPreviewText: {
+    color: '#666',
+    fontSize: 14,
+    fontFamily: Typography.fonts.medium,
+  },
+  metricsPreviewDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#666',
+    marginHorizontal: Layout.spacing.small,
+  },
 });
+
+// Helper function to get all superset chains
+const getAllSupersetChains = (activities) => {
+  const chains = [];
+  const visited = new Set();
+
+  activities.forEach((activity, index) => {
+    if (!visited.has(index) && (activity.supersetWith !== null || 
+        (index > 0 && activities[index - 1]?.supersetWith === index))) {
+      // Find the start of the chain
+      let startIndex = index;
+      while (startIndex > 0 && activities[startIndex - 1]?.supersetWith === startIndex) {
+        startIndex--;
+      }
+      
+      // Get the full chain
+      const chain = [];
+      let currentIndex = startIndex;
+      while (currentIndex < activities.length) {
+        chain.push(currentIndex);
+        visited.add(currentIndex);
+        const nextIndex = activities[currentIndex].supersetWith;
+        if (nextIndex === null || nextIndex <= currentIndex) break;
+        currentIndex = nextIndex;
+      }
+      
+      if (chain.length > 0) {
+        chains.push(chain);
+      }
+    }
+  });
+  
+  return chains;
+};
+
+// Helper function to get superset info for an activity
+const getSupersetInfo = (activityIndex, activities) => {
+  const chains = getAllSupersetChains(activities);
+  for (let i = 0; i < chains.length; i++) {
+    const position = chains[i].indexOf(activityIndex);
+    if (position !== -1) {
+      return {
+        color: SUPERSET_COLORS[i % SUPERSET_COLORS.length],
+        label: `${String.fromCharCode(65 + i)}${position + 1}`,
+        isInSuperset: true
+      };
+    }
+  }
+  return { color: 'transparent', label: '', isInSuperset: false };
+};
 
 export default function SectionDetail({ navigation, route }) {
   const theme = useTheme();
   const [section, setSection] = useState(route.params.section || { title: '', description: '' });
-  const [activities, setActivities] = useState(
-    route.params.section?.activities?.reduce((acc, group) => 
-      [...acc, ...(group.items || []).map(item => ({
-        ...item,
-        type: group.type,
-        supersetWith: item.supersetWith !== undefined ? item.supersetWith : null,
+  const [activities, setActivities] = useState(() => {
+    if (route.params.section?.activities) {
+      return route.params.section.activities.reduce((acc, group) => 
+        [...acc, ...(group.items || []).map(item => ({
+          ...item,
+          type: group.type,
+          supersetWith: item.supersetWith !== undefined ? item.supersetWith : null,
+          metrics: {
+            sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })) : item.metrics?.sets ? [{
+              reps: item.metrics.sets.reps || '',
+              weight: item.metrics.sets.weight || '',
+              rest: item.metrics.sets.rest || '00:00'
+            }] : [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: item.metrics?.eachSide || false,
+            notes: item.metrics?.notes || ''
+          }
+        }))], []
+      );
+    } else if (route.params.selectedActivities) {
+      return route.params.selectedActivities.map(activity => ({
+        ...activity,
+        supersetWith: null,
         metrics: {
-          sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
-            reps: set.reps || '',
-            weight: set.weight || '',
-            rest: set.rest || '00:00'
-          })) : item.metrics?.sets ? [{
-            reps: item.metrics.sets.reps || '',
-            weight: item.metrics.sets.weight || '',
-            rest: item.metrics.sets.rest || '00:00'
-          }] : [{
+          sets: [{
             reps: '',
             weight: '',
             rest: '00:00'
           }],
-          eachSide: item.metrics?.eachSide || false,
-          notes: item.metrics?.notes || ''
+          eachSide: false,
+          notes: ''
         }
-      }))], []
-    ) || route.params.selectedActivities?.map(activity => ({
-      ...activity,
-      supersetWith: null,
-      metrics: {
-        sets: [{
-          reps: '',
-          weight: '',
-          rest: '00:00'
-        }],
-        eachSide: false,
-        notes: ''
-      }
-    })) || []
-  );
+      }));
+    }
+    return [];
+  });
   const [menuOpen, setMenuOpen] = useState(null);
+  const [expandedCards, setExpandedCards] = useState({});
 
   const handleAddActivity = () => {
     navigation.navigate('ActivitySelector');
@@ -406,38 +518,67 @@ export default function SectionDetail({ navigation, route }) {
 
       if (!nextActivity) return updated;
 
-      if (currentActivity.supersetWith === null) {
-        // Link the activities
-        currentActivity.supersetWith = index + 1;
-        nextActivity.supersetWith = index;
-        
-        // Sync the number of sets
-        const maxSets = Math.max(
-          currentActivity.metrics.sets.length,
-          nextActivity.metrics.sets.length
-        );
-        
-        // Add sets to current activity if needed
-        while (currentActivity.metrics.sets.length < maxSets) {
-          currentActivity.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          });
+      // Find all activities in the current superset chain
+      const findSupersetChain = (startIndex) => {
+        const chain = [];
+        let currentIndex = startIndex;
+        while (currentIndex < updated.length) {
+          chain.push(currentIndex);
+          const nextIndex = updated[currentIndex].supersetWith;
+          if (nextIndex === null || nextIndex <= currentIndex) break;
+          currentIndex = nextIndex;
         }
-        
-        // Add sets to next activity if needed
-        while (nextActivity.metrics.sets.length < maxSets) {
-          nextActivity.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          });
+        return chain;
+      };
+
+      if (currentActivity.supersetWith === index + 1) {
+        // If unlinking from the middle of a chain, we need to maintain the rest of the chain
+        const supersetChain = findSupersetChain(index);
+        if (supersetChain.length > 2) {
+          // If we're breaking a chain of 3+ exercises
+          const prevActivity = index > 0 ? updated[index - 1] : null;
+          if (prevActivity?.supersetWith === index) {
+            // We're unlinking in the middle, connect the previous to the next
+            prevActivity.supersetWith = index + 1;
+            nextActivity.supersetWith = index - 1;
+          } else {
+            // We're unlinking at the bottom of the chain
+            // Only unlink the current pair
+            currentActivity.supersetWith = null;
+            nextActivity.supersetWith = null;
+          }
+          currentActivity.supersetWith = null;
+        } else {
+          // Just unlinking a pair
+          currentActivity.supersetWith = null;
+          nextActivity.supersetWith = null;
         }
       } else {
-        // Unlink the activities
-        currentActivity.supersetWith = null;
-        nextActivity.supersetWith = null;
+        // Check if we can add to an existing chain or start a new one
+        const prevActivity = index > 0 ? updated[index - 1] : null;
+        const isPartOfPreviousChain = prevActivity?.supersetWith === index;
+        const nextChain = findSupersetChain(index + 1);
+        
+        if (isPartOfPreviousChain || nextChain.length > 0 || currentActivity.supersetWith === null) {
+          // Link the activities
+          currentActivity.supersetWith = index + 1;
+          nextActivity.supersetWith = index;
+          
+          // Sync the number of sets across all linked activities
+          const supersetChain = findSupersetChain(isPartOfPreviousChain ? index - 1 : index);
+          const linkedActivities = supersetChain.map(idx => updated[idx]);
+          const maxSets = Math.max(...linkedActivities.map(act => act.metrics.sets.length));
+          
+          linkedActivities.forEach(activity => {
+            while (activity.metrics.sets.length < maxSets) {
+              activity.metrics.sets.push({
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              });
+            }
+          });
+        }
       }
 
       return updated;
@@ -536,57 +677,104 @@ export default function SectionDetail({ navigation, route }) {
 
     setActivities(current => {
       const updated = [...current];
-      const activity = updated[index];
-      
-      // If this activity is part of a superset, move both activities together
-      if (activity.supersetWith !== null || (index > 0 && updated[index - 1]?.supersetWith === index)) {
-        const firstIndex = activity.supersetWith !== null ? index : index - 1;
-        const secondIndex = activity.supersetWith !== null ? activity.supersetWith : index;
+
+      // Find the complete superset chain
+      const findSupersetChain = (startIndex) => {
+        if (startIndex < 0 || startIndex >= updated.length) return [];
         
-        if (direction === 'up') {
-          if (firstIndex <= 0) return current;
-          
-          // Move both activities up
-          const temp = updated[firstIndex - 1];
-          updated[firstIndex - 1] = updated[firstIndex];
-          updated[firstIndex] = updated[secondIndex];
-          updated[secondIndex] = temp;
-          
-          // Update superset references
-          updated[firstIndex - 1].supersetWith = firstIndex;
-          updated[firstIndex].supersetWith = firstIndex - 1;
-        } else {
-          if (secondIndex >= updated.length - 1) return current;
-          
-          // Move both activities down
-          const temp = updated[secondIndex + 1];
-          updated[secondIndex + 1] = updated[secondIndex];
-          updated[secondIndex] = updated[firstIndex];
-          updated[firstIndex] = temp;
-          
-          // Update superset references
-          updated[secondIndex].supersetWith = secondIndex + 1;
-          updated[secondIndex + 1].supersetWith = secondIndex;
+        // Find the start of the chain
+        let chainStart = startIndex;
+        while (chainStart > 0 && updated[chainStart - 1]?.supersetWith === chainStart) {
+          chainStart--;
         }
+
+        // Get all activities in the chain
+        const chain = [];
+        let currentIndex = chainStart;
+        while (currentIndex < updated.length) {
+          chain.push(currentIndex);
+          const nextIndex = updated[currentIndex].supersetWith;
+          if (nextIndex === null || nextIndex <= currentIndex) break;
+          currentIndex = nextIndex;
+        }
+        return chain;
+      };
+
+      // Get the chain we're moving (if any)
+      const currentChain = findSupersetChain(index);
+      const isMovingSuperset = currentChain.length > 1;
+      const moveStartIndex = isMovingSuperset ? Math.min(...currentChain) : index;
+      const moveEndIndex = isMovingSuperset ? Math.max(...currentChain) : index;
+
+      // Calculate target position
+      let targetIndex;
+      if (direction === 'up') {
+        // Moving up
+        const aboveChain = findSupersetChain(moveStartIndex - 1);
+        targetIndex = aboveChain.length > 0 ? Math.min(...aboveChain) : moveStartIndex - 1;
       } else {
-        // Normal swap for non-superset activities
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-        
-        // Check if we're trying to move into the middle of a superset
-        if (updated[newIndex]?.supersetWith !== null || 
-            (newIndex > 0 && updated[newIndex - 1]?.supersetWith === newIndex)) {
-          // Skip over the superset pair
-          const skipIndex = direction === 'up' ? newIndex - 1 : newIndex + 1;
-          if (skipIndex < 0 || skipIndex >= updated.length) return current;
-          
-          [updated[index], updated[skipIndex]] = [updated[skipIndex], updated[index]];
-        } else {
-          [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+        // Moving down
+        const belowChain = findSupersetChain(moveEndIndex + 1);
+        targetIndex = belowChain.length > 0 ? Math.max(...belowChain) + 1 : moveEndIndex + 1;
+      }
+
+      // Validate target position
+      if (targetIndex < 0 || targetIndex >= updated.length) return current;
+
+      // Extract items to move
+      const itemsToMove = updated.slice(moveStartIndex, moveEndIndex + 1);
+      updated.splice(moveStartIndex, itemsToMove.length);
+
+      // Calculate insert position
+      const insertIndex = targetIndex > moveStartIndex ? targetIndex - itemsToMove.length : targetIndex;
+      
+      // Insert items at new position
+      updated.splice(insertIndex, 0, ...itemsToMove);
+
+      // Update superset references if moving a superset
+      if (isMovingSuperset) {
+        const newStartIndex = insertIndex;
+        for (let i = 0; i < itemsToMove.length; i++) {
+          if (i < itemsToMove.length - 1) {
+            updated[newStartIndex + i].supersetWith = newStartIndex + i + 1;
+          } else {
+            updated[newStartIndex + i].supersetWith = null;
+          }
+          if (i > 0) {
+            updated[newStartIndex + i].supersetWith = newStartIndex + i - 1;
+          }
         }
       }
-      
+
       return updated;
     });
+  };
+
+  const getMetricsPreview = (activity) => {
+    const { sets, eachSide } = activity.metrics;
+    
+    // Format each set
+    const setPreviews = sets.map((set, index) => {
+      const parts = [];
+      parts.push(`${index + 1}x${set.reps || '-'}`);
+      if (set.weight) parts.push(`@ ${set.weight}lb`);
+      if (set.rest !== '00:00') parts.push(`rest ${set.rest}`);
+      return parts.join(' ');
+    });
+
+    // Add each side indicator if needed
+    if (eachSide) {
+      setPreviews.push('(each side)');
+    }
+
+    return setPreviews;
+  };
+
+  const toggleCardExpansion = (index) => {
+    setExpandedCards(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
   return (
@@ -633,167 +821,217 @@ export default function SectionDetail({ navigation, route }) {
           />
         </View>
 
-        {activities.map((activity, activityIndex) => (
-          <React.Fragment key={activityIndex}>
-            <View 
-              style={[
-                styles.activityCard, 
-                { 
-                  backgroundColor: theme.colors.surface,
-                  borderLeftColor: activity.supersetWith !== null ? '#4CAF50' : 'transparent',
-                }
-              ]}
-            >
-              <View style={styles.activityHeader}>
-                <View style={styles.activityIcon}>
-                  <Ionicons 
-                    name={ACTIVITY_TYPES.find(t => t.id === activity.type)?.icon || 'fitness'} 
-                    size={24} 
-                    color="#4CAF50" 
-                  />
-                </View>
-                <Text style={styles.activityTitle}>
-                  {activity.title || activity.name}
-                </Text>
-                <View style={styles.activityControls}>
-                  <TouchableOpacity 
-                    style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
-                    onPress={() => handleMoveActivity(activityIndex, 'up')}
-                    disabled={activityIndex === 0}
-                  >
+        {activities.map((activity, activityIndex) => {
+          const supersetInfo = getSupersetInfo(activityIndex, activities);
+          const isExpanded = expandedCards[activityIndex];
+          
+          return (
+            <React.Fragment key={activityIndex}>
+              <View 
+                style={[
+                  styles.activityCard, 
+                  { 
+                    backgroundColor: theme.colors.surface,
+                    borderLeftColor: supersetInfo.color,
+                    marginBottom: supersetInfo.isInSuperset ? Layout.spacing.small : Layout.spacing.medium,
+                  }
+                ]}
+              >
+                <View style={styles.activityHeader}>
+                  <View style={styles.activityIcon}>
                     <Ionicons 
-                      name="chevron-up" 
-                      size={20} 
-                      color={activityIndex === 0 ? "#444" : "#666"} 
+                      name={ACTIVITY_TYPES.find(t => t.id === activity.type)?.icon || 'fitness'} 
+                      size={24} 
+                      color={supersetInfo.color === 'transparent' ? '#4CAF50' : supersetInfo.color}
                     />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
-                    onPress={() => handleMoveActivity(activityIndex, 'down')}
-                    disabled={activityIndex === activities.length - 1}
-                  >
-                    <Ionicons 
-                      name="chevron-down" 
-                      size={20} 
-                      color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.menuButton}
-                    onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
-                  >
-                    <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
-                  </TouchableOpacity>
-                </View>
-                {menuOpen === activityIndex && (
-                  <View style={styles.menuOptions}>
+                  </View>
+                  <View style={styles.titleContainer}>
+                    {supersetInfo.label && (
+                      <Text style={[styles.supersetLabel, { color: supersetInfo.color }]}>
+                        {supersetInfo.label}
+                      </Text>
+                    )}
+                    <Text style={styles.activityTitle}>
+                      {activity.title || activity.name}
+                    </Text>
+                  </View>
+                  <View style={styles.activityControls}>
                     <TouchableOpacity 
-                      style={styles.menuOption}
-                      onPress={() => handleDeleteActivity(activityIndex)}
+                      style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
+                      onPress={() => handleMoveActivity(activityIndex, 'up')}
+                      disabled={activityIndex === 0}
                     >
-                      <Ionicons name="trash-outline" size={20} color="#FF453A" />
-                      <Text style={[styles.menuOptionText, styles.menuOptionDelete]}>Delete</Text>
+                      <Ionicons 
+                        name="chevron-up" 
+                        size={20} 
+                        color={activityIndex === 0 ? "#444" : "#666"} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
+                      onPress={() => handleMoveActivity(activityIndex, 'down')}
+                      disabled={activityIndex === activities.length - 1}
+                    >
+                      <Ionicons 
+                        name="chevron-down" 
+                        size={20} 
+                        color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.menuButton}
+                      onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
                     </TouchableOpacity>
                   </View>
-                )}
-              </View>
-
-              {activity.metrics.sets.map((set, setIndex) => (
-                <View 
-                  key={`${activityIndex}-set-${setIndex}`} 
-                  style={styles.metricsRow}
-                >
-                  <View style={styles.metricColumn}>
-                    <Text style={styles.metricLabel}>SET</Text>
-                    <Text style={styles.metricValue}>{setIndex + 1}</Text>
-                  </View>
-                  <View style={styles.metricColumn}>
-                    <Text style={styles.metricLabel}>LB</Text>
-                    <TextInput
-                      style={styles.metricInput}
-                      value={set.weight}
-                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'weight', value)}
-                      keyboardType="numeric"
-                      placeholder="-"
-                    />
-                  </View>
-                  <View style={styles.metricColumn}>
-                    <Text style={styles.metricLabel}>REPS</Text>
-                    <TextInput
-                      style={styles.metricInput}
-                      value={set.reps}
-                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'reps', value)}
-                      keyboardType="numeric"
-                      placeholder="-"
-                    />
-                  </View>
-                  <View style={styles.metricColumn}>
-                    <Text style={styles.metricLabel}>REST</Text>
-                    <TextInput
-                      style={styles.metricInput}
-                      value={set.rest}
-                      onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'rest', value)}
-                      placeholder="00:00"
-                    />
-                  </View>
+                  {menuOpen === activityIndex && (
+                    <View style={styles.menuOptions}>
+                      <TouchableOpacity 
+                        style={styles.menuOption}
+                        onPress={() => handleDeleteActivity(activityIndex)}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#FF453A" />
+                        <Text style={[styles.menuOptionText, styles.menuOptionDelete]}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              ))}
 
-              <TouchableOpacity 
-                style={styles.addSetButton}
-                onPress={() => handleAddSet(activityIndex)}
-              >
-                <Ionicons name="add" size={20} color="#6B4EFF" />
-                <Text style={styles.addSetText}>Add Set</Text>
-              </TouchableOpacity>
+                {!isExpanded ? (
+                  <View style={styles.metricsPreview}>
+                    {getMetricsPreview(activity).map((preview, index, array) => (
+                      <React.Fragment key={index}>
+                        <Text style={styles.metricsPreviewText}>
+                          {preview}
+                        </Text>
+                        {index < array.length - 1 && (
+                          <View style={styles.metricsPreviewDot} />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </View>
+                ) : (
+                  <>
+                    {activity.metrics.sets.map((set, setIndex) => (
+                      <View 
+                        key={`${activityIndex}-set-${setIndex}`} 
+                        style={styles.metricsRow}
+                      >
+                        <View style={styles.metricColumn}>
+                          <Text style={styles.metricLabel}>SET</Text>
+                          <Text style={styles.metricValue}>{setIndex + 1}</Text>
+                        </View>
+                        <View style={styles.metricColumn}>
+                          <Text style={styles.metricLabel}>LB</Text>
+                          <TextInput
+                            style={styles.metricInput}
+                            value={set.weight}
+                            onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'weight', value)}
+                            keyboardType="numeric"
+                            placeholder="-"
+                          />
+                        </View>
+                        <View style={styles.metricColumn}>
+                          <Text style={styles.metricLabel}>REPS</Text>
+                          <TextInput
+                            style={styles.metricInput}
+                            value={set.reps}
+                            onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'reps', value)}
+                            keyboardType="numeric"
+                            placeholder="-"
+                          />
+                        </View>
+                        <View style={styles.metricColumn}>
+                          <Text style={styles.metricLabel}>REST</Text>
+                          <TextInput
+                            style={styles.metricInput}
+                            value={set.rest}
+                            onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'rest', value)}
+                            placeholder="00:00"
+                          />
+                        </View>
+                      </View>
+                    ))}
 
-              <View style={styles.eachSideRow}>
+                    <TouchableOpacity 
+                      style={styles.addSetButton}
+                      onPress={() => handleAddSet(activityIndex)}
+                    >
+                      <Ionicons name="add" size={20} color="#6B4EFF" />
+                      <Text style={styles.addSetText}>Add Set</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.eachSideRow}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.checkbox,
+                          activity.metrics.eachSide && { backgroundColor: '#6B4EFF', borderColor: '#6B4EFF' }
+                        ]}
+                        onPress={() => handleToggleEachSide(activityIndex)}
+                      >
+                        {activity.metrics.eachSide && (
+                          <Ionicons name="checkmark" size={16} color="#fff" />
+                        )}
+                      </TouchableOpacity>
+                      <Text style={styles.eachSideText}>Each side</Text>
+                    </View>
+
+                    <View style={styles.progressRow}>
+                      <Text style={{ color: '#666' }}>0-0-0-0</Text>
+                    </View>
+
+                    <TextInput
+                      style={styles.notesInput}
+                      placeholder="Add note..."
+                      value={activity.metrics.notes}
+                      onChangeText={(value) => {
+                        const updated = [...activities];
+                        updated[activityIndex].metrics.notes = value;
+                        setActivities(updated);
+                      }}
+                    />
+                  </>
+                )}
+
                 <TouchableOpacity 
                   style={[
-                    styles.checkbox,
-                    activity.metrics.eachSide && { backgroundColor: '#6B4EFF', borderColor: '#6B4EFF' }
+                    styles.expandButton,
+                    isExpanded ? styles.expandButtonExpanded : styles.expandButtonCollapsed
                   ]}
-                  onPress={() => handleToggleEachSide(activityIndex)}
-                >
-                  {activity.metrics.eachSide && (
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.eachSideText}>Each side</Text>
-              </View>
-
-              <View style={styles.progressRow}>
-                <Text style={{ color: '#666' }}>0-0-0-0</Text>
-              </View>
-
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Add note..."
-                value={activity.metrics.notes}
-                onChangeText={(value) => {
-                  const updated = [...activities];
-                  updated[activityIndex].metrics.notes = value;
-                  setActivities(updated);
-                }}
-              />
-            </View>
-            
-            {activityIndex < activities.length - 1 && (
-              <View style={styles.supersetDivider}>
-                <TouchableOpacity 
-                  style={styles.supersetButton}
-                  onPress={() => handleToggleSuperset(activityIndex)}
+                  onPress={() => toggleCardExpansion(activityIndex)}
                 >
                   <Ionicons 
-                    name={activity.supersetWith !== null ? "link" : "link-outline"} 
+                    name={isExpanded ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color={activity.supersetWith !== null ? '#4CAF50' : '#666'} 
+                    color="#666"
                   />
                 </TouchableOpacity>
               </View>
-            )}
-          </React.Fragment>
-        ))}
+              
+              {activityIndex < activities.length - 1 && (
+                <View style={[
+                  styles.supersetDivider,
+                  supersetInfo.isInSuperset && {
+                    height: 20,
+                    marginVertical: -10,
+                  }
+                ]}>
+                  <TouchableOpacity 
+                    style={styles.supersetButton}
+                    onPress={() => handleToggleSuperset(activityIndex)}
+                  >
+                    <Ionicons 
+                      name={activity.supersetWith === activityIndex + 1 ? "link" : "link-outline"} 
+                      size={20} 
+                      color={activity.supersetWith === activityIndex + 1 ? supersetInfo.color : '#666'} 
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </React.Fragment>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.bottomBar}>

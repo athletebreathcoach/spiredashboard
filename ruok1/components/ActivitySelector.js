@@ -52,6 +52,8 @@ export default function ActivitySelector({ navigation, route }) {
         getBreathProtocols()
       ]);
 
+      console.log('Breathing Tests:', breathingTests); // Debug log
+
       // Fetch sections
       const sectionsRef = collection(db, 'sections');
       const sectionsQuery = query(
@@ -77,11 +79,18 @@ export default function ActivitySelector({ navigation, route }) {
         title: doc.data().title || doc.data().name
       }));
 
+      // Process breathing tests to ensure they have titles
+      const processedBreathingTests = (breathingTests || []).map(test => ({
+        ...test,
+        title: test.name || test.title || test.testName || 'Unnamed Test',
+        type: 'breathingTests'
+      }));
+
       setActivities({
         sections,
         exercises: exercises || [],
         habitstasks: [...(habits || []), ...(tasks || [])],
-        breathingTests,
+        breathingTests: processedBreathingTests,
         breathProtocols,
         guidedSessions
       });
@@ -105,13 +114,13 @@ export default function ActivitySelector({ navigation, route }) {
   const handleNext = () => {
     if (selectedActivities.length === 0) return;
     
-    navigation.navigate('SessionDetail', {
-      selectedItems: selectedActivities
+    navigation.navigate('SectionDetail', {
+      selectedActivities: selectedActivities
     });
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>
-    activity.title.toLowerCase().includes(searchQuery.toLowerCase())
+    (activity.title || activity.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   return (
@@ -211,12 +220,15 @@ export default function ActivitySelector({ navigation, route }) {
             >
               <View style={styles.activityContent}>
                 <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
-                  {activity.title}
+                  {activity.title || activity.name || 'Unnamed Activity'}
                 </Text>
                 {activity.description && (
                   <Text style={[styles.activityDescription, { color: theme.colors.textSecondary }]}>
                     {activity.description}
                   </Text>
+                )}
+                {__DEV__ && !activity.title && !activity.name && (
+                  <Text style={{ color: 'red' }}>Debug: {JSON.stringify(activity)}</Text>
                 )}
               </View>
               <Ionicons 
