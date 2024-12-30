@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,15 +6,19 @@ import {
   TouchableOpacity, 
   StyleSheet,
   Dimensions,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
+import { Calendar } from 'react-native-calendars';
+import ClientSelector from './ClientSelector';
+import { scheduleGuidedSession } from '../firebase/guidedSessions';
 
 const { width } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 9/16; // 16:9 aspect ratio
@@ -23,6 +27,118 @@ export default function GuidedSessionDetail({ navigation, route }) {
   const theme = useTheme();
   const { session } = route.params;
   const [playing, setPlaying] = useState(false);
+  const [isCoach, setIsCoach] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [showClientSelector, setShowClientSelector] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
+  const [selectedDates, setSelectedDates] = useState({});
+
+  useEffect(() => {
+    checkIfCoach();
+  }, []);
+
+  const checkIfCoach = async () => {
+    try {
+      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+      setIsCoach(coachDoc.exists());
+    } catch (error) {
+      console.error('Error checking coach status:', error);
+    }
+  };
+
+  const handleDayPress = (day) => {
+    const dateString = day.dateString;
+    const updatedDates = { ...selectedDates };
+    
+    if (updatedDates[dateString]) {
+      delete updatedDates[dateString];
+    } else {
+      updatedDates[dateString] = {
+        selected: true,
+        selectedColor: theme.colors.primary
+      };
+    }
+    
+    setSelectedDates(updatedDates);
+  };
+
+  const handleScheduleSession = async () => {
+    try {
+      const userId = selectedClient?.id || auth.currentUser.uid;
+      
+      // Schedule the session for each selected date
+      const dates = Object.keys(selectedDates).map(dateString => new Date(dateString));
+      for (const date of dates) {
+        await scheduleGuidedSession(userId, session.id, date, selectedTimeOfDay);
+      }
+
+      Alert.alert('Success', 'Session scheduled successfully');
+      setShowCalendar(false);
+      setSelectedTimeOfDay(null);
+      setSelectedClient(null);
+      setSelectedDates({});
+    } catch (error) {
+      console.error('Error scheduling session:', error);
+      Alert.alert('Error', 'Failed to schedule session. Please try again.');
+    }
+  };
+
+  const handleClientSelect = (client) => {
+    console.log('Client selected:', client);
+    setSelectedClient(client);
+    setShowClientSelector(false);
+    showTimeOfDayPicker(session, client.id);
+  };
+
+  const showTimeOfDayPicker = (session, clientId) => {
+    Alert.alert(
+      "Select Time of Day",
+      "When would you like to schedule this session?",
+      [
+        {
+          text: "Morning",
+          onPress: () => {
+            setSelectedTimeOfDay('morning');
+            setShowCalendar(true);
+          }
+        },
+        {
+          text: "Afternoon",
+          onPress: () => {
+            setSelectedTimeOfDay('afternoon');
+            setShowCalendar(true);
+          }
+        },
+        {
+          text: "Evening",
+          onPress: () => {
+            setSelectedTimeOfDay('evening');
+            setShowCalendar(true);
+          }
+        },
+        {
+          text: "Anytime",
+          onPress: () => {
+            setSelectedTimeOfDay('anytime');
+            setShowCalendar(true);
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
+
+  const handleCalendarPress = () => {
+    if (isCoach) {
+      setShowClientSelector(true);
+    } else {
+      showTimeOfDayPicker(session, auth.currentUser.uid);
+    }
+  };
 
   const onStateChange = useCallback((state) => {
     if (state === "ended") {
@@ -141,6 +257,114 @@ export default function GuidedSessionDetail({ navigation, route }) {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Floating Action Buttons */}
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={handleCalendarPress}
+        >
+          <Ionicons name="calendar-outline" size={24} color={theme.colors.white} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Client Selector Modal */}
+      <Modal
+        visible={showClientSelector}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Select Client
+            </Text>
+            <TouchableOpacity
+              style={[styles.clientOption, { backgroundColor: theme.colors.background }]}
+              onPress={() => handleClientSelect({ id: auth.currentUser.uid, name: 'My Training' })}
+            >
+              <Text style={[styles.clientName, { color: theme.colors.text }]}>My Training</Text>
+            </TouchableOpacity>
+            <ClientSelector onClientSelect={handleClientSelect} />
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: theme.colors.error }]}
+              onPress={() => setShowClientSelector(false)}
+            >
+              <Text style={[styles.cancelButtonText, { color: theme.colors.white }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Select Dates
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+              Selected dates: {Object.keys(selectedDates).length}
+            </Text>
+            <Calendar
+              style={styles.calendar}
+              theme={{
+                backgroundColor: 'transparent',
+                calendarBackground: 'transparent',
+                textSectionTitleColor: theme.colors.textSecondary,
+                selectedDayBackgroundColor: theme.colors.primary,
+                selectedDayTextColor: theme.colors.white,
+                todayTextColor: theme.colors.primary,
+                dayTextColor: theme.colors.text,
+                textDisabledColor: theme.colors.textSecondary,
+                dotColor: theme.colors.primary,
+                selectedDotColor: theme.colors.white,
+                arrowColor: theme.colors.primary,
+                monthTextColor: theme.colors.text,
+                textDayFontFamily: Typography.fonts.regular,
+                textMonthFontFamily: Typography.fonts.semibold,
+                textDayHeaderFontFamily: Typography.fonts.medium,
+                textDayFontSize: 16,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 14,
+              }}
+              markedDates={selectedDates}
+              onDayPress={handleDayPress}
+              minDate={new Date().toISOString().split('T')[0]}
+              enableSwipeMonths={true}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                onPress={() => {
+                  setShowCalendar(false);
+                  setSelectedDates({});
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  { 
+                    backgroundColor: Object.keys(selectedDates).length > 0 
+                      ? theme.colors.primary 
+                      : theme.colors.textSecondary 
+                  }
+                ]}
+                onPress={handleScheduleSession}
+                disabled={Object.keys(selectedDates).length === 0}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -216,5 +440,102 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.regular,
     lineHeight: Layout.text.medium * 1.5,
     marginBottom: Layout.spacing.large,
+  },
+  scheduleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+    margin: Layout.spacing.large,
+  },
+  scheduleButtonText: {
+    marginLeft: Layout.spacing.small,
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  calendar: {
+    marginBottom: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.medium,
+    overflow: 'hidden',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.large,
+  },
+  modalTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.medium,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.large,
+  },
+  modalButton: {
+    flex: 1,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginHorizontal: Layout.spacing.small,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
+  },
+  clientOption: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  clientName: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+  },
+  timeOption: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  timeText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
+  },
+  cancelButton: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    marginTop: Layout.spacing.medium,
+  },
+  cancelButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    textAlign: 'center',
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: Layout.spacing.large,
+    right: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+    overflow: 'hidden',
+  },
+  fab: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
   },
 }); 

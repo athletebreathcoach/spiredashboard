@@ -39,7 +39,7 @@ export const getGuidedSessionById = async (sessionId) => {
 };
 
 // Schedule a guided session using the scheduledExercises collection
-export const scheduleGuidedSession = async (userId, sessionId, scheduledDate) => {
+export const scheduleGuidedSession = async (userId, sessionId, scheduledDate, timeOfDay) => {
   try {
     const sessionRef = doc(db, 'guidedSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
@@ -61,6 +61,10 @@ export const scheduleGuidedSession = async (userId, sessionId, scheduledDate) =>
       videoUrl: sessionData.videoUrl,
       scheduledDateTime: scheduledDate,
       status: 'scheduled',
+      metrics: {
+        timeOfDay: timeOfDay || 'Anytime',
+        completed: false
+      },
       createdAt: new Date()
     });
   } catch (error) {

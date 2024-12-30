@@ -638,7 +638,7 @@ export default function Training({ navigation, route }) {
               {(() => {
                 // Group exercises by time of day
                 const groupedExercises = [...exercises].reverse().reduce((acc, exercise) => {
-                  const timeOfDay = exercise.metrics?.timeOfDay || 'Unscheduled';
+                  const timeOfDay = exercise.metrics?.timeOfDay || 'Anytime';
                   if (!acc[timeOfDay]) {
                     acc[timeOfDay] = [];
                   }
@@ -651,7 +651,7 @@ export default function Training({ navigation, route }) {
                   'Morning': 0,
                   'Afternoon': 1,
                   'Evening': 2,
-                  'Unscheduled': 3
+                  'Anytime': 3
                 };
 
                 // Sort groups by time of day
