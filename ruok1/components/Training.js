@@ -435,7 +435,6 @@ export default function Training({ navigation, route }) {
 
     const handlePress = () => {
       if (isGuidedSession) {
-        // Navigate to GuidedSessionDetail with the session data and isScheduled flag
         navigation.navigate('GuidedSessionDetail', { 
           session: {
             id: exercise.sessionId,
@@ -449,6 +448,21 @@ export default function Training({ navigation, route }) {
           isScheduled: true,
           scheduledExerciseId: exercise.id
         });
+      } else if (isBreathProtocol) {
+        // Navigate to BreathGuide with the protocol settings
+        const breathGuideParams = {
+          settings: {
+            inhaleTime: exercise.protocol.pattern.inhale,
+            inhaleHoldTime: exercise.protocol.pattern.inHold,
+            exhaleTime: exercise.protocol.pattern.exhale,
+            exhaleHoldTime: exercise.protocol.pattern.exHold,
+            rounds: exercise.protocol.rounds,
+            totalTime: parseInt(exercise.protocol.duration)
+          },
+          presetName: exercise.exerciseTitle,
+          scheduledExerciseId: exercise.id
+        };
+        navigation.navigate('BreathGuide', breathGuideParams);
       } else {
         handleLogExercise(exercise);
       }
@@ -493,23 +507,15 @@ export default function Training({ navigation, route }) {
 
           {isBreathProtocol && (
             <View style={styles.breathProtocolMetrics}>
-              <View style={styles.exerciseMetricsContainer}>
-                {exercise.metrics?.rounds && (
-                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary }]}>
-                    {exercise.metrics.rounds} rounds
-                  </Text>
-                )}
-                {exercise.metrics?.breathHold && (
-                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                    {exercise.metrics.breathHold}s hold
-                  </Text>
-                )}
-                {exercise.metrics?.recovery && (
-                  <Text style={[styles.exerciseMetrics, { color: theme.colors.primary, marginLeft: 8 }]}>
-                    {exercise.metrics.recovery}s recovery
-                  </Text>
-                )}
-              </View>
+              <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
+                {exercise.protocol.duration} @ {exercise.protocol.pattern.inhale}:{exercise.protocol.pattern.inHold}:{exercise.protocol.pattern.exhale}:{exercise.protocol.pattern.exHold}
+              </Text>
+              <TouchableOpacity
+                style={[styles.startButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handlePress}
+              >
+                <Text style={[styles.startButtonText, { color: theme.colors.background }]}>Start</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -954,5 +960,19 @@ const styles = StyleSheet.create({
   optionsButton: {
     padding: Layout.spacing.small,
     marginLeft: Layout.spacing.small,
+  },
+  exerciseSubtitle: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  startButton: {
+    paddingHorizontal: Layout.spacing.xlarge,
+    paddingVertical: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+  },
+  startButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
   },
 }); 

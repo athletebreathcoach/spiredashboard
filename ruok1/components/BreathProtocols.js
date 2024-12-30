@@ -7,21 +7,34 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { useTheme } from '../theme/ThemeContext';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
+import { scheduleBreathProtocol } from '../firebase/scheduledExercises';
+import ClientSelector from './ClientSelector';
+import { Calendar } from 'react-native-calendars';
 
 export default function BreathProtocols({ navigation, route }) {
   const theme = useTheme();
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showClientSelector, setShowClientSelector] = useState(false);
+  const [isTimeOfDayPickerVisible, setIsTimeOfDayPickerVisible] = useState(false);
+  const [selectedProtocol, setSelectedProtocol] = useState(null);
+  const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDates, setSelectedDates] = useState({});
   const isSelectionMode = route.params?.mode === 'selection';
   const onProtocolSelect = route.params?.onProtocolSelect;
+  const isCoach = route.params?.isCoach;
 
   useEffect(() => {
     loadProtocols();
@@ -60,6 +73,102 @@ export default function BreathProtocols({ navigation, route }) {
     }
   };
 
+  const handleCalendarPress = (protocol) => {
+    setSelectedProtocol(protocol);
+    if (isCoach) {
+      setShowClientSelector(true);
+    } else {
+      showTimeOfDayPicker();
+    }
+  };
+
+  const handleClientSelect = (clientId) => {
+    setSelectedClientId(clientId);
+    setShowClientSelector(false);
+    showTimeOfDayPicker();
+  };
+
+  const handleTimeOfDaySelect = (timeOfDay) => {
+    setSelectedTimeOfDay(timeOfDay);
+    setShowCalendar(true);
+  };
+
+  const handleDayPress = (day) => {
+    console.log('Calendar day selected:', {
+      selectedDay: day,
+      dateString: day.dateString,
+      timestamp: day.timestamp,
+      parsedDate: new Date(day.dateString).toLocaleString()
+    });
+    
+    const dateString = day.dateString;
+    const updatedDates = { ...selectedDates };
+    
+    if (updatedDates[dateString]) {
+      delete updatedDates[dateString];
+    } else {
+      updatedDates[dateString] = {
+        selected: true,
+        selectedColor: theme.colors.primary
+      };
+    }
+    
+    setSelectedDates(updatedDates);
+  };
+
+  const handleScheduleProtocol = async () => {
+    try {
+      const userId = selectedClientId || auth.currentUser.uid;
+      const dates = Object.keys(selectedDates);
+      
+      // Navigate to BreathGuide with scheduling info
+      const breathGuideParams = {
+        settings: {
+          inhaleTime: selectedProtocol.pattern.inhale,
+          inhaleHoldTime: selectedProtocol.pattern.inHold,
+          exhaleTime: selectedProtocol.pattern.exhale,
+          exhaleHoldTime: selectedProtocol.pattern.exHold,
+          rounds: selectedProtocol.rounds,
+          totalTime: parseInt(selectedProtocol.duration)
+        },
+        presetName: selectedProtocol.title,
+        schedulingInfo: {
+          userId,
+          protocolId: selectedProtocol.id,
+          dates,
+          timeOfDay: selectedTimeOfDay,
+          protocol: selectedProtocol
+        }
+      };
+
+      // Reset states
+      setShowCalendar(false);
+      setSelectedDates({});
+      setSelectedTimeOfDay(null);
+      setSelectedClientId(null);
+      setSelectedProtocol(null);
+
+      navigation.navigate('BreathGuide', breathGuideParams);
+    } catch (error) {
+      console.error('Error preparing protocol:', error);
+      Alert.alert('Error', 'Failed to prepare protocol');
+    }
+  };
+
+  const showTimeOfDayPicker = () => {
+    Alert.alert(
+      'Select Time of Day',
+      'When would you like to schedule this protocol?',
+      [
+        { text: 'Morning', onPress: () => handleTimeOfDaySelect('Morning') },
+        { text: 'Afternoon', onPress: () => handleTimeOfDaySelect('Afternoon') },
+        { text: 'Evening', onPress: () => handleTimeOfDaySelect('Evening') },
+        { text: 'Anytime', onPress: () => handleTimeOfDaySelect('Anytime') },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
   const handleAddPress = (protocol) => {
     if (isSelectionMode && route.params?.onSelect) {
       route.params.onSelect(protocol);
@@ -81,6 +190,13 @@ export default function BreathProtocols({ navigation, route }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {showClientSelector && (
+        <ClientSelector
+          onClientSelect={handleClientSelect}
+          onClose={() => setShowClientSelector(false)}
+        />
+      )}
+
       <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity 
           style={styles.backButton} 
@@ -149,19 +265,96 @@ export default function BreathProtocols({ navigation, route }) {
               </View>
             </View>
 
-            {isSelectionMode && (
-              <View style={styles.addButtonContainer}>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => handleCalendarPress(protocol)}
+              >
+                <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
+              </TouchableOpacity>
+
+              {isSelectionMode && (
                 <TouchableOpacity
-                  style={styles.addButton}
+                  style={styles.iconButton}
                   onPress={() => handleAddPress(protocol)}
                 >
                   <Ionicons name="add-circle" size={32} color={theme.colors.primary} />
                 </TouchableOpacity>
-              </View>
-            )}
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Select Dates
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+              Selected dates: {Object.keys(selectedDates).length}
+            </Text>
+            <Calendar
+              style={styles.calendar}
+              theme={{
+                backgroundColor: 'transparent',
+                calendarBackground: 'transparent',
+                textSectionTitleColor: theme.colors.textSecondary,
+                selectedDayBackgroundColor: theme.colors.primary,
+                selectedDayTextColor: theme.colors.white,
+                todayTextColor: theme.colors.primary,
+                dayTextColor: theme.colors.text,
+                textDisabledColor: theme.colors.textSecondary,
+                dotColor: theme.colors.primary,
+                selectedDotColor: theme.colors.white,
+                arrowColor: theme.colors.primary,
+                monthTextColor: theme.colors.text,
+                textDayFontFamily: Typography.fonts.regular,
+                textMonthFontFamily: Typography.fonts.semibold,
+                textDayHeaderFontFamily: Typography.fonts.medium,
+                textDayFontSize: 16,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 14,
+              }}
+              markedDates={selectedDates}
+              onDayPress={handleDayPress}
+              minDate={new Date().toISOString().split('T')[0]}
+              enableSwipeMonths={true}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                onPress={() => {
+                  setShowCalendar(false);
+                  setSelectedDates({});
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  { 
+                    backgroundColor: Object.keys(selectedDates).length > 0 
+                      ? theme.colors.primary 
+                      : theme.colors.textSecondary 
+                  }
+                ]}
+                onPress={handleScheduleProtocol}
+                disabled={Object.keys(selectedDates).length === 0}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -260,11 +453,50 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.medium,
   },
-  addButtonContainer: {
+  buttonContainer: {
     marginLeft: Layout.spacing.medium,
     justifyContent: 'center',
+    gap: Layout.spacing.medium,
   },
-  addButton: {
+  iconButton: {
     padding: Layout.spacing.small,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    padding: Layout.spacing.large,
+    borderRadius: Layout.borderRadius.large,
+  },
+  modalTitle: {
+    fontSize: Layout.text.xlarge,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
+  },
+  modalSubtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.large,
+  },
+  modalButton: {
+    padding: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.large,
+  },
+  modalButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.semibold,
+    textAlign: 'center',
+  },
+  calendar: {
+    width: '100%',
+    height: 300,
   },
 }); 

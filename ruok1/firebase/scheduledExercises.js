@@ -320,6 +320,11 @@ export const updateTaskStatus = async (scheduledExerciseId, completed) => {
 // Schedule a breath protocol
 export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTime, options = {}) => {
   try {
+    console.log('Scheduling breath protocol with dates:', {
+      inputDate: scheduledDateTime,
+      inputDateISO: scheduledDateTime.toISOString(),
+    });
+
     const protocolRef = doc(db, 'breathProtocols', protocolId);
     const protocolDoc = await getDoc(protocolRef);
     
@@ -330,23 +335,42 @@ export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTi
     const protocol = protocolDoc.data();
     const scheduledExerciseRef = collection(db, 'scheduledExercises');
     
+    // Ensure pattern fields are properly set with defaults if missing
+    const pattern = {
+      inhale: protocol.pattern?.inhale || 4,
+      inHold: protocol.pattern?.inHold || 4,
+      exhale: protocol.pattern?.exhale || 4,
+      exHold: protocol.pattern?.exHold || 4,
+    };
+    
+    // Use the date as-is since we've already set it correctly in BreathGuide
+    const date = scheduledDateTime;
+    
+    console.log('Using provided date:', {
+      date: date,
+      dateISO: date.toISOString(),
+      dateLocale: date.toLocaleString(),
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate()
+    });
+
     const scheduledProtocol = {
       protocolId,
       userId,
       exerciseTitle: protocol.title,
       type: 'breathProtocol',
-      scheduledDateTime,
+      scheduledDateTime: date,
       status: 'scheduled',
       metrics: {
         completed: false,
-        duration: protocol.duration || null,
-        rounds: protocol.rounds || null,
-        breathHold: protocol.breathHold || null,
-        recovery: protocol.recovery || null,
-        timeOfDay: '',
+        duration: protocol.duration || '5:00',
+        rounds: protocol.rounds || 10,
+        timeOfDay: options.metrics?.timeOfDay || 'Anytime',
       },
       protocol: {
-        ...protocol,  // Include all protocol data for auto-population
+        ...protocol,
+        pattern,
       },
       clientComments: '',
       coachNotes: '',
@@ -355,6 +379,15 @@ export const scheduleBreathProtocol = async (userId, protocolId, scheduledDateTi
       createdBy: userId,
       ...options
     };
+
+    console.log('Final scheduled protocol date:', {
+      scheduledDateTime: scheduledProtocol.scheduledDateTime,
+      scheduledDateTimeISO: scheduledProtocol.scheduledDateTime.toISOString(),
+      timeOfDay: scheduledProtocol.metrics.timeOfDay,
+      year: scheduledProtocol.scheduledDateTime.getFullYear(),
+      month: scheduledProtocol.scheduledDateTime.getMonth() + 1,
+      day: scheduledProtocol.scheduledDateTime.getDate()
+    });
 
     const docRef = await addDoc(scheduledExerciseRef, scheduledProtocol);
     return { id: docRef.id, ...scheduledProtocol };

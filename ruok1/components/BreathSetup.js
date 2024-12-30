@@ -15,7 +15,7 @@ const { height } = Dimensions.get('window');
 const CONTAINER_PADDING = height * 0.02;
 const ITEM_SPACING = height * 0.012;
 
-export default function BreathSetup({ onStart, initialSettings }) {
+export default function BreathSetup({ onStart, initialSettings, isScheduling }) {
   const theme = useTheme();
   const [settings, setSettings] = useState(initialSettings || {
     inhaleTime: 4,
@@ -169,7 +169,7 @@ export default function BreathSetup({ onStart, initialSettings }) {
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Breathing Pattern</Text>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Customize your breathing exercise
+          {isScheduling ? 'Adjust protocol settings before scheduling' : 'Customize your breathing exercise'}
         </Text>
       </View>
 
@@ -215,11 +215,13 @@ export default function BreathSetup({ onStart, initialSettings }) {
         />
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onStart(settings)}
       >
-        <Text style={[styles.buttonText, { color: theme.colors.background }]}>Begin</Text>
+        <Text style={[styles.buttonText, { color: theme.colors.white }]}>
+          {isScheduling ? 'Schedule Protocol' : 'Start Exercise'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
