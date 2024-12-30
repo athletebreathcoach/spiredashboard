@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { Calendar } from 'react-native-calendars';
-import ClientSelector from './ClientSelector';
+import { useSelectedClient } from '../context/SelectedClientContext';
 import { scheduleGuidedSession } from '../firebase/guidedSessions';
 import { updateExerciseMetrics } from '../firebase/scheduledExercises';
 
@@ -29,8 +29,8 @@ export default function GuidedSessionDetail({ navigation, route }) {
   const { session, isScheduled, scheduledExerciseId } = route.params;
   const [playing, setPlaying] = useState(false);
   const [isCoach, setIsCoach] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [showClientSelector, setShowClientSelector] = useState(false);
+  const { selectedClient, updateSelectedClient } = useSelectedClient();
+  const [showTimeOfDayPicker, setShowTimeOfDayPicker] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
   const [selectedDates, setSelectedDates] = useState({});
@@ -69,15 +69,34 @@ export default function GuidedSessionDetail({ navigation, route }) {
       const userId = selectedClient?.id || auth.currentUser.uid;
       
       // Schedule the session for each selected date
-      const dates = Object.keys(selectedDates).map(dateString => new Date(dateString));
-      for (const date of dates) {
+      const dates = Object.keys(selectedDates);
+      for (const dateString of dates) {
+        // Parse the date string components
+        const [year, month, day] = dateString.split('-').map(Number);
+        // Create date using local components to avoid timezone issues
+        const date = new Date();
+        date.setFullYear(year);
+        date.setMonth(month - 1); // months are 0-based
+        date.setDate(day);
+        date.setHours(12, 0, 0, 0);
+
+        console.log('Scheduling guided session date:', {
+          originalDateString: dateString,
+          year,
+          month,
+          day,
+          parsedDate: date,
+          parsedDateISO: date.toISOString(),
+          parsedDateLocale: date.toLocaleString()
+        });
+
         await scheduleGuidedSession(userId, session.id, date, selectedTimeOfDay);
       }
 
       Alert.alert('Success', 'Session scheduled successfully');
       setShowCalendar(false);
       setSelectedTimeOfDay(null);
-      setSelectedClient(null);
+      updateSelectedClient(null);
       setSelectedDates({});
     } catch (error) {
       console.error('Error scheduling session:', error);
@@ -85,7 +104,7 @@ export default function GuidedSessionDetail({ navigation, route }) {
     }
   };
 
-  const handleTimeSelection = (timeOfDay, client) => {
+  const handleTimeSelection = (timeOfDay) => {
     console.log('Handling time selection:', timeOfDay);
     setSelectedTimeOfDay(timeOfDay);
     // Small delay before showing calendar
@@ -95,54 +114,35 @@ export default function GuidedSessionDetail({ navigation, route }) {
     }, 100);
   };
 
-  const handleClientSelect = (client) => {
-    console.log('Client selected:', client);
-    setSelectedClient(client);
-    setShowClientSelector(false);
-    Alert.alert(
-      "Select Time of Day",
-      "When would you like to schedule this session?",
-      [
-        {
-          text: "Morning",
-          onPress: () => {
-            setSelectedTimeOfDay('morning');
-            setShowCalendar(true);
-          }
-        },
-        {
-          text: "Afternoon",
-          onPress: () => {
-            setSelectedTimeOfDay('afternoon');
-            setShowCalendar(true);
-          }
-        },
-        {
-          text: "Evening",
-          onPress: () => {
-            setSelectedTimeOfDay('evening');
-            setShowCalendar(true);
-          }
-        },
-        {
-          text: "Anytime",
-          onPress: () => {
-            setSelectedTimeOfDay('anytime');
-            setShowCalendar(true);
-          }
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
-  };
-
   const handleCalendarPress = () => {
     if (isCoach) {
-      // Show client selector dropdown immediately
-      setShowClientSelector(true);
+      // Show time of day picker immediately
+      Alert.alert(
+        "Select Time of Day",
+        "When would you like to schedule this session?",
+        [
+          {
+            text: "Morning",
+            onPress: () => handleTimeSelection('morning')
+          },
+          {
+            text: "Afternoon",
+            onPress: () => handleTimeSelection('afternoon')
+          },
+          {
+            text: "Evening",
+            onPress: () => handleTimeSelection('evening')
+          },
+          {
+            text: "Anytime",
+            onPress: () => handleTimeSelection('anytime')
+          },
+          {
+            text: "Cancel",
+            style: "cancel"
+          }
+        ]
+      );
     } else {
       Alert.alert(
         "Select Time of Day",
@@ -150,31 +150,19 @@ export default function GuidedSessionDetail({ navigation, route }) {
         [
           {
             text: "Morning",
-            onPress: () => {
-              setSelectedTimeOfDay('morning');
-              setShowCalendar(true);
-            }
+            onPress: () => handleTimeSelection('morning')
           },
           {
             text: "Afternoon",
-            onPress: () => {
-              setSelectedTimeOfDay('afternoon');
-              setShowCalendar(true);
-            }
+            onPress: () => handleTimeSelection('afternoon')
           },
           {
             text: "Evening",
-            onPress: () => {
-              setSelectedTimeOfDay('evening');
-              setShowCalendar(true);
-            }
+            onPress: () => handleTimeSelection('evening')
           },
           {
             text: "Anytime",
-            onPress: () => {
-              setSelectedTimeOfDay('anytime');
-              setShowCalendar(true);
-            }
+            onPress: () => handleTimeSelection('anytime')
           },
           {
             text: "Cancel",
@@ -360,15 +348,6 @@ export default function GuidedSessionDetail({ navigation, route }) {
             <Ionicons name="checkmark" size={24} color={theme.colors.white} />
           </TouchableOpacity>
         </View>
-      )}
-
-      {/* Client Selector */}
-      {isCoach && (
-        <ClientSelector
-          isOpen={showClientSelector}
-          onClientSelect={handleClientSelect}
-          selectedClientId={selectedClient?.id}
-        />
       )}
 
       {/* Calendar Modal */}

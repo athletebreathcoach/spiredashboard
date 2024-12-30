@@ -9,6 +9,7 @@ import { auth, db } from '../config/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
 import ActivityMetricsForm from './ActivityMetricsForm';
+import { useSelectedClient } from '../context/SelectedClientContext';
 
 const { width } = Dimensions.get('window');
 const DAY_WIDTH = width / 7;
@@ -20,7 +21,7 @@ export default function Training({ navigation, route }) {
   const [weekDates, setWeekDates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
+  const { selectedClient, updateSelectedClient } = useSelectedClient();
   const [refreshing, setRefreshing] = useState(false);
   const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -93,7 +94,7 @@ export default function Training({ navigation, route }) {
 
   useEffect(() => {
     if (isCoach) {
-      setSelectedClient({ id: auth.currentUser.uid, name: 'My Training' });
+      updateSelectedClient({ id: auth.currentUser.uid, name: 'My Training' });
     }
   }, [isCoach]);
 
@@ -177,7 +178,7 @@ export default function Training({ navigation, route }) {
       clientName: client?.name,
       isCoachId: client?.id === auth.currentUser.uid
     });
-    setSelectedClient(client);
+    updateSelectedClient(client);
   };
 
   const handleAddExercise = () => {

@@ -7,24 +7,45 @@ import {
   StyleSheet, 
   Image,
   ActivityIndicator,
-  TextInput
+  TextInput,
+  Alert,
+  Modal
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { collection, getDocs, query, orderBy, getDoc, doc } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelectedClient } from '../context/SelectedClientContext';
+import { scheduleGuidedSession } from '../firebase/guidedSessions';
+import { Calendar } from 'react-native-calendars';
 
 export default function GuidedSessions({ navigation }) {
   const theme = useTheme();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCoach, setIsCoach] = useState(false);
+  const { selectedClient, updateSelectedClient } = useSelectedClient();
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDates, setSelectedDates] = useState({});
 
   useEffect(() => {
     fetchGuidedSessions();
+    checkIfCoach();
   }, []);
+
+  const checkIfCoach = async () => {
+    try {
+      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+      setIsCoach(coachDoc.exists());
+    } catch (error) {
+      console.error('Error checking coach status:', error);
+    }
+  };
 
   const fetchGuidedSessions = async () => {
     try {
@@ -41,6 +62,90 @@ export default function GuidedSessions({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDayPress = (day) => {
+    const dateString = day.dateString;
+    const updatedDates = { ...selectedDates };
+    
+    if (updatedDates[dateString]) {
+      delete updatedDates[dateString];
+    } else {
+      updatedDates[dateString] = {
+        selected: true,
+        selectedColor: theme.colors.primary
+      };
+    }
+    
+    setSelectedDates(updatedDates);
+  };
+
+  const handleScheduleSession = async () => {
+    try {
+      const userId = selectedClient?.id || auth.currentUser.uid;
+      
+      // Schedule the session for each selected date
+      const dates = Object.keys(selectedDates);
+      for (const dateString of dates) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date();
+        date.setFullYear(year);
+        date.setMonth(month - 1);
+        date.setDate(day);
+        date.setHours(12, 0, 0, 0);
+
+        await scheduleGuidedSession(userId, selectedSession.id, date, selectedTimeOfDay);
+      }
+
+      Alert.alert('Success', 'Session scheduled successfully');
+      setShowCalendar(false);
+      setSelectedTimeOfDay(null);
+      updateSelectedClient(null);
+      setSelectedDates({});
+      setSelectedSession(null);
+    } catch (error) {
+      console.error('Error scheduling session:', error);
+      Alert.alert('Error', 'Failed to schedule session. Please try again.');
+    }
+  };
+
+  const handleTimeSelection = (timeOfDay) => {
+    console.log('Handling time selection:', timeOfDay);
+    setSelectedTimeOfDay(timeOfDay);
+    setTimeout(() => {
+      console.log('Showing calendar after delay');
+      setShowCalendar(true);
+    }, 100);
+  };
+
+  const handleCalendarPress = (session) => {
+    setSelectedSession(session);
+    Alert.alert(
+      "Select Time of Day",
+      "When would you like to schedule this session?",
+      [
+        {
+          text: "Morning",
+          onPress: () => handleTimeSelection('morning')
+        },
+        {
+          text: "Afternoon",
+          onPress: () => handleTimeSelection('afternoon')
+        },
+        {
+          text: "Evening",
+          onPress: () => handleTimeSelection('evening')
+        },
+        {
+          text: "Anytime",
+          onPress: () => handleTimeSelection('anytime')
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const formatDuration = (duration) => {
@@ -111,6 +216,15 @@ export default function GuidedSessions({ navigation }) {
                 <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
                   {session.title}
                 </Text>
+                <TouchableOpacity
+                  style={styles.calendarButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleCalendarPress(session);
+                  }}
+                >
+                  <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
               </View>
               <Text 
                 style={[styles.cardDescription, { color: theme.colors.textSecondary }]}
@@ -119,7 +233,7 @@ export default function GuidedSessions({ navigation }) {
                 {session.description}
               </Text>
               <View style={styles.cardFooter}>
-                <View style={styles.typeContainer}>
+                <View style={[styles.typeContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
                   <Text style={[styles.typeText, { color: theme.colors.text }]}>
                     {session.type}
                   </Text>
@@ -135,6 +249,68 @@ export default function GuidedSessions({ navigation }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Select Dates
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+              Selected dates: {Object.keys(selectedDates).length}
+            </Text>
+
+            <Calendar
+              onDayPress={handleDayPress}
+              markedDates={selectedDates}
+              theme={{
+                calendarBackground: theme.colors.surface,
+                textSectionTitleColor: theme.colors.text,
+                selectedDayBackgroundColor: theme.colors.primary,
+                selectedDayTextColor: theme.colors.white,
+                todayTextColor: theme.colors.primary,
+                dayTextColor: theme.colors.text,
+                textDisabledColor: theme.colors.textSecondary,
+                arrowColor: theme.colors.primary,
+                monthTextColor: theme.colors.text,
+              }}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                onPress={() => {
+                  setShowCalendar(false);
+                  setSelectedDates({});
+                  setSelectedSession(null);
+                  setSelectedTimeOfDay(null);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  { 
+                    backgroundColor: Object.keys(selectedDates).length > 0 
+                      ? theme.colors.primary 
+                      : theme.colors.textSecondary 
+                  }
+                ]}
+                onPress={handleScheduleSession}
+                disabled={Object.keys(selectedDates).length === 0}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -232,5 +408,47 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
     marginLeft: Layout.spacing.small,
+  },
+  calendarButton: {
+    padding: Layout.spacing.small,
+    marginLeft: Layout.spacing.medium,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    borderRadius: Layout.borderRadius.large,
+    padding: Layout.spacing.large,
+  },
+  modalTitle: {
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
+    marginBottom: Layout.spacing.small,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.large,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.large,
+  },
+  modalButton: {
+    flex: 1,
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+    marginHorizontal: Layout.spacing.small,
+  },
+  modalButtonText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
   },
 }); 

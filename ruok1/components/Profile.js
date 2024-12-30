@@ -13,12 +13,16 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
+import ClientSelector from './ClientSelector';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelectedClient } from '../context/SelectedClientContext';
 
 export default function Profile({ navigation }) {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
+  const { selectedClient, updateSelectedClient } = useSelectedClient();
 
   useEffect(() => {
     checkCoachStatus();
@@ -102,6 +106,25 @@ export default function Profile({ navigation }) {
     }
   };
 
+  const handleClientSelect = (client) => {
+    updateSelectedClient(client);
+  };
+
+  // Load selected client on mount
+  useEffect(() => {
+    const loadSelectedClient = async () => {
+      try {
+        const savedClient = await AsyncStorage.getItem('selectedClient');
+        if (savedClient) {
+          setSelectedClient(JSON.parse(savedClient));
+        }
+      } catch (error) {
+        console.error('Error loading selected client:', error);
+      }
+    };
+    loadSelectedClient();
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView>
@@ -118,6 +141,19 @@ export default function Profile({ navigation }) {
             </View>
           )}
         </View>
+
+        {/* Client Selector for Coaches */}
+        {isCoach && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Current Client
+            </Text>
+            <ClientSelector
+              onClientSelect={handleClientSelect}
+              selectedClientId={selectedClient?.id}
+            />
+          </View>
+        )}
 
         {/* Pending Invites Section */}
         {pendingInvites.length > 0 && (

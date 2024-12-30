@@ -19,6 +19,7 @@ import { db, auth } from '../config/firebase';
 import { scheduleBreathProtocol } from '../firebase/scheduledExercises';
 import ClientSelector from './ClientSelector';
 import { Calendar } from 'react-native-calendars';
+import { useSelectedClient } from '../context/SelectedClientContext';
 
 export default function BreathProtocols({ navigation, route }) {
   const theme = useTheme();
@@ -34,6 +35,7 @@ export default function BreathProtocols({ navigation, route }) {
   const [selectedDates, setSelectedDates] = useState({});
   const isSelectionMode = route.params?.mode === 'selection';
   const onProtocolSelect = route.params?.onProtocolSelect;
+  const { selectedClient } = useSelectedClient();
   const isCoach = route.params?.isCoach;
 
   useEffect(() => {
@@ -75,11 +77,7 @@ export default function BreathProtocols({ navigation, route }) {
 
   const handleCalendarPress = (protocol) => {
     setSelectedProtocol(protocol);
-    if (isCoach) {
-      setShowClientSelector(true);
-    } else {
-      showTimeOfDayPicker();
-    }
+    showTimeOfDayPicker();
   };
 
   const handleClientSelect = (clientId) => {
@@ -118,7 +116,7 @@ export default function BreathProtocols({ navigation, route }) {
 
   const handleScheduleProtocol = async () => {
     try {
-      const userId = selectedClientId || auth.currentUser.uid;
+      const userId = selectedClient?.id || auth.currentUser.uid;
       const dates = Object.keys(selectedDates);
       
       // Navigate to BreathGuide with scheduling info
@@ -145,7 +143,6 @@ export default function BreathProtocols({ navigation, route }) {
       setShowCalendar(false);
       setSelectedDates({});
       setSelectedTimeOfDay(null);
-      setSelectedClientId(null);
       setSelectedProtocol(null);
 
       navigation.navigate('BreathGuide', breathGuideParams);

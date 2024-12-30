@@ -21,6 +21,7 @@ import { auth } from '../config/firebase';
 import { scheduleHabit } from '../firebase/scheduledExercises';
 import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { useSelectedClient } from '../context/SelectedClientContext';
 
 const { width } = Dimensions.get('window');
 const DAYS_IN_WEEK = 7;
@@ -35,11 +36,9 @@ export default function HabitsTasks({ navigation, route }) {
   const [selectedDates, setSelectedDates] = useState([]);
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedClientId, setSelectedClientId] = useState(null);
+  const { selectedClient, updateSelectedClient } = useSelectedClient();
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [showClientModal, setShowClientModal] = useState(false);
-  const [clientsList, setClientsList] = useState([]);
   const [habitToSchedule, setHabitToSchedule] = useState(null);
   const isSelectionMode = route.params?.mode === 'selection';
   const onSelect = route.params?.onSelect;
@@ -83,7 +82,7 @@ export default function HabitsTasks({ navigation, route }) {
 
   const handleCalendarPress = (habit) => {
     if (isCoach) {
-      showClientSelector(habit);
+      showTimeOfDayPicker(habit, selectedClient?.id || auth.currentUser.uid);
     } else {
       showTimeOfDayPicker(habit, auth.currentUser.uid);
     }
@@ -165,7 +164,7 @@ export default function HabitsTasks({ navigation, route }) {
       setShowDatePicker(false);
       setSelectedDates([]);
       setSelectedHabit(null);
-      setSelectedClientId(null);
+      updateSelectedClient(null);
       setSelectedTimeOfDay(null);
     } catch (error) {
       console.error('Error scheduling habit:', error);
@@ -183,7 +182,6 @@ export default function HabitsTasks({ navigation, route }) {
           onPress: () => {
             setShowDatePicker(true);
             setSelectedHabit(habit);
-            setSelectedClientId(clientId);
             setSelectedTimeOfDay('morning');
           }
         },
@@ -192,7 +190,6 @@ export default function HabitsTasks({ navigation, route }) {
           onPress: () => {
             setShowDatePicker(true);
             setSelectedHabit(habit);
-            setSelectedClientId(clientId);
             setSelectedTimeOfDay('afternoon');
           }
         },
@@ -201,7 +198,6 @@ export default function HabitsTasks({ navigation, route }) {
           onPress: () => {
             setShowDatePicker(true);
             setSelectedHabit(habit);
-            setSelectedClientId(clientId);
             setSelectedTimeOfDay('evening');
           }
         },
@@ -211,56 +207,6 @@ export default function HabitsTasks({ navigation, route }) {
         }
       ]
     );
-  };
-
-  const showClientSelector = async (habit) => {
-    try {
-      console.log('Fetching clients for coach:', auth.currentUser.uid);
-      
-      // First check if the coach document exists
-      const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
-      console.log('Coach document exists:', coachDoc.exists());
-      
-      if (!coachDoc.exists()) {
-        console.log('No coach document found');
-        return;
-      }
-
-      // Get client IDs from the coach document
-      const coachData = coachDoc.data();
-      const clientIds = coachData.clients || [];
-      console.log('Found client IDs:', clientIds);
-
-      // Then fetch each client's details from the users collection
-      const fetchedClients = await Promise.all(
-        clientIds.map(async (clientId) => {
-          const clientDoc = await getDoc(doc(db, 'users', clientId));
-          if (clientDoc.exists()) {
-            const data = clientDoc.data();
-            return {
-              id: clientId,
-              name: data.name || data.email || 'Unnamed Client'
-            };
-          }
-          return null;
-        })
-      );
-
-      // Filter out any null values and add "My Training" option
-      const validClients = fetchedClients.filter(client => client !== null);
-      validClients.unshift({
-        id: auth.currentUser.uid,
-        name: 'My Training'
-      });
-
-      console.log('Final client list:', validClients);
-      setClientsList(validClients);
-      setHabitToSchedule(habit);
-      setShowClientModal(true);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-      Alert.alert('Error', 'Failed to load clients. Please try again.');
-    }
   };
 
   const showCalendar = (habit, clientId, timeOfDay) => {
@@ -450,63 +396,12 @@ export default function HabitsTasks({ navigation, route }) {
                       : theme.colors.textSecondary 
                   }
                 ]}
-                onPress={() => handleScheduleHabit(selectedHabit, selectedDates, selectedTimeOfDay, selectedClientId)}
+                onPress={() => handleScheduleHabit(selectedHabit, selectedDates, selectedTimeOfDay, selectedClient?.id)}
                 disabled={selectedDates.length === 0}
               >
                 <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Schedule</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showClientModal}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Select Client
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              Choose a client to schedule for
-            </Text>
-
-            <ScrollView style={styles.clientListContainer}>
-              {clientsList.map((client) => (
-                <TouchableOpacity
-                  key={client.id}
-                  style={[
-                    styles.clientButton,
-                    { 
-                      backgroundColor: theme.colors.primary + '10',
-                      marginBottom: Layout.spacing.small,
-                      borderRadius: Layout.borderRadius.medium,
-                    }
-                  ]}
-                  onPress={() => {
-                    setShowClientModal(false);
-                    showTimeOfDayPicker(habitToSchedule, client.id);
-                  }}
-                >
-                  <Text style={[styles.clientButtonText, { color: theme.colors.text }]}>
-                    {client.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: theme.colors.error }]}
-              onPress={() => {
-                setShowClientModal(false);
-                setHabitToSchedule(null);
-              }}
-            >
-              <Text style={[styles.buttonText, { color: theme.colors.white }]}>Cancel</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

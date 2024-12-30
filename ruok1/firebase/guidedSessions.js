@@ -41,6 +41,15 @@ export const getGuidedSessionById = async (sessionId) => {
 // Schedule a guided session using the scheduledExercises collection
 export const scheduleGuidedSession = async (userId, sessionId, scheduledDate, timeOfDay) => {
   try {
+    console.log('Scheduling guided session with dates:', {
+      inputDate: scheduledDate,
+      inputDateISO: scheduledDate.toISOString(),
+      inputDateLocale: scheduledDate.toLocaleString(),
+      year: scheduledDate.getFullYear(),
+      month: scheduledDate.getMonth() + 1,
+      day: scheduledDate.getDate()
+    });
+
     const sessionRef = doc(db, 'guidedSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
     
@@ -51,7 +60,7 @@ export const scheduleGuidedSession = async (userId, sessionId, scheduledDate, ti
     const sessionData = sessionDoc.data();
     
     const scheduledExercisesRef = collection(db, 'scheduledExercises');
-    await addDoc(scheduledExercisesRef, {
+    const scheduledSession = {
       userId,
       type: 'guidedSession',
       sessionId,
@@ -70,7 +79,18 @@ export const scheduleGuidedSession = async (userId, sessionId, scheduledDate, ti
       },
       createdAt: new Date(),
       updatedAt: new Date()
+    };
+
+    console.log('Final scheduled session date:', {
+      scheduledDateTime: scheduledSession.scheduledDateTime,
+      scheduledDateTimeISO: scheduledSession.scheduledDateTime.toISOString(),
+      timeOfDay: scheduledSession.metrics.timeOfDay,
+      year: scheduledSession.scheduledDateTime.getFullYear(),
+      month: scheduledSession.scheduledDateTime.getMonth() + 1,
+      day: scheduledSession.scheduledDateTime.getDate()
     });
+
+    await addDoc(scheduledExercisesRef, scheduledSession);
   } catch (error) {
     console.error('Error scheduling guided session:', error);
     throw error;

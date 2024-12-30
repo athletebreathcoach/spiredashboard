@@ -55,6 +55,7 @@ import ActivitySelector from './components/ActivitySelector';
 import ConfigureSection from './components/ConfigureSection';
 import SectionMetrics from './components/SectionMetrics';
 import SessionDetail from './components/SessionDetail';
+import { SelectedClientProvider } from './context/SelectedClientContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -231,10 +232,12 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          {user ? <AuthenticatedStack user={user} /> : <UnauthenticatedStack />}
-        </NavigationContainer>
+        <SelectedClientProvider>
+          <NavigationContainer>
+            <StatusBar style="auto" />
+            {user ? <AuthenticatedStack user={user} /> : <UnauthenticatedStack />}
+          </NavigationContainer>
+        </SelectedClientProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
