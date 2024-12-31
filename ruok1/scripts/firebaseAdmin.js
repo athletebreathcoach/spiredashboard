@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 const serviceAccount = {
   "project_id": "ruok-8c88d",
@@ -14,4 +14,4 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-module.exports = { admin, db }; 
+export { admin, db }; 
