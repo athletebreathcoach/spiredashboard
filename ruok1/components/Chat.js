@@ -12,6 +12,7 @@ import {
   FlatList,
   Image,
   TextInput,
+  Alert,
 } from 'react-native';
 import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,7 @@ import {
   serverTimestamp,
   getDoc,
   doc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 
@@ -264,8 +266,42 @@ export default function Chat({ navigation, route, hideHeader }) {
     );
   };
 
+  const onLongPress = useCallback((context, message) => {
+    // Only allow deletion of own messages
+    if (message.user._id === auth.currentUser.uid) {
+      Alert.alert(
+        'Delete Message',
+        'Are you sure you want to delete this message?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const chatId = [auth.currentUser.uid, client.id].sort().join('_');
+                await deleteDoc(doc(db, 'chats', chatId, 'messages', message._id));
+              } catch (error) {
+                console.error('Error deleting message:', error);
+                Alert.alert('Error', 'Failed to delete message');
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  }, [client]);
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? (hideHeader ? 60 : 110) : 0}
+    >
       {!hideHeader && (
         <SafeAreaView>
           <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
@@ -312,7 +348,8 @@ export default function Chat({ navigation, route, hideHeader }) {
         timeFormat="h:mm A"
         inverted={true}
         infiniteScroll={true}
-        bottomOffset={Platform.OS === 'ios' ? 80 : 90}
+        bottomOffset={Platform.OS === 'ios' ? 0 : 0}
+        onLongPress={onLongPress}
       />
 
       <Modal
@@ -369,7 +406,7 @@ export default function Chat({ navigation, route, hideHeader }) {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
