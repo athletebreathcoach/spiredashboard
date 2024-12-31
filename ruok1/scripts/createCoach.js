@@ -1,6 +1,6 @@
 import { createCoach, getCoachByEmail } from '../firebase/coaches';
 import { auth, db } from '../config/firebase';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 const createCoachFromEmail = async (email) => {
   try {
@@ -15,9 +15,10 @@ const createCoachFromEmail = async (email) => {
     }
 
     const userId = querySnapshot.docs[0].id;
+    const userData = querySnapshot.docs[0].data();
     
     // Create coach document
-    await createCoach(userId, email);
+    await createCoach(userId, email, userData.firstName || '', userData.lastName || '');
     console.log('Successfully created coach for:', email);
   } catch (error) {
     console.error('Error creating coach:', error);

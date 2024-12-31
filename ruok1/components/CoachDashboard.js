@@ -114,6 +114,7 @@ export default function CoachDashboard({ navigation }) {
 
       const clientDoc = querySnapshot.docs[0];
       const clientId = clientDoc.id;
+      const clientData = clientDoc.data();
 
       // Check if already a client
       const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
@@ -123,13 +124,20 @@ export default function CoachDashboard({ navigation }) {
         return;
       }
 
+      // Get coach data for names
+      const coachData = await getDoc(doc(db, 'users', auth.currentUser.uid));
+
       // Create invitation
       const invitationsRef = collection(db, 'coachInvitations');
       await addDoc(invitationsRef, {
         coachId: auth.currentUser.uid,
         coachEmail: auth.currentUser.email,
+        coachFirstName: coachData.data()?.firstName || '',
+        coachLastName: coachData.data()?.lastName || '',
         clientId: clientId,
         clientEmail: inviteEmail.trim(),
+        clientFirstName: clientData.firstName || '',
+        clientLastName: clientData.lastName || '',
         status: 'pending',
         createdAt: new Date().toISOString()
       });

@@ -2,7 +2,7 @@ import { db } from '../config/firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 // Create a new coach document
-export const createCoach = async (userId, email) => {
+export const createCoach = async (userId, email, firstName, lastName) => {
   try {
     // First check if user exists
     const userDoc = await getDoc(doc(db, 'users', userId));
@@ -13,6 +13,8 @@ export const createCoach = async (userId, email) => {
     // Create coach document
     await setDoc(doc(db, 'coaches', userId), {
       email,
+      firstName,
+      lastName,
       createdAt: new Date().toISOString(),
       clients: [], // Array of client user IDs
       status: 'active'

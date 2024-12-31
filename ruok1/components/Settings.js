@@ -1,16 +1,66 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Modal, TextInput } from 'react-native';
 import { useTheme, THEME_MODES, THEME_VARIANTS } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { updatePassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 export default function Settings({ navigation }) {
   const theme = useTheme();
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
   const isAuthenticated = auth.currentUser != null;
+
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setFirstName(data.firstName || '');
+        setLastName(data.lastName || '');
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setEditFirstName(firstName);
+    setEditLastName(lastName);
+    setShowEditProfileModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setFirstName(editFirstName.trim());
+      setLastName(editLastName.trim());
+      setShowEditProfileModal(false);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -76,9 +126,9 @@ export default function Settings({ navigation }) {
       items: isAuthenticated ? [
         { 
           icon: 'person-circle-outline', 
-          label: 'Account',
-          value: auth.currentUser?.email,
-          onPress: () => {} 
+          label: 'Edit Profile',
+          value: firstName && lastName ? `${firstName} ${lastName}` : undefined,
+          onPress: handleEditProfile
         },
         { 
           icon: 'key-outline', 
@@ -302,6 +352,69 @@ export default function Settings({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showEditProfileModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditProfileModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Profile</Text>
+              <TouchableOpacity
+                onPress={() => setShowEditProfileModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>First Name</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border
+                }]}
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+                placeholder="Enter first name"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Last Name</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border
+                }]}
+                value={editLastName}
+                onChangeText={setEditLastName}
+                placeholder="Enter last name"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                  onPress={() => setShowEditProfileModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleSaveProfile}
+                >
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -413,5 +526,33 @@ const styles = StyleSheet.create({
   themeOptionText: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+  },
+  inputLabel: {
+    marginBottom: 5,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 

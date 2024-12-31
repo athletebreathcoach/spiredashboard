@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
@@ -23,25 +25,84 @@ export default function Profile({ navigation }) {
   const [isCoach, setIsCoach] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
   const { selectedClient, updateSelectedClient } = useSelectedClient();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
 
   useEffect(() => {
     checkCoachStatus();
     loadPendingInvites();
     ensureUserFields();
+    loadUserProfile();
   }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setFirstName(data.firstName || '');
+        setLastName(data.lastName || '');
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const ensureUserFields = async () => {
     try {
       const userRef = doc(db, 'users', auth.currentUser.uid);
       const userDoc = await getDoc(userRef);
       
-      if (userDoc.exists() && !userDoc.data().hasOwnProperty('coachId')) {
-        await updateDoc(userRef, {
-          coachId: null
-        });
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        const updates = {};
+        
+        if (!data.hasOwnProperty('coachId')) {
+          updates.coachId = null;
+        }
+        if (!data.hasOwnProperty('firstName')) {
+          updates.firstName = '';
+        }
+        if (!data.hasOwnProperty('lastName')) {
+          updates.lastName = '';
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(userRef, updates);
+        }
       }
     } catch (error) {
       console.error('Error ensuring user fields:', error);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setEditFirstName(firstName);
+    setEditLastName(lastName);
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setFirstName(editFirstName.trim());
+      setLastName(editLastName.trim());
+      setShowEditModal(false);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile');
     }
   };
 
@@ -116,7 +177,7 @@ export default function Profile({ navigation }) {
       try {
         const savedClient = await AsyncStorage.getItem('selectedClient');
         if (savedClient) {
-          setSelectedClient(JSON.parse(savedClient));
+          updateSelectedClient(JSON.parse(savedClient));
         }
       } catch (error) {
         console.error('Error loading selected client:', error);
@@ -133,7 +194,7 @@ export default function Profile({ navigation }) {
             <Ionicons name="person-circle-outline" size={80} color={theme.colors.primary} />
           </View>
           <Text style={[styles.name, { color: theme.colors.text }]}>
-            {auth.currentUser?.email || 'User'}
+            {firstName && lastName ? `${firstName} ${lastName}` : auth.currentUser?.email || 'User'}
           </Text>
           {isCoach && (
             <View style={[styles.coachBadge, { backgroundColor: theme.colors.surface }]}>
@@ -141,6 +202,60 @@ export default function Profile({ navigation }) {
             </View>
           )}
         </View>
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={showEditModal}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalContainer}>
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Edit Profile</Text>
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>First Name</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border
+                }]}
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+                placeholder="Enter first name"
+                placeholderTextColor={theme.colors.text + '80'}
+              />
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text }]}>Last Name</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border
+                }]}
+                value={editLastName}
+                onChangeText={setEditLastName}
+                placeholder="Enter last name"
+                placeholderTextColor={theme.colors.text + '80'}
+              />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleSaveProfile}
+                >
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Client Selector for Coaches */}
         {isCoach && (
@@ -168,7 +283,9 @@ export default function Profile({ navigation }) {
               >
                 <View style={styles.inviteInfo}>
                   <Text style={[styles.inviteText, { color: theme.colors.text }]}>
-                    {invite.coachEmail} wants to be your coach
+                    {invite.coachFirstName && invite.coachLastName
+                      ? `${invite.coachFirstName} ${invite.coachLastName}`
+                      : invite.coachEmail} wants to be your coach
                   </Text>
                 </View>
                 <View style={styles.inviteButtons}>
@@ -337,5 +454,51 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+  },
+  inputLabel: {
+    marginBottom: 5,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 
