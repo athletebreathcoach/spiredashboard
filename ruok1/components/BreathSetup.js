@@ -112,13 +112,13 @@ export default function BreathSetup({ onStart, initialSettings, isScheduling }) 
     });
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTimeMMSS = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const TimeControl = ({ label, value, onIncrement, onDecrement, style, textColor }) => (
+  const TimeControl = ({ label, value, onIncrement, onDecrement, style, textColor, isTotal = false }) => (
     <View style={[styles.timerContainer, style]}>
       <Text style={[styles.timerLabel, { color: theme.colors.text }]}>{label}</Text>
       <View style={styles.controlRow}>
@@ -129,7 +129,9 @@ export default function BreathSetup({ onStart, initialSettings, isScheduling }) 
           <Ionicons name="remove" size={20} color={theme.colors.primary} />
         </TouchableOpacity>
         
-        <Text style={[styles.timerValue, { color: theme.colors.text }]}>{value}s</Text>
+        <Text style={[styles.timerValue, { color: theme.colors.text }]}>
+          {isTotal ? formatTimeMMSS(value) : `${value}s`}
+        </Text>
         
         <TouchableOpacity 
           style={[styles.controlButton, { backgroundColor: theme.colors.surface }]}
@@ -186,6 +188,7 @@ export default function BreathSetup({ onStart, initialSettings, isScheduling }) 
             updateRoundsFromTime(newTime);
           }}
           style={{ backgroundColor: theme.colors.surface }}
+          isTotal={true}
         />
 
         <TimerControl 
