@@ -5,8 +5,12 @@ import {
   Text,
   Animated,
   Dimensions,
+  TouchableOpacity,
+  BackHandler,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -18,6 +22,8 @@ const CIRCLE_SIZE = width * 0.8;
 
 export default function BreathAnimation({ pattern, navigation }) {
   const theme = useTheme();
+  const [isMuted, setIsMuted] = useState(false);
+  const soundRef = useRef(null);
 
   const scale = useRef(new Animated.Value(0.4)).current;
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -133,6 +139,55 @@ export default function BreathAnimation({ pattern, navigation }) {
     };
   }, []);
 
+  useEffect(() => {
+    loadAndPlayAudio();
+    return () => {
+      stopAudio();
+    };
+  }, []);
+
+  const loadAndPlayAudio = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/sounds/meditationbackground.mp3'),
+        { 
+          isLooping: true,
+          volume: 0.5,
+          shouldPlay: !isMuted 
+        }
+      );
+      soundRef.current = sound;
+    } catch (error) {
+      console.error('Error loading audio:', error);
+    }
+  };
+
+  const stopAudio = async () => {
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch (error) {
+        console.error('Error stopping audio:', error);
+      }
+    }
+  };
+
+  const toggleMute = async () => {
+    if (soundRef.current) {
+      try {
+        if (isMuted) {
+          await soundRef.current.playAsync();
+        } else {
+          await soundRef.current.pauseAsync();
+        }
+        setIsMuted(!isMuted);
+      } catch (error) {
+        console.error('Error toggling audio:', error);
+      }
+    }
+  };
+
   const startBreathingAnimation = () => {
     const animate = () => {
       if (roundCounter.current >= pattern.rounds) {
@@ -236,8 +291,68 @@ export default function BreathAnimation({ pattern, navigation }) {
     animate();
   };
 
+  // Add cleanup function
+  const cleanup = () => {
+    stopTickingHaptics();
+    stopAudio();
+    completionHandled.current = true;
+    // Stop all running animations
+    scale.stopAnimation();
+    opacity.stopAnimation();
+    colorAnim.stopAnimation();
+    // Clear any running timeouts
+    if (tickInterval.current) {
+      clearInterval(tickInterval.current);
+    }
+  };
+
+  // Handle back button press
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Prevent default behavior
+      e.preventDefault();
+      
+      // Run cleanup
+      cleanup();
+      
+      // Navigate back
+      navigation.dispatch(e.data.action);
+    });
+
+    // Handle hardware back button (Android)
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      cleanup();
+      navigation.goBack();
+      return true;
+    });
+
+    return () => {
+      unsubscribe();
+      backHandler.remove();
+      cleanup();
+    };
+  }, [navigation]);
+
+  // Update the existing cleanup useEffect
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <TouchableOpacity 
+        style={styles.muteButton}
+        onPress={toggleMute}
+      >
+        <Ionicons 
+          name={isMuted ? "volume-mute" : "volume-medium"} 
+          size={24} 
+          color={theme.colors.primary}
+        />
+      </TouchableOpacity>
+
       {isCountingDown ? (
         <View style={styles.countdownContainer}>
           <Text style={[styles.roundText, { color: theme.colors.text }]}>
@@ -376,5 +491,12 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.medium,
     letterSpacing: 1,
     textAlign: 'center',
+  },
+  muteButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    padding: 10,
+    zIndex: 1,
   },
 }); 
