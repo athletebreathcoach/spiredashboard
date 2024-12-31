@@ -66,6 +66,7 @@ export default function Forum() {
   const [isCommentGiphy, setIsCommentGiphy] = useState(false);
   const [activePostId, setActivePostId] = useState(null);
   const [selectedGif, setSelectedGif] = useState(null);
+  const [showGifSelector, setShowGifSelector] = useState(false);
 
   useEffect(() => {
     checkIfCoach();
@@ -140,6 +141,7 @@ export default function Forum() {
           coachId,
           isCoachPost,
           text: postData.text,
+          image: postData.image,
           authorEmail: postData.coachEmail || postData.userEmail,
           authorId: coachId || postData.userId,
           timestamp: postData.timestamp?.toDate() || new Date(),
@@ -240,7 +242,7 @@ export default function Forum() {
 
       const postsRef = collection(db, 'forum_posts');
       await addDoc(postsRef, {
-        text: newPost.trim(),
+        text: newPost.trim() || null,
         image: selectedGif,
         isCoachPost: isCoach,
         userId: auth.currentUser.uid,
@@ -424,40 +426,53 @@ export default function Forum() {
     return (
       <View style={[
         styles.postContainer,
-        item.isCoachPost && styles.coachPostContainer
+        { backgroundColor: theme.colors.surface },
+        item.isCoachPost && [
+          styles.coachPostContainer,
+          { borderLeftColor: theme.colors.primary }
+        ]
       ]}>
         <View style={styles.postHeader}>
           <View style={styles.coachInfo}>
             <View style={[
               styles.coachAvatar,
-              !item.isCoachPost && styles.clientAvatar
+              !item.isCoachPost && styles.clientAvatar,
+              { backgroundColor: item.isCoachPost ? theme.colors.primary : '#FF9500' }
             ]}>
-              <Text style={styles.coachInitials}>
+              <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
                 {(item.authorName || 'Anonymous').substring(0, 2).toUpperCase()}
               </Text>
             </View>
             <View>
-              <Text style={styles.coachName}>{item.authorName || 'Anonymous'}</Text>
-              <Text style={styles.roleText}>
+              <Text style={[styles.coachName, { color: theme.colors.text }]}>
+                {item.authorName || 'Anonymous'}
+              </Text>
+              <Text style={[styles.roleText, { color: theme.colors.textSecondary }]}>
                 {item.isCoachPost ? 'Coach' : 'Client'}
               </Text>
             </View>
           </View>
           <View style={styles.postActions}>
-            <Text style={styles.timestamp}>{formatDate(item.timestamp)}</Text>
+            <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
+              {formatDate(item.timestamp)}
+            </Text>
             {((isCoach && item.authorId === auth.currentUser.uid) || 
               (!isCoach && item.authorId === auth.currentUser.uid)) && (
               <TouchableOpacity 
                 style={styles.deleteButton}
                 onPress={() => deletePost(item.id)}
               >
-                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
               </TouchableOpacity>
             )}
           </View>
         </View>
         {item.image && (
-          <Image source={{ uri: item.image }} style={styles.postGif} />
+          <Image 
+            source={{ uri: item.image }} 
+            style={styles.postGif}
+            resizeMode="cover"
+          />
         )}
         {item.text && (
           <Text style={[styles.postText, { color: theme.colors.text }]}>{item.text}</Text>
@@ -512,7 +527,6 @@ export default function Forum() {
                 placeholderTextColor={theme.colors.textSecondary}
                 multiline
               />
-              {renderGiphyButton(true, item.id)}
               <TouchableOpacity
                 style={[
                   styles.commentSubmitButton,
@@ -600,25 +614,50 @@ export default function Forum() {
     closePostModal();
   };
 
-  const openGiphyModal = (isComment = false, postId = null) => {
+  const openGiphyModal = async (isComment = false, postId = null) => {
+    console.log('Opening Giphy modal...');
     setSearchQuery('');  // Reset search query
     setGiphyResults([]); // Reset results
     setIsCommentGiphy(isComment);
     setActivePostId(postId);
     setIsGiphyModalVisible(true);
-    // Trigger initial search to show some GIFs
-    searchGiphy('trending');
+    console.log('isGiphyModalVisible set to true');
+    
+    // Load trending GIFs immediately
+    try {
+      const { data } = await gf.trending({ limit: 20 });
+      console.log('Loaded trending GIFs:', data.length);
+      setGiphyResults(data);
+    } catch (error) {
+      console.error('Error loading trending GIFs:', error);
+    }
   };
 
   const renderGiphyButton = (isComment = false, postId = null) => {
     return (
       <TouchableOpacity
         style={styles.giphyButton}
-        onPress={() => openGiphyModal(isComment, postId)}
+        onPress={() => {
+          if (isComment) {
+            openGiphyModal(isComment, postId);
+          } else {
+            setShowGifSelector(true);
+            loadTrendingGifs();
+          }
+        }}
       >
         <Ionicons name="images-outline" size={24} color={theme.colors.primary} />
       </TouchableOpacity>
     );
+  };
+
+  const loadTrendingGifs = async () => {
+    try {
+      const { data } = await gf.trending({ limit: 20 });
+      setGiphyResults(data);
+    } catch (error) {
+      console.error('Error loading trending GIFs:', error);
+    }
   };
 
   if (loading) {
@@ -671,74 +710,132 @@ export default function Forum() {
                 <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Create Post
+                {showGifSelector ? 'Select a GIF' : 'Create Post'}
               </Text>
-              <TouchableOpacity
-                style={[
-                  styles.postButton,
-                  { 
-                    backgroundColor: theme.colors.primary,
-                    opacity: (newPost.trim() || selectedGif) && !submitting ? 1 : 0.5,
-                  }
-                ]}
-                onPress={handlePost}
-                disabled={(!newPost.trim() && !selectedGif) || submitting}
-              >
-                <Text style={[styles.postButtonText, { color: theme.colors.background }]}>
-                  {submitting ? 'Posting...' : 'Post'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.headerActions}>
+                {!showGifSelector && (
+                  <>
+                    {renderGiphyButton(false, null)}
+                    <TouchableOpacity
+                      style={[
+                        styles.postButton,
+                        { 
+                          backgroundColor: theme.colors.primary,
+                          opacity: (newPost.trim() || selectedGif) && !submitting ? 1 : 0.5,
+                        }
+                      ]}
+                      onPress={handlePost}
+                      disabled={(!newPost.trim() && !selectedGif) || submitting}
+                    >
+                      <Text style={[styles.postButtonText, { color: theme.colors.background }]}>
+                        {submitting ? 'Posting...' : 'Post'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {showGifSelector && (
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowGifSelector(false)}
+                  >
+                    <Text style={[styles.postButtonText, { color: theme.colors.text }]}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <View style={styles.modalBody}>
-              <View style={styles.userInfo}>
-                <View style={[
-                  styles.coachAvatar,
-                  !isCoach && styles.clientAvatar,
-                  { backgroundColor: isCoach ? theme.colors.primary : '#FF9500' }
-                ]}>
-                  <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
-                    {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
-                  </Text>
-                </View>
-                <Text style={[styles.userName, { color: theme.colors.text }]}>
-                  {auth.currentUser.email?.split('@')[0] || 'Anonymous'}
-                </Text>
-              </View>
-              {selectedGif && (
-                <View style={styles.selectedGifContainer}>
-                  <Image source={{ uri: selectedGif }} style={styles.selectedGif} />
-                  <TouchableOpacity
-                    style={styles.removeGifButton}
-                    onPress={() => setSelectedGif(null)}
-                  >
-                    <Ionicons name="close-circle" size={24} color={theme.colors.error} />
-                  </TouchableOpacity>
-                </View>
+              {!showGifSelector ? (
+                <>
+                  <View style={styles.userInfo}>
+                    <View style={[
+                      styles.coachAvatar,
+                      !isCoach && styles.clientAvatar,
+                      { backgroundColor: isCoach ? theme.colors.primary : '#FF9500' }
+                    ]}>
+                      <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
+                        {(auth.currentUser.email?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={[styles.userName, { color: theme.colors.text }]}>
+                      {auth.currentUser.email?.split('@')[0] || 'Anonymous'}
+                    </Text>
+                  </View>
+                  {selectedGif && (
+                    <View style={styles.selectedGifContainer}>
+                      <Image source={{ uri: selectedGif }} style={styles.selectedGif} />
+                      <TouchableOpacity
+                        style={styles.removeGifButton}
+                        onPress={() => setSelectedGif(null)}
+                      >
+                        <Ionicons name="close-circle" size={24} color={theme.colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <View style={styles.postInputContainer}>
+                    <TextInput
+                      style={[
+                        styles.modalInput,
+                        { 
+                          height: Math.max(100, inputHeight),
+                          color: theme.colors.text,
+                          flex: 1
+                        }
+                      ]}
+                      value={newPost}
+                      onChangeText={handleTextChange}
+                      onContentSizeChange={(event) => {
+                        setInputHeight(event.nativeEvent.contentSize.height);
+                      }}
+                      placeholder={isCoach 
+                        ? "Share an update with your clients..."
+                        : "Share your thoughts..."}
+                      placeholderTextColor={theme.colors.textSecondary}
+                      multiline
+                      maxLength={1000}
+                      autoFocus
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.searchContainer}>
+                    <TextInput
+                      style={[styles.searchInput, { backgroundColor: theme.colors.surface, color: theme.colors.text }]}
+                      placeholder="Search GIFs..."
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={searchQuery}
+                      onChangeText={(text) => {
+                        setSearchQuery(text);
+                        if (text.trim()) {
+                          searchGiphy(text);
+                        }
+                      }}
+                    />
+                  </View>
+                  <FlatList
+                    data={giphyResults}
+                    keyExtractor={(item) => item.id}
+                    numColumns={2}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.gifContainer}
+                        onPress={() => {
+                          setSelectedGif(item.images.original.url);
+                          setShowGifSelector(false);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: item.images.fixed_height.url }}
+                          style={styles.gifImage}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    contentContainerStyle={styles.giphyList}
+                  />
+                </>
               )}
-              <TextInput
-                style={[
-                  styles.modalInput,
-                  { 
-                    height: Math.max(100, inputHeight),
-                    color: theme.colors.text
-                  }
-                ]}
-                value={newPost}
-                onChangeText={handleTextChange}
-                onContentSizeChange={(event) => {
-                  setInputHeight(event.nativeEvent.contentSize.height);
-                }}
-                placeholder={isCoach 
-                  ? "Share an update with your clients..."
-                  : "Share your thoughts..."}
-                placeholderTextColor={theme.colors.textSecondary}
-                multiline
-                maxLength={1000}
-                autoFocus
-              />
-              <View style={styles.modalFooter}>
-                {renderGiphyButton(false, null)}
-              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -846,7 +943,11 @@ export default function Forum() {
               </View>
             </View>
             {item.image && (
-              <Image source={{ uri: item.image }} style={styles.postGif} />
+              <Image 
+                source={{ uri: item.image }} 
+                style={styles.postGif}
+                resizeMode="cover"
+              />
             )}
             {item.text && (
               <Text style={[styles.postText, { color: theme.colors.text }]}>{item.text}</Text>
@@ -905,7 +1006,6 @@ export default function Forum() {
                     placeholderTextColor={theme.colors.textSecondary}
                     multiline
                   />
-                  {renderGiphyButton(true, item.id)}
                   <TouchableOpacity
                     style={[
                       styles.commentSubmitButton,
@@ -1123,8 +1223,7 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    minHeight: 300,
-    maxHeight: '80%',
+    height: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1245,6 +1344,10 @@ const styles = StyleSheet.create({
   giphyButton: {
     padding: 8,
     alignSelf: 'center',
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   selectedGifContainer: {
     marginVertical: 10,
@@ -1276,6 +1379,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 16,
+    paddingBottom: 8,
   },
   searchInput: {
     height: 40,
@@ -1285,16 +1389,18 @@ const styles = StyleSheet.create({
   },
   giphyList: {
     padding: 8,
+    flexGrow: 1,
   },
   gifContainer: {
     flex: 1,
     margin: 4,
     borderRadius: 8,
     overflow: 'hidden',
+    height: 180,
   },
   gifImage: {
     width: '100%',
-    height: 150,
+    height: 180,
     resizeMode: 'cover',
   },
   modalTitle: {
@@ -1322,5 +1428,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 8,
+  },
+  inputActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  postInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginBottom: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 }); 
