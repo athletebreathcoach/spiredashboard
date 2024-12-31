@@ -24,6 +24,8 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp,
+  getDoc,
+  doc,
 } from 'firebase/firestore';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 
@@ -38,7 +40,28 @@ export default function Chat({ navigation, route, hideHeader }) {
   const [isGiphyModalVisible, setIsGiphyModalVisible] = useState(false);
   const [giphyResults, setGiphyResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUserName, setCurrentUserName] = useState('');
   const { client } = route.params || {};
+
+  useEffect(() => {
+    loadCurrentUserName();
+  }, []);
+
+  const loadCurrentUserName = async () => {
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        const fullName = data.firstName && data.lastName 
+          ? `${data.firstName} ${data.lastName}`
+          : auth.currentUser.email?.split('@')[0];
+        setCurrentUserName(fullName);
+      }
+    } catch (error) {
+      console.error('Error loading user name:', error);
+    }
+  };
 
   useEffect(() => {
     if (client?.id) {
@@ -46,24 +69,47 @@ export default function Chat({ navigation, route, hideHeader }) {
       const messagesRef = collection(db, 'chats', chatId, 'messages');
       const q = query(messagesRef, orderBy('timestamp', 'desc'));
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const newMessages = snapshot.docs.map(doc => ({
-          _id: doc.id,
-          text: doc.data().text,
-          image: doc.data().image,
-          createdAt: doc.data().timestamp?.toDate(),
-          user: {
-            _id: doc.data().senderId,
-            name: doc.data().senderId === auth.currentUser.uid ? 
-              auth.currentUser.email?.split('@')[0] : client.name,
-          },
-        }));
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const newMessages = [];
+        for (const docSnapshot of snapshot.docs) {
+          const messageData = docSnapshot.data();
+          let senderName = messageData.senderId === auth.currentUser.uid 
+            ? currentUserName 
+            : client.name;
+
+          // If we don't have the sender's name, try to get it from their user document
+          if (!senderName || senderName === messageData.senderId) {
+            try {
+              const userRef = doc(db, 'users', messageData.senderId);
+              const userDoc = await getDoc(userRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                senderName = userData.firstName && userData.lastName 
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : messageData.senderId;
+              }
+            } catch (error) {
+              console.error('Error loading sender name:', error);
+            }
+          }
+
+          newMessages.push({
+            _id: docSnapshot.id,
+            text: messageData.text,
+            image: messageData.image,
+            createdAt: messageData.timestamp?.toDate(),
+            user: {
+              _id: messageData.senderId,
+              name: senderName,
+            },
+          });
+        }
         setMessages(newMessages);
       });
 
       return () => unsubscribe();
     }
-  }, [client]);
+  }, [client, currentUserName]);
 
   const onSend = useCallback((newMessages = []) => {
     if (!client?.id) return;
@@ -78,12 +124,10 @@ export default function Chat({ navigation, route, hideHeader }) {
       timestamp: serverTimestamp(),
     };
 
-    // Add text field only if it exists
     if (message.text) {
       messageData.text = message.text;
     }
 
-    // Add image field only if it exists
     if (message.image) {
       messageData.image = message.image;
     }
@@ -229,7 +273,9 @@ export default function Chat({ navigation, route, hideHeader }) {
               <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              {client?.name || 'Chat'}
+              {client?.firstName && client?.lastName 
+                ? `${client.firstName} ${client.lastName}`
+                : client?.name || 'Chat'}
             </Text>
             <View style={styles.headerRight} />
           </View>
@@ -241,7 +287,7 @@ export default function Chat({ navigation, route, hideHeader }) {
         onSend={messages => onSend(messages)}
         user={{
           _id: auth.currentUser.uid,
-          name: auth.currentUser.email?.split('@')[0],
+          name: currentUserName,
         }}
         renderBubble={renderBubble}
         renderInputToolbar={renderInputToolbar}

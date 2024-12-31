@@ -71,10 +71,15 @@ export default function Community() {
           const userRef = doc(db, 'users', clientId);
           const clientDoc = await getDoc(userRef);
           if (clientDoc.exists()) {
+            const data = clientDoc.data();
             clientData.push({
               id: clientId,
-              name: clientDoc.data().email?.split('@')[0] || 'Client',
-              email: clientDoc.data().email,
+              name: data.firstName && data.lastName 
+                ? `${data.firstName} ${data.lastName}`
+                : data.email?.split('@')[0] || 'Client',
+              email: data.email,
+              firstName: data.firstName,
+              lastName: data.lastName
             });
           }
         }
@@ -143,7 +148,9 @@ export default function Community() {
                   onPress={() => handleClientSelect(client)}
                 >
                   <Text style={[styles.clientName, { color: theme.colors.text }]}>
-                    {client.name}
+                    {client.firstName && client.lastName 
+                      ? `${client.firstName} ${client.lastName}`
+                      : client.name}
                   </Text>
                   <Text style={[styles.clientEmail, { color: theme.colors.textSecondary }]}>
                     {client.email}
