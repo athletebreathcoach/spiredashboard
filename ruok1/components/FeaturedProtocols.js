@@ -63,7 +63,15 @@ export default function FeaturedProtocols({ navigation }) {
   };
 
   const handleBreathGuide = () => {
-    navigation.navigate('BreathProtocols');
+    const defaultSettings = {
+      inhaleTime: 4,
+      inhaleHoldTime: 4,
+      exhaleTime: 4,
+      exhaleHoldTime: 4,
+      rounds: 3,
+      totalTime: 48
+    };
+    navigation.navigate('BreathGuide', { settings: defaultSettings });
   };
 
   if (loading) {

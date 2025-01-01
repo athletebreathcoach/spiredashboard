@@ -20,6 +20,94 @@ import { db, auth } from '../config/firebase';
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
 
+const getAnimationStyle = (animationType, {
+  scale,
+  opacity,
+  glowOpacity,
+  animatedColor,
+  spin,
+  theme
+}) => {
+  const baseStyle = {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    position: 'absolute',
+    elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: glowOpacity,
+    backgroundColor: animatedColor,
+    shadowColor: animatedColor,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: glowOpacity,
+    shadowRadius: 30,
+  };
+
+  switch (animationType) {
+    case 'spiral':
+      return {
+        ...baseStyle,
+        transform: [
+          { scale },
+          { rotate: spin },
+        ],
+        borderRadius: CIRCLE_SIZE * 0.3,
+        borderWidth: CIRCLE_SIZE * 0.05,
+        borderColor: theme.colors.primary,
+      };
+    case 'wave':
+      return {
+        ...baseStyle,
+        transform: [{ scale }],
+        borderRadius: CIRCLE_SIZE * 0.2,
+        height: CIRCLE_SIZE * 0.5,
+      };
+    default: // 'pulse'
+      return {
+        ...baseStyle,
+        transform: [{ scale }],
+        borderRadius: CIRCLE_SIZE / 2,
+      };
+  }
+};
+
+const getBackgroundStyle = (animationType, {
+  animatedColor,
+  spin,
+}) => {
+  const baseStyle = {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    position: 'absolute',
+    opacity: 0.1,
+    backgroundColor: animatedColor,
+  };
+
+  switch (animationType) {
+    case 'spiral':
+      return {
+        ...baseStyle,
+        transform: [{ rotate: spin }],
+        borderRadius: CIRCLE_SIZE * 0.3,
+        borderWidth: CIRCLE_SIZE * 0.05,
+      };
+    case 'wave':
+      return {
+        ...baseStyle,
+        borderRadius: CIRCLE_SIZE * 0.2,
+        height: CIRCLE_SIZE * 0.5,
+      };
+    default: // 'pulse'
+      return {
+        ...baseStyle,
+        borderRadius: CIRCLE_SIZE / 2,
+      };
+  }
+};
+
 export default function BreathAnimation({ pattern, navigation }) {
   const theme = useTheme();
   const [isMuted, setIsMuted] = useState(false);
@@ -28,6 +116,7 @@ export default function BreathAnimation({ pattern, navigation }) {
   const scale = useRef(new Animated.Value(0.4)).current;
   const opacity = useRef(new Animated.Value(0.3)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [currentPhase, setCurrentPhase] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [isCountingDown, setIsCountingDown] = useState(true);
@@ -36,6 +125,13 @@ export default function BreathAnimation({ pattern, navigation }) {
   const [isComplete, setIsComplete] = useState(false);
   const completionHandled = useRef(false);
   const roundCounter = useRef(0);
+
+  const animationType = pattern.animationType || 'pulse'; // default to pulse if not specified
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   const animatedColor = colorAnim.interpolate({
     inputRange: [0, 1, 2],
@@ -197,28 +293,63 @@ export default function BreathAnimation({ pattern, navigation }) {
 
       startTickingHaptics();
 
-      // Inhale
+      // Inhale animation based on type
       setCurrentPhase('Inhale');
-      Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: pattern.inhaleTime * 1000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.8,
-          duration: pattern.inhaleTime * 1000,
-          useNativeDriver: false,
-        }),
+      const inhaleAnimations = [
         Animated.timing(colorAnim, {
           toValue: 0,
           duration: pattern.inhaleTime * 1000,
           useNativeDriver: false,
-        }),
-      ]).start(async () => {
+        })
+      ];
+
+      switch (animationType) {
+        case 'spiral':
+          inhaleAnimations.push(
+            Animated.timing(rotateAnim, {
+              toValue: 1,
+              duration: pattern.inhaleTime * 1000,
+              useNativeDriver: false,
+            })
+          );
+          break;
+        case 'wave':
+          inhaleAnimations.push(
+            Animated.sequence([
+              Animated.timing(scale, {
+                toValue: 0.8,
+                duration: pattern.inhaleTime * 500,
+                useNativeDriver: false,
+              }),
+              Animated.timing(scale, {
+                toValue: 1,
+                duration: pattern.inhaleTime * 500,
+                useNativeDriver: false,
+              })
+            ])
+          );
+          break;
+        default: // 'pulse'
+          inhaleAnimations.push(
+            Animated.timing(scale, {
+              toValue: 1,
+              duration: pattern.inhaleTime * 1000,
+              useNativeDriver: false,
+            })
+          );
+      }
+
+      inhaleAnimations.push(
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: pattern.inhaleTime * 1000,
+          useNativeDriver: false,
+        })
+      );
+
+      Animated.parallel(inhaleAnimations).start(async () => {
         await triggerHaptic('transition');
         
-        // Only do inhale hold if time > 0
         if (pattern.inhaleHoldTime > 0) {
           setCurrentPhase('Hold');
           Animated.timing(colorAnim, {
@@ -238,9 +369,9 @@ export default function BreathAnimation({ pattern, navigation }) {
 
       const startExhale = () => {
         setCurrentPhase('Exhale');
-        Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 0.4,
+        const exhaleAnimations = [
+          Animated.timing(colorAnim, {
+            toValue: 2,
             duration: pattern.exhaleTime * 1000,
             useNativeDriver: false,
           }),
@@ -248,16 +379,48 @@ export default function BreathAnimation({ pattern, navigation }) {
             toValue: 0.3,
             duration: pattern.exhaleTime * 1000,
             useNativeDriver: false,
-          }),
-          Animated.timing(colorAnim, {
-            toValue: 2,
-            duration: pattern.exhaleTime * 1000,
-            useNativeDriver: false,
-          }),
-        ]).start(async () => {
+          })
+        ];
+
+        switch (animationType) {
+          case 'spiral':
+            exhaleAnimations.push(
+              Animated.timing(rotateAnim, {
+                toValue: 0,
+                duration: pattern.exhaleTime * 1000,
+                useNativeDriver: false,
+              })
+            );
+            break;
+          case 'wave':
+            exhaleAnimations.push(
+              Animated.sequence([
+                Animated.timing(scale, {
+                  toValue: 0.6,
+                  duration: pattern.exhaleTime * 500,
+                  useNativeDriver: false,
+                }),
+                Animated.timing(scale, {
+                  toValue: 0.4,
+                  duration: pattern.exhaleTime * 500,
+                  useNativeDriver: false,
+                })
+              ])
+            );
+            break;
+          default: // 'pulse'
+            exhaleAnimations.push(
+              Animated.timing(scale, {
+                toValue: 0.4,
+                duration: pattern.exhaleTime * 1000,
+                useNativeDriver: false,
+              })
+            );
+        }
+
+        Animated.parallel(exhaleAnimations).start(async () => {
           await triggerHaptic('transition');
           
-          // Only do exhale hold if time > 0
           if (pattern.exhaleHoldTime > 0) {
             setCurrentPhase('Hold');
             setTimeout(async () => {
@@ -379,27 +542,23 @@ export default function BreathAnimation({ pattern, navigation }) {
             <Animated.View
               style={[
                 styles.circleBackground,
-                {
-                  backgroundColor: animatedColor,
-                  opacity: 0.1,
-                },
+                getBackgroundStyle(animationType, {
+                  animatedColor,
+                  spin,
+                })
               ]}
             />
             <Animated.View
               style={[
                 styles.circleBreathing,
-                {
-                  transform: [{ scale }],
-                  opacity: glowOpacity,
-                  backgroundColor: animatedColor,
-                  shadowColor: animatedColor,
-                  shadowOffset: {
-                    width: 0,
-                    height: 0,
-                  },
-                  shadowOpacity: glowOpacity,
-                  shadowRadius: 30,
-                },
+                getAnimationStyle(animationType, {
+                  scale,
+                  opacity,
+                  glowOpacity,
+                  animatedColor,
+                  spin,
+                  theme
+                })
               ]}
             />
             <Animated.View style={styles.textContainer}>
@@ -467,13 +626,11 @@ const styles = StyleSheet.create({
   circleBackground: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
     position: 'absolute',
   },
   circleBreathing: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
     position: 'absolute',
     elevation: 5,
     justifyContent: 'center',

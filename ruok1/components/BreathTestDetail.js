@@ -100,6 +100,47 @@ const getTestConfig = (testId) => {
           return 'Excellent';
         }
       };
+    case 'tap-test':
+      return {
+        title: 'Tap Test',
+        type: 'tap',
+        description: 'The Tap Test measures your central nervous system readiness and fatigue level by counting how many times you can tap in 10 seconds.',
+        instructions: [
+          'Find a comfortable position',
+          'Hold your device steady',
+          'When ready, press start',
+          'Tap the circle as rapidly as possible',
+          'Continue for 10 seconds until the test ends'
+        ],
+        duration: 10000,
+        getScore: (taps) => {
+          if (taps < 40) return 'Fatigued';
+          if (taps < 50) return 'Below Average';
+          if (taps < 60) return 'Average';
+          if (taps < 70) return 'Good';
+          return 'Excellent';
+        }
+      };
+    case 'max-breath-hold':
+      return {
+        title: 'Max Breath Hold',
+        type: 'timer',
+        description: 'This test measures your maximum breath hold capacity after a full inhalation. A longer hold time indicates better breath hold capacity.',
+        instructions: [
+          'Find a comfortable seated position',
+          'Take several normal breaths to prepare',
+          'Take a deep breath in to maximum capacity',
+          'When ready, press start',
+          'Hold your breath as long as you can',
+          'Press stop when you need to breathe'
+        ],
+        getScore: (seconds) => {
+          if (seconds < 30) return 'Beginner';
+          if (seconds < 60) return 'Intermediate';
+          if (seconds < 120) return 'Advanced';
+          return 'Expert';
+        }
+      };
     default:
       console.error('Unknown test ID:', testId);
       return null;
@@ -140,13 +181,44 @@ export default function BreathTestDetail({ navigation, route }) {
   const [currentStepCount, setCurrentStepCount] = useState(0);
   const subscription = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const tapCountRef = useRef(0);
 
-  const scale = useRef(
-    testConfig.type === 'timer' && test.id === 'exhale-test' ? new Animated.Value(testConfig.initialScale) : null
-  ).current;
-  const opacity = useRef(
-    testConfig.type === 'timer' && test.id === 'exhale-test' ? new Animated.Value(0.9) : null
-  ).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.9)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
+  const [dots, setDots] = useState(Array(12).fill(0)); // 12 dots for the circle
+  const dotScale = useRef(dots.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    // Create pulsing animation
+    const pulseAnimation = () => {
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (phase === 'testing') {
+          pulseAnimation();
+        }
+      });
+    };
+
+    if (phase === 'testing' && testConfig.type === 'timer') {
+      pulseAnimation();
+    }
+
+    return () => {
+      scale.setValue(1);
+    };
+  }, [phase]);
 
   useEffect(() => {
     return () => {
@@ -179,7 +251,11 @@ export default function BreathTestDetail({ navigation, route }) {
 
   const startTest = async () => {
     setPhase('testing');
-    if (testConfig.type === 'timer') {
+    if (testConfig.type === 'tap') {
+      setTapCount(0);
+      tapCountRef.current = 0;
+      setTimer(0);
+    } else if (testConfig.type === 'timer') {
       startTime.current = Date.now();
       
       timerRef.current = setInterval(() => {
@@ -212,6 +288,29 @@ export default function BreathTestDetail({ navigation, route }) {
     }
   };
 
+  const handleTap = () => {
+    if (phase === 'testing' && testConfig.type === 'tap') {
+      if (tapCountRef.current === 0 && !timerRef.current) {
+        startTime.current = Date.now();
+        timerRef.current = setInterval(() => {
+          setTimer(prev => {
+            if (prev >= 9) {
+              stopTest();
+              return prev;
+            }
+            return prev + 1;
+          });
+        }, 1000);
+      }
+
+      console.log('Tap registered');
+      tapCountRef.current += 1;
+      setTapCount(tapCountRef.current);
+      console.log('Current tap count:', tapCountRef.current);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const stopTest = () => {
     if (testConfig.type === 'timer') {
       if (timerRef.current) {
@@ -231,7 +330,7 @@ export default function BreathTestDetail({ navigation, route }) {
         scale.setValue(testConfig.initialScale);
         opacity.setValue(0.9);
       }
-    } else {
+    } else if (testConfig.type === 'steps') {
       if (subscription.current) {
         subscription.current.remove();
       }
@@ -241,6 +340,17 @@ export default function BreathTestDetail({ navigation, route }) {
       } else {
         setPhase('input');
       }
+    } else if (testConfig.type === 'tap') {
+      console.log('Stopping tap test');
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      const finalCount = tapCountRef.current;
+      console.log('Final tap count:', finalCount);
+      setResult(finalCount);
+      setPhase('complete');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return;
     }
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -265,14 +375,17 @@ export default function BreathTestDetail({ navigation, route }) {
     
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'breathingTests'), {
-        userId: auth.currentUser.uid,
-        testId: test.id,
+      console.log('Saving test result:', testData);
+      // Save to the user's exerciseResults collection
+      const resultRef = collection(db, 'users', auth.currentUser.uid, 'exerciseResults');
+      await addDoc(resultRef, {
+        exerciseId: test.id,
+        exerciseType: 'test',
         testName: testConfig.title,
         result: testData.result,
         resultType: testConfig.type,
         level: testConfig.getScore(testData.result),
-        timestamp: serverTimestamp(),
+        completedAt: serverTimestamp(),
       });
       
       navigation.goBack();
@@ -284,6 +397,31 @@ export default function BreathTestDetail({ navigation, route }) {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (phase === 'testing' && testConfig.type === 'timer') {
+      const animateDots = () => {
+        const currentSecond = timer % 15;
+        const dotIndex = Math.floor((currentSecond / 15) * 12);
+        
+        // Reset all dots when starting a new cycle
+        if (currentSecond === 0) {
+          dotScale.forEach(scale => scale.setValue(0));
+        }
+
+        // Animate the current dot
+        Animated.timing(dotScale[dotIndex], {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      };
+
+      // Start dot animation
+      const interval = setInterval(animateDots, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [phase, timer]);
 
   const renderContent = () => {
     switch (phase) {
@@ -323,7 +461,29 @@ export default function BreathTestDetail({ navigation, route }) {
         );
 
       case 'testing':
-        if (test.id === 'bolt-test') { // BOLT Test
+        if (test.id === 'tap-test') {
+          return (
+            <View style={styles.contentContainer}>
+              <View style={styles.timerContainer}>
+                <Text style={[styles.timer, { color: theme.colors.text }]}>
+                  {tapCount === 0 ? 'Tap to start!' : `${10 - timer}s`}
+                </Text>
+                <Text style={[styles.tapInstructions, { color: theme.colors.textSecondary }]}>
+                  {tapCount === 0 ? 'Timer starts on first tap' : 'Tap as fast as you can!'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleTap}
+                style={[styles.tapCircle, { backgroundColor: theme.colors.primary }]}
+              >
+                <Text style={[styles.tapCount, { color: theme.colors.background }]}>
+                  {tapCount}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        } else if (test.id === 'bolt-test') {
           return (
             <View style={styles.contentContainer}>
               <View style={styles.timerContainer}>
@@ -345,46 +505,48 @@ export default function BreathTestDetail({ navigation, route }) {
           return (
             <View style={styles.contentContainer}>
               <View style={styles.animationContainer}>
-                {testConfig.referenceCircles.map((circle, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.referenceCircle,
-                      {
-                        transform: [{ scale: circle.scale }],
-                        borderColor: theme.colors.primary,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.referenceLabel, { color: theme.colors.textSecondary }]}>
-                      {circle.label}
-                    </Text>
-                  </View>
-                ))}
-                <Animated.View
-                  style={[
-                    styles.circle,
-                    {
-                      backgroundColor: theme.colors.primary,
-                      transform: [{ scale }],
-                      opacity,
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.controlsContainer}>
-                <Text style={[styles.timer, { color: theme.colors.text }]}>
-                  {formatTime(timer)}
-                </Text>
-                <TouchableOpacity
-                  style={[styles.button, { backgroundColor: theme.colors.error }]}
-                  onPress={stopTest}
-                >
-                  <Text style={[styles.buttonText, { color: theme.colors.background }]}>
-                    Stop
+                <View style={styles.dotsContainer}>
+                  {dots.map((_, index) => {
+                    const angle = (index / 12) * 2 * Math.PI;
+                    const radius = CIRCLE_SIZE / 2;
+                    const x = Math.cos(angle - Math.PI / 2) * radius;
+                    const y = Math.sin(angle - Math.PI / 2) * radius;
+                    
+                    return (
+                      <Animated.View
+                        key={index}
+                        style={[
+                          styles.dot,
+                          {
+                            transform: [
+                              { translateX: x },
+                              { translateY: y },
+                              { scale: dotScale[index] }
+                            ],
+                            backgroundColor: theme.colors.primary,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+                <View style={styles.timerContainer}>
+                  <Text style={[styles.timer, { color: theme.colors.text }]}>
+                    {formatTime(timer)}
                   </Text>
-                </TouchableOpacity>
+                  <Text style={[styles.timerLabel, { color: theme.colors.textSecondary }]}>
+                    {test.id === 'max-breath-hold' ? 'Hold Your Breath' : 'Keep Going'}
+                  </Text>
+                </View>
               </View>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: theme.colors.error }]}
+                onPress={stopTest}
+              >
+                <Text style={[styles.buttonText, { color: theme.colors.background }]}>
+                  Stop
+                </Text>
+              </TouchableOpacity>
             </View>
           );
         } else {
@@ -459,7 +621,7 @@ export default function BreathTestDetail({ navigation, route }) {
             <View style={styles.resultsContainer}>
               <View style={[styles.resultCard, { backgroundColor: theme.colors.surface }]}>
                 <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>
-                  {testConfig.type === 'timer' ? 'Duration' : 'Steps'}
+                  {testConfig.type === 'timer' ? 'Duration' : testConfig.type === 'tap' ? 'Taps' : 'Steps'}
                 </Text>
                 <Text style={[styles.resultValue, { color: theme.colors.text }]}>
                   {testConfig.type === 'timer' ? formatTime(result) : result}
@@ -666,5 +828,54 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.medium,
     textAlign: 'center',
     marginBottom: Layout.spacing.large,
+  },
+  tapCircle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Layout.spacing.xlarge,
+  },
+  tapCount: {
+    fontSize: Layout.text.xxxlarge,
+    fontFamily: Typography.fonts.bold,
+  },
+  tapInstructions: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.small,
+  },
+  timerCircle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    borderWidth: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  timerLabel: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.medium,
+    marginTop: Layout.spacing.small,
+  },
+  dotsContainer: {
+    position: 'absolute',
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'white',
+  },
+  timerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

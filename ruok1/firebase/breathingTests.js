@@ -31,6 +31,24 @@ export const initializeBreathTests = async () => {
         icon: 'timer-outline',
         type: 'breathTest',
         instructions: 'Take a normal breath in and out through your nose, then hold your breath. Time how long until you feel the first urge to breathe.'
+      },
+      {
+        id: 'tap-test',
+        title: 'Tap Test',
+        category: 'Assessment',
+        description: 'Measure your central nervous system readiness and fatigue level',
+        icon: 'finger-print-outline',
+        type: 'tapTest',
+        instructions: 'Tap the screen as many times as you can in 10 seconds to assess your neuromuscular readiness.'
+      },
+      {
+        id: 'max-breath-hold',
+        title: 'Max Breath Hold',
+        category: 'Assessment',
+        description: 'Measure your maximum breath hold capacity',
+        icon: 'hourglass-outline',
+        type: 'breathTest',
+        instructions: 'Take a deep breath in to maximum capacity, then hold your breath for as long as possible.'
       }
     ];
 

@@ -26,17 +26,27 @@ export default function BreathProtocols({ navigation, route }) {
   const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showClientSelector, setShowClientSelector] = useState(false);
-  const [isTimeOfDayPickerVisible, setIsTimeOfDayPickerVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedDates, setSelectedDates] = useState({});
+  const [showCalendar, setShowCalendar] = useState(false);
   const [selectedProtocol, setSelectedProtocol] = useState(null);
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState(null);
+  const [showClientSelector, setShowClientSelector] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState(null);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDates, setSelectedDates] = useState({});
-  const isSelectionMode = route.params?.mode === 'selection';
+  const isSelectionMode = route.params?.selectionMode;
   const onProtocolSelect = route.params?.onProtocolSelect;
   const { selectedClient } = useSelectedClient();
   const isCoach = route.params?.isCoach;
+
+  // Add categories based on your protocols
+  const categories = [
+    { id: 'all', label: 'All' },
+    { id: 'relaxation', label: 'Relaxation' },
+    { id: 'balance', label: 'Balance' },
+    { id: 'energy', label: 'Energy' },
+    { id: 'focus', label: 'Focus' },
+    { id: 'sleep', label: 'Sleep' }
+  ];
 
   useEffect(() => {
     loadProtocols();
@@ -67,7 +77,8 @@ export default function BreathProtocols({ navigation, route }) {
           exhaleTime: protocol.pattern.exhale,
           exhaleHoldTime: protocol.pattern.exHold,
           rounds: protocol.rounds,
-          totalTime: parseInt(protocol.duration)
+          totalTime: parseInt(protocol.duration),
+          animationType: protocol.animationType
         },
         presetName: protocol.title
       };
@@ -172,10 +183,17 @@ export default function BreathProtocols({ navigation, route }) {
     }
   };
 
-  const filteredProtocols = protocols.filter(protocol =>
-    protocol.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    protocol.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProtocols = protocols.filter(protocol => {
+    const matchesSearch = 
+      protocol.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      protocol.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = 
+      selectedCategory === 'all' || 
+      protocol.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   if (loading) {
     return (
@@ -218,6 +236,40 @@ export default function BreathProtocols({ navigation, route }) {
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Explore and practice different breathing techniques
         </Text>
+
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.categoryContainer}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              style={[
+                styles.categoryButton,
+                { 
+                  backgroundColor: selectedCategory === category.id 
+                    ? theme.colors.primary 
+                    : theme.colors.surface 
+                }
+              ]}
+              onPress={() => setSelectedCategory(category.id)}
+            >
+              <Text 
+                style={[
+                  styles.categoryText, 
+                  { 
+                    color: selectedCategory === category.id 
+                      ? theme.colors.background 
+                      : theme.colors.text 
+                  }
+                ]}
+              >
+                {category.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <View style={styles.searchContainer}>
           <Ionicons 
@@ -495,5 +547,18 @@ const styles = StyleSheet.create({
   calendar: {
     width: '100%',
     height: 300,
+  },
+  categoryContainer: {
+    marginBottom: Layout.spacing.large,
+  },
+  categoryButton: {
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.large,
+    marginRight: Layout.spacing.small,
+  },
+  categoryText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.medium,
   },
 }); 

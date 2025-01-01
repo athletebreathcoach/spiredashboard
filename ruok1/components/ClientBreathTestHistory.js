@@ -44,17 +44,18 @@ export default function ClientBreathTestHistory({ route }) {
   const fetchTests = async () => {
     try {
       setLoading(true);
-      const testsRef = collection(db, 'breathingTests');
-      const testsQuery = query(testsRef, 
-        where('userId', '==', clientId),
-        orderBy('timestamp', 'desc')
+      const resultRef = collection(db, 'users', clientId, 'exerciseResults');
+      const testsQuery = query(
+        resultRef,
+        where('exerciseType', '==', 'test'),
+        orderBy('completedAt', 'desc')
       );
       const snapshot = await getDocs(testsQuery);
       
       const testsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate?.() || new Date(doc.data().timestamp)
+        timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
       }));
       
       setTests(testsData);
@@ -82,6 +83,8 @@ export default function ClientBreathTestHistory({ route }) {
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     } else if (test.resultType === 'steps') {
       return `${test.result} steps`;
+    } else if (test.resultType === 'tap') {
+      return `${test.result} taps`;
     }
     return test.result.toString();
   };

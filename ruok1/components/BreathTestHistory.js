@@ -12,7 +12,7 @@ import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { auth, db } from '../config/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 
@@ -43,17 +43,18 @@ export default function BreathTestHistory() {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const breathTestRef = collection(db, 'breathingTests');
+      const resultRef = collection(db, 'users', auth.currentUser.uid, 'exerciseResults');
       const q = query(
-        breathTestRef,
-        orderBy('timestamp', 'desc')
+        resultRef,
+        where('exerciseType', '==', 'test'),
+        orderBy('completedAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
       
       const testData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate?.() || new Date(doc.data().timestamp)
+        timestamp: doc.data().completedAt?.toDate?.() || new Date(doc.data().completedAt)
       }));
 
       setHistory(testData);
@@ -85,6 +86,9 @@ export default function BreathTestHistory() {
       const mins = Math.floor(result / 60);
       const secs = result % 60;
       return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    if (resultType === 'tap') {
+      return `${result} taps`;
     }
     return `${result} steps`;
   };

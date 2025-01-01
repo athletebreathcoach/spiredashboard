@@ -222,7 +222,7 @@ export default function BreathSetup({ onStart, initialSettings, isScheduling }) 
         style={[styles.button, { backgroundColor: theme.colors.primary }]}
         onPress={() => onStart(settings)}
       >
-        <Text style={[styles.buttonText, { color: theme.colors.white }]}>
+        <Text style={[styles.buttonText, { color: theme.colors.background }]}>
           {isScheduling ? 'Schedule Protocol' : 'Start Exercise'}
         </Text>
       </TouchableOpacity>
