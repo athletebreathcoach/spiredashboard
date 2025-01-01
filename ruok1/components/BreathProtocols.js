@@ -41,6 +41,7 @@ export default function BreathProtocols({ navigation, route }) {
   // Add categories based on your protocols
   const categories = [
     { id: 'all', label: 'All' },
+    { id: 'apnea', label: 'Apnea' },
     { id: 'relaxation', label: 'Relaxation' },
     { id: 'balance', label: 'Balance' },
     { id: 'energy', label: 'Energy' },
@@ -70,6 +71,14 @@ export default function BreathProtocols({ navigation, route }) {
 
   const handleProtocolPress = (protocol) => {
     if (!isSelectionMode) {
+      if (protocol.navigateTo === 'ApneaTableSetup') {
+        navigation.navigate('ApneaTableSetup', {
+          tableType: protocol.tableType,
+          title: protocol.title
+        });
+        return;
+      }
+
       const breathGuideParams = {
         settings: {
           inhaleTime: protocol.pattern.inhale,

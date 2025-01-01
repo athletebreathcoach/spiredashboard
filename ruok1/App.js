@@ -56,6 +56,7 @@ import ConfigureSection from './components/ConfigureSection';
 import SectionMetrics from './components/SectionMetrics';
 import SessionDetail from './components/SessionDetail';
 import { SelectedClientProvider } from './context/SelectedClientContext';
+import ApneaTableSetup from './components/ApneaTableSetup';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -377,6 +378,17 @@ function AuthenticatedStack({ user }) {
         options={{
           headerShown: false,
         }}
+      />
+      <Stack.Screen 
+        name="ApneaTableSetup" 
+        component={ApneaTableSetup}
+        options={({ route }) => ({
+          title: route.params?.title || 'Apnea Table Setup',
+          headerTitleStyle: {
+            fontFamily: Typography.fonts.bold,
+            fontSize: Layout.text.large,
+          }
+        })}
       />
       <Stack.Screen 
         name="BreathingComplete" 

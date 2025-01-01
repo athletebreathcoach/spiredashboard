@@ -351,6 +351,66 @@ export async function addBreathProtocols() {
         ],
         createdAt: new Date(),
         updatedAt: new Date()
+      },
+      {
+        title: "CO2 Table",
+        description: "A CO2 tolerance table with fixed breath holds and decreasing rest intervals. Great for improving CO2 tolerance and breath control.",
+        type: "breathwork",
+        category: "apnea",
+        animationType: "pulse",
+        duration: "15:00",
+        pattern: {
+          inhale: 0,
+          inHold: 0,
+          exhale: 0,
+          exHold: 0
+        },
+        rounds: 8,
+        benefits: [
+          "Improves CO2 tolerance",
+          "Enhances breath control",
+          "Increases mental resilience"
+        ],
+        instructions: [
+          "Start with a comfortable breath hold time",
+          "Rest intervals decrease with each round",
+          "Maintain a relaxed state throughout",
+          "Stop if you feel excessive air hunger"
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        navigateTo: 'ApneaTableSetup',
+        tableType: 'co2'
+      },
+      {
+        title: "O2 Table",
+        description: "An O2 depletion table with increasing breath holds and fixed rest intervals. Perfect for improving oxygen efficiency and hypoxic tolerance.",
+        type: "breathwork",
+        category: "apnea",
+        animationType: "pulse",
+        duration: "20:00",
+        pattern: {
+          inhale: 0,
+          inHold: 0,
+          exhale: 0,
+          exHold: 0
+        },
+        rounds: 8,
+        benefits: [
+          "Improves oxygen efficiency",
+          "Enhances hypoxic tolerance",
+          "Builds mental strength"
+        ],
+        instructions: [
+          "Start with 50-60% of max breath hold",
+          "Hold times increase with each round",
+          "Maintain consistent rest intervals",
+          "Focus on relaxation between holds"
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        navigateTo: 'ApneaTableSetup',
+        tableType: 'o2'
       }
     ];
 
