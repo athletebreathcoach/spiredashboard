@@ -114,9 +114,59 @@ export default function ActivitySelector({ navigation, route }) {
   const handleNext = () => {
     if (selectedActivities.length === 0) return;
     
-    navigation.navigate('SectionDetail', {
-      selectedActivities: selectedActivities
-    });
+    // Group activities by type
+    const groupedActivities = selectedActivities.reduce((groups, activity) => {
+      const type = activity.type.toLowerCase();
+      const group = groups.find(g => g.type === type);
+      
+      if (!group) {
+        groups.push({
+          type,
+          items: [{
+            id: activity.id,
+            title: activity.title || activity.name,
+            type: activity.type,
+            description: activity.description || '',
+            metrics: {
+              sets: [{
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              }],
+              eachSide: false,
+              notes: ''
+            }
+          }]
+        });
+      } else {
+        group.items.push({
+          id: activity.id,
+          title: activity.title || activity.name,
+          type: activity.type,
+          description: activity.description || '',
+          metrics: {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          }
+        });
+      }
+      return groups;
+    }, []);
+
+    // Create initial section data
+    const section = {
+      title: '',
+      description: '',
+      activities: groupedActivities,
+      isNew: true
+    };
+    
+    navigation.navigate('SectionDetail', { section });
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>

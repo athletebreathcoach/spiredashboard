@@ -28,8 +28,8 @@ export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, op
     const exercise = exerciseDoc.data();
     const scheduledExerciseRef = collection(db, 'scheduledExercises');
     
-    // Destructure timeOfDay from options to handle it separately
-    const { timeOfDay, metrics, ...restOptions } = options;
+    // Destructure supersetId and other options
+    const { timeOfDay, metrics, supersetId, ...restOptions } = options;
     
     const scheduledExercise = {
       exerciseId,
@@ -40,14 +40,16 @@ export const scheduleExercise = async (userId, exerciseId, scheduledDateTime, op
       status: 'scheduled',
       metrics: {
         ...(metrics || {}),
-        timeOfDay: timeOfDay || 'anytime',  // Ensure timeOfDay is stored in metrics
+        timeOfDay: timeOfDay || 'anytime',
       },
+      // Add supersetId if it exists
+      ...(supersetId && { supersetId }),
       clientComments: '',
       coachNotes: '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       createdBy: userId,
-      ...restOptions  // Spread the rest of the options, excluding timeOfDay
+      ...restOptions
     };
 
     const docRef = await addDoc(scheduledExerciseRef, scheduledExercise);
@@ -607,6 +609,74 @@ export const scheduleSection = async (userId, section, date, timeOfDay) => {
     return true;
   } catch (error) {
     console.error('Error scheduling section:', error);
+    throw error;
+  }
+};
+
+// Add helper function to get superset exercises
+export const getSupersetExercises = async (userId, supersetId) => {
+  try {
+    const q = query(
+      collection(db, 'scheduledExercises'),
+      where('userId', '==', userId),
+      where('supersetId', '==', supersetId),
+      orderBy('supersetId', 'asc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting superset exercises:', error);
+    throw error;
+  }
+};
+
+// Add helper function to get all exercises in a superset group
+export const getSupersetGroup = async (userId, supersetLetter) => {
+  try {
+    const q = query(
+      collection(db, 'scheduledExercises'),
+      where('userId', '==', userId),
+      where('supersetId', '>=', `${supersetLetter}1`),
+      where('supersetId', '<=', `${supersetLetter}9`),
+      orderBy('supersetId', 'asc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting superset group:', error);
+    throw error;
+  }
+};
+
+// Update metrics for all exercises in a superset
+export const updateSupersetMetrics = async (userId, supersetLetter, metricsUpdate) => {
+  try {
+    const exercises = await getSupersetGroup(userId, supersetLetter);
+    const batch = writeBatch(db);
+    
+    exercises.forEach(exercise => {
+      const exerciseRef = doc(db, 'scheduledExercises', exercise.id);
+      batch.update(exerciseRef, { 
+        metrics: {
+          ...exercise.metrics,
+          ...metricsUpdate
+        },
+        updatedAt: serverTimestamp()
+      });
+    });
+    
+    await batch.commit();
+    return true;
+  } catch (error) {
+    console.error('Error updating superset metrics:', error);
     throw error;
   }
 };

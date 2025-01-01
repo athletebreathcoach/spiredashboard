@@ -359,31 +359,24 @@ const getAllSupersetChains = (activities) => {
   const visited = new Set();
 
   activities.forEach((activity, index) => {
-    if (!visited.has(index) && (activity.supersetWith !== null || 
-        (index > 0 && activities[index - 1]?.supersetWith === index))) {
-      // Find the start of the chain
-      let startIndex = index;
-      while (startIndex > 0 && activities[startIndex - 1]?.supersetWith === startIndex) {
-        startIndex--;
-      }
-      
-      // Get the full chain
+    if (!visited.has(index) && activity.supersetId) {
       const chain = [];
-      let currentIndex = startIndex;
-      while (currentIndex < activities.length) {
-        chain.push(currentIndex);
-        visited.add(currentIndex);
-        const nextIndex = activities[currentIndex].supersetWith;
-        if (nextIndex === null || nextIndex <= currentIndex) break;
-        currentIndex = nextIndex;
-      }
+      const letter = activity.supersetId.charAt(0);
       
+      // Find all activities in this superset group
+      activities.forEach((a, i) => {
+        if (a.supersetId && a.supersetId.charAt(0) === letter) {
+          chain.push(i);
+          visited.add(i);
+        }
+      });
+
       if (chain.length > 0) {
         chains.push(chain);
       }
     }
   });
-  
+
   return chains;
 };
 
@@ -391,11 +384,11 @@ const getAllSupersetChains = (activities) => {
 const getSupersetInfo = (activityIndex, activities) => {
   const chains = getAllSupersetChains(activities);
   for (let i = 0; i < chains.length; i++) {
-    const position = chains[i].indexOf(activityIndex);
-    if (position !== -1) {
+    if (chains[i].includes(activityIndex)) {
+      const activity = activities[activityIndex];
       return {
         color: SUPERSET_COLORS[i % SUPERSET_COLORS.length],
-        label: `${String.fromCharCode(65 + i)}${position + 1}`,
+        label: activity.supersetId,
         isInSuperset: true
       };
     }
@@ -408,21 +401,20 @@ export default function SectionDetail({ navigation, route }) {
   const [section, setSection] = useState(route.params.section || { title: '', description: '' });
   const [activities, setActivities] = useState(() => {
     if (route.params.section?.activities) {
-      return route.params.section.activities.reduce((acc, group) => 
+      // Flatten activities and preserve supersetId
+      const flattenedActivities = route.params.section.activities.reduce((acc, group) => 
         [...acc, ...(group.items || []).map(item => ({
-          ...item,
+          id: item.id,
+          title: item.title,
           type: group.type,
-          supersetWith: item.supersetWith !== undefined ? item.supersetWith : null,
+          description: item.description || '',
+          supersetId: item.supersetId,
           metrics: {
             sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
               reps: set.reps || '',
               weight: set.weight || '',
               rest: set.rest || '00:00'
-            })) : item.metrics?.sets ? [{
-              reps: item.metrics.sets.reps || '',
-              weight: item.metrics.sets.weight || '',
-              rest: item.metrics.sets.rest || '00:00'
-            }] : [{
+            })) : [{
               reps: '',
               weight: '',
               rest: '00:00'
@@ -432,6 +424,9 @@ export default function SectionDetail({ navigation, route }) {
           }
         }))], []
       );
+
+      console.log('Loaded activities with supersets:', flattenedActivities);
+      return flattenedActivities;
     }
     return [];
   });
@@ -450,6 +445,37 @@ export default function SectionDetail({ navigation, route }) {
     });
   };
 
+  const syncSupersetSets = (activityIndex) => {
+    setActivities(current => {
+      const updated = [...current];
+      const activity = updated[activityIndex];
+      
+      if (!activity.supersetId) return updated;
+      
+      // Find all activities in this superset
+      const letter = activity.supersetId.charAt(0);
+      const supersetActivities = updated.filter(a => 
+        a.supersetId && a.supersetId.charAt(0) === letter
+      );
+      
+      // Find the maximum number of sets in the superset
+      const maxSets = Math.max(...supersetActivities.map(a => a.metrics.sets.length));
+      
+      // Sync all activities to have the same number of sets
+      supersetActivities.forEach(a => {
+        while (a.metrics.sets.length < maxSets) {
+          a.metrics.sets.push({
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          });
+        }
+      });
+      
+      return updated;
+    });
+  };
+
   const handleAddSet = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
@@ -460,6 +486,8 @@ export default function SectionDetail({ navigation, route }) {
       });
       return updated;
     });
+    // Sync sets after adding a new one
+    syncSupersetSets(activityIndex);
   };
 
   const handleToggleEachSide = (activityIndex) => {
@@ -478,92 +506,222 @@ export default function SectionDetail({ navigation, route }) {
   };
 
   const handleToggleSuperset = (index) => {
+    const currentItem = activities[index];
+    const nextItem = activities[index + 1];
+
+    if (!currentItem || !nextItem) return;
+
     setActivities(current => {
       const updated = [...current];
-      const currentItem = updated[index];
-      const nextItem = updated[index + 1];
-
-      if (!nextItem) return updated;
-
-      if (currentItem.supersetWith === null) {
-        // Link the items
-        currentItem.supersetWith = index + 1;
+      
+      // If they're already in a superset
+      if (currentItem.supersetId) {
+        const letter = currentItem.supersetId.charAt(0);
         
-        // Sync the number of sets
-        const maxSets = Math.max(
-          currentItem.metrics.sets.length,
-          nextItem.metrics.sets.length
-        );
-        
-        // Add sets to current item if needed
-        while (currentItem.metrics.sets.length < maxSets) {
-          currentItem.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
+        // If next item is not in this superset, add it
+        if (!nextItem.supersetId || nextItem.supersetId.charAt(0) !== letter) {
+          // Find the highest number in this superset
+          let maxNumber = 0;
+          updated.forEach(item => {
+            if (item.supersetId && item.supersetId.charAt(0) === letter) {
+              const num = parseInt(item.supersetId.slice(1));
+              maxNumber = Math.max(maxNumber, num);
+            }
           });
-        }
-        
-        // Add sets to next item if needed
-        while (nextItem.metrics.sets.length < maxSets) {
-          nextItem.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          });
+          
+          // Add next item to this superset with next number
+          nextItem.supersetId = `${letter}${maxNumber + 1}`;
+        } else {
+          // If next item is already in this superset, remove it
+          delete nextItem.supersetId;
+          
+          // If only one item remains in superset, remove the superset entirely
+          const remainingInSuperset = updated.filter(item => 
+            item.supersetId && item.supersetId.charAt(0) === letter
+          ).length;
+          
+          if (remainingInSuperset <= 1) {
+            updated.forEach(item => {
+              if (item.supersetId && item.supersetId.charAt(0) === letter) {
+                delete item.supersetId;
+              }
+            });
+          }
         }
       } else {
-        // Unlink the items
-        currentItem.supersetWith = null;
+        // Create new superset relationship
+        const chains = getAllSupersetChains(current);
+        const letter = String.fromCharCode(65 + chains.length);
+        
+        currentItem.supersetId = `${letter}1`;
+        nextItem.supersetId = `${letter}2`;
       }
-
+      
       return updated;
     });
   };
 
   const handleSave = () => {
+    if (!section.title && !isLogging && !route.params.isScheduling) {
+      Alert.alert('Required Field', 'Please enter a section title.');
+      return;
+    }
+
+    // When logging or scheduling, return the updated activities
     if (isLogging || route.params.isScheduling) {
-      // When logging or scheduling, call onComplete with the updated activities
       route.params.onComplete?.(activities.map(activity => ({
-        ...activity,
-        exerciseId: activity.id
+        id: activity.id,
+        title: activity.title,
+        type: activity.type,
+        description: activity.description || '',
+        supersetId: activity.supersetId,
+        metrics: {
+          sets: activity.metrics.sets,
+          eachSide: activity.metrics.eachSide,
+          notes: activity.metrics.notes,
+          timeOfDay: route.params.timeOfDay
+        }
       })));
       navigation.goBack();
-    } else {
-      // Normal save for editing/creating section
-      if (!section.title) {
-        Alert.alert('Required Field', 'Please enter a section title.');
-        return;
-      }
-
-      const groupedActivities = ACTIVITY_TYPES.map(type => ({
-        type: type.id,
-        items: activities.filter(a => a.type === type.id)
-      })).filter(group => group.items.length > 0);
-
-      const sectionData = {
-        ...section,
-        activities: groupedActivities,
-        updatedAt: new Date().toISOString(),
-        updatedBy: auth.currentUser.uid
-      };
-
-      if (section.id) {
-        updateSection(section.id, sectionData)
-          .then(() => navigation.goBack())
-          .catch(error => {
-            console.error('Error updating section:', error);
-            Alert.alert('Error', 'Failed to update section. Please try again.');
-          });
-      } else {
-        createSection(sectionData)
-          .then(() => navigation.goBack())
-          .catch(error => {
-            console.error('Error creating section:', error);
-            Alert.alert('Error', 'Failed to create section. Please try again.');
-          });
-      }
+      return;
     }
+
+    // Normal save for editing/creating section
+    const groupedActivities = ACTIVITY_TYPES.map(type => ({
+      type: type.id,
+      items: activities
+        .filter(a => a.type === type.id)
+        .map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          type: activity.type,
+          description: activity.description || '',
+          supersetId: activity.supersetId,
+          metrics: {
+            sets: activity.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })),
+            eachSide: activity.metrics.eachSide,
+            notes: activity.metrics.notes
+          }
+        }))
+    })).filter(group => group.items.length > 0);
+
+    const sectionData = {
+      ...section,
+      activities: groupedActivities,
+      updatedAt: new Date().toISOString(),
+      updatedBy: auth.currentUser.uid,
+      userId: auth.currentUser.uid,
+      createdAt: section.createdAt || new Date().toISOString(),
+      createdBy: section.createdBy || auth.currentUser.uid
+    };
+
+    console.log('Saving section data:', JSON.stringify(sectionData, null, 2));
+
+    if (section.id) {
+      updateSection(section.id, sectionData)
+        .then(() => navigation.goBack())
+        .catch(error => {
+          console.error('Error updating section:', error);
+          Alert.alert('Error', 'Failed to update section. Please try again.');
+        });
+    } else {
+      createSection(sectionData)
+        .then(() => navigation.goBack())
+        .catch(error => {
+          console.error('Error creating section:', error);
+          Alert.alert('Error', 'Failed to create section. Please try again.');
+        });
+    }
+  };
+
+  const handleMoveActivity = (index, direction) => {
+    if ((direction === 'up' && index === 0) || 
+        (direction === 'down' && index === activities.length - 1)) {
+      return;
+    }
+
+    setActivities(current => {
+      const updated = [...current];
+      const activity = updated[index];
+      
+      // If this activity is part of a superset, move the entire superset
+      if (activity.supersetId) {
+        const letter = activity.supersetId.charAt(0);
+        const supersetIndices = updated
+          .map((a, i) => a.supersetId?.charAt(0) === letter ? i : null)
+          .filter(i => i !== null);
+        
+        if (direction === 'up') {
+          // Check if we can move up
+          if (supersetIndices[0] <= 0) return current;
+          
+          // Move each activity in the superset up one position
+          const targetIndex = supersetIndices[0] - 1;
+          const temp = updated[targetIndex];
+          
+          // Shift superset activities up
+          for (let i = supersetIndices.length - 1; i >= 0; i--) {
+            const currentIndex = supersetIndices[i];
+            const targetIndex = currentIndex - 1;
+            updated[targetIndex] = updated[currentIndex];
+          }
+          
+          // Place the displaced activity at the end of the superset
+          updated[supersetIndices[supersetIndices.length - 1]] = temp;
+          
+        } else {
+          // Check if we can move down
+          if (supersetIndices[supersetIndices.length - 1] >= updated.length - 1) return current;
+          
+          // Move each activity in the superset down one position
+          const targetIndex = supersetIndices[supersetIndices.length - 1] + 1;
+          const temp = updated[targetIndex];
+          
+          // Shift superset activities down
+          for (let i = 0; i < supersetIndices.length; i++) {
+            const currentIndex = supersetIndices[i];
+            const targetIndex = currentIndex + 1;
+            updated[targetIndex] = updated[currentIndex];
+          }
+          
+          // Place the displaced activity at the start of the superset
+          updated[supersetIndices[0]] = temp;
+        }
+      } else {
+        // Handle moving a single activity
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        
+        // Check if target position is in the middle of a superset
+        const targetActivity = updated[newIndex];
+        if (targetActivity.supersetId) {
+          // Find the bounds of the superset
+          const letter = targetActivity.supersetId.charAt(0);
+          const supersetIndices = updated
+            .map((a, i) => a.supersetId?.charAt(0) === letter ? i : null)
+            .filter(i => i !== null);
+          
+          // Skip over the entire superset
+          if (direction === 'up') {
+            const targetIndex = supersetIndices[0] - 1;
+            if (targetIndex < 0) return current;
+            [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+          } else {
+            const targetIndex = supersetIndices[supersetIndices.length - 1] + 1;
+            if (targetIndex >= updated.length) return current;
+            [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+          }
+        } else {
+          // Normal swap for non-superset items
+          [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+        }
+      }
+      
+      return updated;
+    });
   };
 
   return (

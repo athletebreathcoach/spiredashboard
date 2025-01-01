@@ -52,7 +52,6 @@ import BreathTestDetail from './components/BreathTestDetail';
 import BreathTestHistory from './components/BreathTestHistory';
 import ClientBreathTestHistory from './components/ClientBreathTestHistory';
 import ActivitySelector from './components/ActivitySelector';
-import ConfigureSection from './components/ConfigureSection';
 import SectionMetrics from './components/SectionMetrics';
 import SessionDetail from './components/SessionDetail';
 import { SelectedClientProvider } from './context/SelectedClientContext';
@@ -559,13 +558,6 @@ function AuthenticatedStack({ user }) {
       <Stack.Screen 
         name="ActivitySelector" 
         component={ActivitySelector}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen 
-        name="ConfigureSection" 
-        component={ConfigureSection}
         options={{
           headerShown: false,
         }}

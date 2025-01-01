@@ -171,50 +171,27 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   };
 
   const handleTimeSelection = (section, timeOfDay) => {
-    setSelectedTimeOfDay(timeOfDay);
-    setSelectedSection(section);
-    
-    // Clean up section data to ensure it's serializable
+    // Clean the section data for scheduling
     const cleanSection = {
       ...section,
       activities: section.activities.map(group => ({
-        ...group,
-        items: group.items.map(item => {
-          // Create a clean copy of the item without any Firestore references
-          const cleanItem = {
-            id: item.id,
-            title: item.title,
-            type: item.type || 'exercise',
-            description: item.description || '',
-            exerciseId: item.exerciseId,
-            supersetIndex: item.supersetIndex,
-            supersetWith: item.supersetWith,
-            metrics: {
-              ...(item.metrics || {}),
-              sets: item.metrics?.sets || [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: item.metrics?.eachSide || false,
-              notes: item.metrics?.notes || '',
-              timeOfDay: timeOfDay
-            }
-          };
-
-          // Only include equipment if it's a simple object (no Firestore refs)
-          if (item.equipment && typeof item.equipment === 'object') {
-            cleanItem.equipment = Object.keys(item.equipment).reduce((acc, key) => {
-              const equip = item.equipment[key];
-              if (typeof equip === 'object' && !equip.ref) {
-                acc[key] = equip;
-              }
-              return acc;
-            }, {});
+        type: group.type,
+        items: group.items.map(item => ({
+          id: item.id,
+          title: item.title,
+          type: group.type,
+          description: item.description || '',
+          supersetId: item.supersetId, // Preserve supersetId
+          metrics: {
+            sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets : [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: item.metrics?.eachSide || false,
+            notes: item.metrics?.notes || ''
           }
-
-          return cleanItem;
-        })
+        }))
       }))
     };
 
@@ -236,8 +213,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
                 return {
                   ...item,
                   metrics: updatedActivity.metrics,
-                  supersetIndex: updatedActivity.supersetIndex,
-                  supersetWith: updatedActivity.supersetWith
+                  supersetId: updatedActivity.supersetId // Preserve supersetId
                 };
               }
               return item;
@@ -265,19 +241,19 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
       [
         {
           text: "Morning",
-          onPress: () => handleTimeSelection(section, 'morning')
+          onPress: () => navigateToScheduling(section, 'morning')
         },
         {
           text: "Afternoon",
-          onPress: () => handleTimeSelection(section, 'afternoon')
+          onPress: () => navigateToScheduling(section, 'afternoon')
         },
         {
           text: "Evening",
-          onPress: () => handleTimeSelection(section, 'evening')
+          onPress: () => navigateToScheduling(section, 'evening')
         },
         {
           text: "Anytime",
-          onPress: () => handleTimeSelection(section, 'anytime')
+          onPress: () => navigateToScheduling(section, 'anytime')
         },
         {
           text: "Cancel",
@@ -285,6 +261,41 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
         }
       ]
     );
+  };
+
+  const navigateToScheduling = (section, timeOfDay) => {
+    navigation.navigate('SectionDetail', {
+      section,
+      isScheduling: true,
+      timeOfDay,
+      onComplete: async (updatedActivities) => {
+        try {
+          const userId = selectedClient?.id || auth.currentUser.uid;
+          
+          // Create the section data with the updated activities
+          const sectionToSchedule = {
+            ...section,
+            assignedBy: auth.currentUser.uid,
+            createdBy: auth.currentUser.uid,
+            activities: section.activities.map(group => ({
+              type: group.type,
+              items: group.items.map(item => {
+                const updatedActivity = updatedActivities.find(a => a.id === item.id);
+                return updatedActivity || item;
+              })
+            }))
+          };
+
+          // Show calendar for date selection
+          setSelectedSection(sectionToSchedule);
+          setSelectedTimeOfDay(timeOfDay);
+          setShowCalendar(true);
+        } catch (error) {
+          console.error('Error preparing section schedule:', error);
+          Alert.alert('Error', 'Failed to prepare section for scheduling. Please try again.');
+        }
+      }
+    });
   };
 
   const handleDeleteSection = (section) => {

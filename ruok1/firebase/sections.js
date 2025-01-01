@@ -16,18 +16,82 @@ export const getSections = async (userId) => {
   }
 };
 
-export const createSection = async ({ userId, title, description, activities, createdBy }) => {
+// Add this helper function to generate superset IDs
+const generateSupersetId = (activities) => {
+  const existingSets = new Set(activities
+    .filter(a => a.supersetId)
+    .map(a => a.supersetId.charAt(0)));
+  
+  let letter = 'A';
+  while (existingSets.has(letter)) {
+    letter = String.fromCharCode(letter.charCodeAt(0) + 1);
+  }
+  
+  const activitiesInSet = activities
+    .filter(a => a.supersetId?.startsWith(letter))
+    .length;
+  
+  return `${letter}${activitiesInSet + 1}`;
+};
+
+export const createSection = async (sectionData) => {
   try {
+    const { activities, ...sectionInfo } = sectionData;
+    
+    // Process activities to include proper superset IDs
+    const processedActivities = activities.map((activityGroup) => {
+      // Track current superset letter for this group
+      let currentSupersetLetter = 'A';
+      let currentSupersetCount = 0;
+      
+      const processedItems = activityGroup.items.map((item) => {
+        const processed = { ...item };
+        
+        // Handle superset ID generation
+        if (item.supersetWith !== null && item.supersetWith !== undefined) {
+          if (currentSupersetCount === 0) {
+            // Start a new superset group
+            currentSupersetCount = 1;
+            processed.supersetId = `${currentSupersetLetter}${currentSupersetCount}`;
+          } else {
+            // Continue current superset group
+            currentSupersetCount++;
+            processed.supersetId = `${currentSupersetLetter}${currentSupersetCount}`;
+          }
+          // Remove old superset fields
+          delete processed.supersetWith;
+          delete processed.supersetIndex;
+        } else {
+          // Not part of a superset, reset counters and move to next letter
+          if (currentSupersetCount > 0) {
+            currentSupersetLetter = String.fromCharCode(currentSupersetLetter.charCodeAt(0) + 1);
+            currentSupersetCount = 0;
+          }
+          // Ensure no superset fields exist
+          delete processed.supersetId;
+          delete processed.supersetWith;
+          delete processed.supersetIndex;
+        }
+        
+        return processed;
+      });
+      
+      return {
+        ...activityGroup,
+        items: processedItems
+      };
+    });
+
     const sectionsRef = collection(db, 'sections');
     const docRef = await addDoc(sectionsRef, {
-      userId,
-      title,
-      description,
-      activities,
+      userId: sectionInfo.userId,
+      title: sectionInfo.title,
+      description: sectionInfo.description,
+      activities: processedActivities,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy,
-      assignedBy: createdBy,
+      createdBy: sectionInfo.createdBy,
+      assignedBy: sectionInfo.createdBy,
       assignedAt: new Date().toISOString(),
       status: 'active'
     });
@@ -108,23 +172,48 @@ export const scheduleSection = async (userId, section, date, timeOfDay) => {
       assignedBy: section.assignedBy,
       sectionId: section.id,
       isSection: true,
-      isParent: true // Mark this as the parent section
+      isParent: true
     };
 
     const sectionDocRef = doc(scheduledExercisesRef);
     batch.set(sectionDocRef, sectionEntry);
 
-    // Then, create entries for each activity in the section
+    // Process activities to maintain superset relationships
     for (const activityGroup of section.activities) {
       if (!activityGroup.items) continue;
 
-      // Keep track of superset groups
-      const supersetGroups = new Map();
+      // Track current superset letter
+      let currentSupersetLetter = 'A';
+      let currentSupersetCount = 0;
 
       for (const item of activityGroup.items) {
         if (!item.title) continue;
 
-        // Create the base exercise document
+        // Handle superset ID generation
+        let supersetId = null;
+        if (item.supersetId) {
+          // If item already has a supersetId, use it
+          supersetId = item.supersetId;
+        } else if (item.supersetWith !== null && item.supersetWith !== undefined) {
+          // If this is a new superset relationship
+          if (currentSupersetCount === 0) {
+            // Start a new superset group
+            currentSupersetCount = 1;
+            supersetId = `${currentSupersetLetter}${currentSupersetCount}`;
+          } else {
+            // Continue current superset group
+            currentSupersetCount++;
+            supersetId = `${currentSupersetLetter}${currentSupersetCount}`;
+          }
+        } else {
+          // Not part of a superset, reset counters and move to next letter
+          if (currentSupersetCount > 0) {
+            currentSupersetLetter = String.fromCharCode(currentSupersetLetter.charCodeAt(0) + 1);
+            currentSupersetCount = 0;
+          }
+        }
+
+        // Create the scheduled exercise
         const scheduledExercise = {
           userId,
           scheduledDateTime: date,
@@ -141,35 +230,16 @@ export const scheduleSection = async (userId, section, date, timeOfDay) => {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           createdBy: userId,
-          sectionId: sectionDocRef.id, // Use the new section doc ID
-          parentSectionId: section.id, // Keep original section ID for reference
+          sectionId: sectionDocRef.id,
+          parentSectionId: section.id,
           sectionTitle: section.title,
-          activityId: item.id
+          activityId: item.id,
+          ...(item.exerciseId && { exerciseId: item.exerciseId }),
+          ...(supersetId && { supersetId }) // Add supersetId if it exists
         };
-
-        // Only add exerciseId if it exists
-        if (item.exerciseId) {
-          scheduledExercise.exerciseId = item.exerciseId;
-        }
-
-        // Only add superset info if it exists
-        if (item.supersetIndex !== undefined && item.supersetIndex !== null) {
-          scheduledExercise.supersetIndex = item.supersetIndex;
-        }
-        if (item.supersetWith !== undefined && item.supersetWith !== null) {
-          scheduledExercise.supersetWith = item.supersetWith;
-        }
 
         const newDocRef = doc(scheduledExercisesRef);
         batch.set(newDocRef, scheduledExercise);
-
-        // Track this exercise if it's part of a superset
-        if (item.supersetWith !== null && item.supersetWith !== undefined) {
-          if (!supersetGroups.has(item.supersetWith)) {
-            supersetGroups.set(item.supersetWith, []);
-          }
-          supersetGroups.get(item.supersetWith).push(newDocRef.id);
-        }
       }
     }
 
