@@ -382,72 +382,44 @@ export default function Training({ navigation, route }) {
   };
 
   const handleSectionPress = (section) => {
-    // Get all exercises that belong to this section
-    const sectionExercises = exercises.filter(ex => 
-      ex.sectionId === section.id && !ex.isParent && ex.type !== 'section' // Exclude parent section and section type documents
-    );
+    // Get all exercises that belong to this section and maintain their order
+    const sectionExercises = exercises
+      .filter(ex => ex.sectionId === section.id && !ex.isParent && ex.type !== 'section')
+      .sort((a, b) => (a.order || 0) - (b.order || 0));  // Sort by order if available
 
-    // Group the exercises and preserve superset relationships
-    const groupedExercises = sectionExercises.map(ex => ({
-      id: ex.id,
-      title: ex.title || ex.exerciseTitle,
-      type: ex.type || 'exercise',
-      description: ex.description || '',
-      exerciseId: ex.exerciseId,
-      metrics: {
-        ...(ex.metrics || {}),
-        sets: ex.metrics?.sets || [{
-          reps: '',
-          weight: '',
-          rest: '00:00'
-        }],
-        eachSide: ex.metrics?.eachSide || false,
-        notes: ex.metrics?.notes || ''
-      },
-      supersetIndex: ex.supersetIndex,
-      supersetWith: ex.supersetWith
-    }));
-
-    // Navigate to SectionDetail with the properly structured data
+    // Navigate to SectionDetail with the properly structured data for logging
     navigation.navigate('SectionDetail', { 
       section: {
         id: section.id,
         title: section.title || section.sectionTitle,
+        type: section.sectionType || 'section',
+        description: section.description || '',
         activities: [{
-          type: 'exercises',
-          items: groupedExercises
-        }]
+          type: 'activities',
+          items: sectionExercises.map((ex, index) => ({
+            id: ex.id,
+            title: ex.title || ex.exerciseTitle,
+            type: ex.type || 'exercise',
+            description: ex.description || '',
+            exerciseId: ex.exerciseId,
+            order: ex.order || index,  // Use existing order or create one based on index
+            metrics: ex.metrics || {
+              sets: [{
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              }],
+              eachSide: false,
+              notes: ''
+            }
+          }))
+        }],
+        scheduledDateTime: section.scheduledDateTime,
+        metrics: section.metrics,
+        settings: section.settings || {}
       },
-      isLogging: true,
-      onComplete: async (updatedActivities) => {
-        try {
-          // Update metrics for each activity in the section
-          for (const activity of updatedActivities) {
-            await updateExerciseMetrics(activity.id, activity.metrics);
-            await updateExerciseStatus(activity.id, 'completed');
-
-            // Save to exercise history
-            const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
-            await addDoc(historyRef, {
-              exerciseId: activity.exerciseId,
-              title: activity.title || activity.exerciseTitle,
-              type: activity.type || 'exercise',
-              metrics: activity.metrics,
-              completedAt: serverTimestamp(),
-              timeOfDay: activity.metrics?.timeOfDay || 'anytime',
-              scheduledDateTime: section.scheduledDateTime || new Date().toISOString(),
-              sectionId: section.id,
-              sectionTitle: section.title || section.sectionTitle
-            });
-          }
-          
-          // Refresh the exercises list
-          loadExercisesForDate(selectedDate);
-        } catch (error) {
-          console.error('Error updating section metrics:', error);
-          Alert.alert('Error', 'Failed to save section metrics. Please try again.');
-        }
-      }
+      mode: 'logging',
+      isLogging: true
     });
   };
 
@@ -757,6 +729,38 @@ export default function Training({ navigation, route }) {
     const firstExercise = section.activities?.[0];
     const metricsPreview = firstExercise ? getMetricsPreview(firstExercise) : '';
 
+    // Get icon based on section type
+    const getIconForType = (type) => {
+      switch (type?.toLowerCase()) {
+        case 'fortime':
+          return 'timer-outline';
+        case 'amrap':
+          return 'infinite-outline';
+        case 'chipper':
+          return 'list-outline';
+        case 'intervals':
+          return 'repeat-outline';
+        default:
+          return 'layers-outline';
+      }
+    };
+
+    // Format section type for display
+    const getDisplayType = (type) => {
+      switch (type?.toLowerCase()) {
+        case 'fortime':
+          return 'For Time';
+        case 'amrap':
+          return 'AMRAP';
+        case 'chipper':
+          return 'Chipper';
+        case 'intervals':
+          return 'Intervals';
+        default:
+          return 'Superset';
+      }
+    };
+
     return (
       <TouchableOpacity
         key={section.id}
@@ -766,7 +770,7 @@ export default function Training({ navigation, route }) {
         <View style={styles.exerciseContent}>
           <View style={styles.exerciseHeader}>
             <Ionicons 
-              name="barbell-outline"
+              name={getIconForType(section.sectionType)}
               size={24} 
               color={theme.colors.primary}
               style={styles.exerciseIcon}
@@ -775,6 +779,9 @@ export default function Training({ navigation, route }) {
               {section.title || section.exerciseTitle || section.sectionTitle}
             </Text>
           </View>
+          <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
+            {getDisplayType(section.sectionType)}
+          </Text>
           {metricsPreview && (
             <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
               {metricsPreview}

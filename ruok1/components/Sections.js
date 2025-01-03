@@ -35,7 +35,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   const [selectedSections, setSelectedSections] = useState([]);
   const [selectedType, setSelectedType] = useState(null);
   const isSelectionMode = route.params?.selectedDate != null;
-  const { selectedDate } = route.params || {};
+  const { selectedDate, selectedSection: routeSelectedSection, selectedTimeOfDay: routeSelectedTimeOfDay } = route.params || {};
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDates, setSelectedDates] = useState({});
   const [selectedSection, setSelectedSection] = useState(null);
@@ -44,6 +44,14 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   useEffect(() => {
     loadSections();
   }, [selectedType]);
+
+  useEffect(() => {
+    if (routeSelectedSection && routeSelectedTimeOfDay) {
+      setSelectedSection(routeSelectedSection);
+      setSelectedTimeOfDay(routeSelectedTimeOfDay);
+      setShowCalendar(true);
+    }
+  }, [routeSelectedSection, routeSelectedTimeOfDay]);
 
   const loadSections = async () => {
     try {
@@ -66,7 +74,8 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   const handleSectionPress = (section) => {
     navigation.navigate('SectionDetail', {
       section,
-      selectedDate
+      selectedDate,
+      isScheduling: !!selectedDate
     });
   };
 
@@ -103,8 +112,10 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   };
 
   const handleCalendarPress = (section) => {
-    setSelectedSection(section);
-    showTimeOfDayPicker();
+    navigation.navigate('SectionDetail', {
+      section,
+      isScheduling: true
+    });
   };
 
   const showTimeOfDayPicker = () => {
@@ -168,6 +179,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
       setSelectedTimeOfDay(null);
       setSelectedSection(null);
       Alert.alert('Success', 'Section scheduled successfully');
+      navigation.navigate('Programs', { screen: 'Sections' });
     } catch (error) {
       console.error('Error scheduling section:', error);
       Alert.alert('Error', 'Failed to schedule section');

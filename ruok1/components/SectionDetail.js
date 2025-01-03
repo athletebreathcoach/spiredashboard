@@ -6,6 +6,7 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { createSection, updateSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
+import { scheduleSection } from '../firebase/scheduledExercises';
 
 const SECTION_TYPES = [
   { id: 'standard', label: 'Standard', icon: 'barbell-outline' },
@@ -236,84 +237,93 @@ export default function SectionDetail({ navigation, route }) {
       if (isLogging || route.params.isScheduling) {
         console.log('Handling logging/scheduling save...');
         const updatedActivities = activities.map(activity => ({
+          ...activity,
+          metrics: {
+            ...activity.metrics,
+            sets: activity.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })),
+            eachSide: activity.metrics.eachSide || false,
+            notes: activity.metrics.notes || ''
+          }
+        }));
+
+        if (route.params.isScheduling) {
+          // Create a new section instance for scheduling, preserving the original template
+          const schedulingSection = {
+            title: localState.title,
+            description: localState.description || '',
+            type: localState.type || 'standard',
+            activities: updatedActivities,
+            templateId: localState.id, // Reference to original template
+            settings: localState.settings || {}
+          };
+
+          Alert.alert(
+            'Select Time of Day',
+            'When would you like to schedule this section?',
+            [
+              { 
+                text: 'Morning', 
+                onPress: () => navigation.navigate('Sections', { 
+                  selectedSection: schedulingSection,
+                  selectedTimeOfDay: 'Morning'
+                })
+              },
+              { 
+                text: 'Afternoon', 
+                onPress: () => navigation.navigate('Sections', { 
+                  selectedSection: schedulingSection,
+                  selectedTimeOfDay: 'Afternoon'
+                })
+              },
+              { 
+                text: 'Evening', 
+                onPress: () => navigation.navigate('Sections', { 
+                  selectedSection: schedulingSection,
+                  selectedTimeOfDay: 'Evening'
+                })
+              },
+              { 
+                text: 'Anytime', 
+                onPress: () => navigation.navigate('Sections', { 
+                  selectedSection: schedulingSection,
+                  selectedTimeOfDay: 'Anytime'
+                })
+              },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
+          return;
+        }
+
+        navigation.goBack();
+        return;
+      }
+
+      // Regular save for non-logging, non-scheduling case
+      const sectionData = {
+        title: localState.title,
+        description: localState.description || '',
+        type: localState.type || 'standard',
+        exercises: activities.map(activity => ({
           id: activity.id,
           title: activity.title,
           type: activity.type,
           description: activity.description || '',
           metrics: {
-            sets: activity.metrics.sets,
-            eachSide: activity.metrics.eachSide,
-            notes: activity.metrics.notes,
-            timeOfDay: route.params.timeOfDay
+            sets: activity.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })),
+            eachSide: activity.metrics.eachSide || false,
+            notes: activity.metrics.notes || ''
           }
-        }));
-
-        // Include section type and settings for scheduling
-        const sectionData = {
-          ...localState,
-          activities: updatedActivities,
-          metrics: {
-            // Add section-level metrics based on type
-            ...(localState.type === 'amrap' && {
-              rounds: 0, // To be filled during logging
-              totalReps: 0 // To be filled during logging
-            }),
-            ...(localState.type === 'forTime' && {
-              completionTime: '00:00' // To be filled during logging
-            })
-          }
-        };
-
-        route.params.onComplete?.(sectionData);
-        navigation.goBack();
-        return;
-      }
-
-      // Validate section settings based on type
-      if (!localState.settings) {
-        console.log('Save failed: Missing settings');
-        Alert.alert('Required Field', 'Please configure section settings.');
-        return;
-      }
-
-      switch(localState.type) {
-        case 'standard':
-        case 'intervals':
-          if (!localState.settings.sets || localState.settings.sets <= 0) {
-            console.log('Save failed: Invalid sets value');
-            Alert.alert('Required Field', 'Please enter the number of sets.');
-            return;
-          }
-          if (localState.type === 'intervals' && (!localState.settings.workInterval || !localState.settings.restInterval)) {
-            console.log('Save failed: Missing interval settings');
-            Alert.alert('Required Field', 'Please enter work and rest intervals.');
-            return;
-          }
-          break;
-        case 'forTime':
-          if (!localState.settings.rounds || localState.settings.rounds <= 0) {
-            console.log('Save failed: Invalid rounds value');
-            Alert.alert('Required Field', 'Please enter the number of rounds.');
-            return;
-          }
-          break;
-        case 'amrap':
-          if (!localState.settings.timeLimit || localState.settings.timeLimit <= 0) {
-            console.log('Save failed: Invalid time limit');
-            Alert.alert('Required Field', 'Please enter the time cap.');
-            return;
-          }
-          break;
-      }
-
-      // Create section data for saving
-      const sectionData = {
-        title: localState.title.trim(),
-        description: (localState.description || '').trim(),
-        type: localState.type,
-        settings: localState.settings,
-        exercises: activities.map(activity => ({
-          id: activity.id,
+        })),
+        activities: activities.map(activity => ({
           title: activity.title,
           type: activity.type,
           description: activity.description || '',
@@ -337,7 +347,6 @@ export default function SectionDetail({ navigation, route }) {
         await createSection(sectionData);
       }
       
-      // Navigate back to Sections screen
       navigation.navigate('Programs', { screen: 'Sections' });
     } catch (error) {
       console.error('Error saving section:', error);
@@ -742,27 +751,16 @@ const styles = StyleSheet.create({
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isLogging || route.params.isScheduling ? localState.title : (localState.id ? 'Edit Section' : 'Create Section')}
+          {isLogging ? localState.title : (localState.id ? 'Edit Section' : 'Create Section')}
         </Text>
-        {(isLogging || route.params.isScheduling) ? (
-          <TouchableOpacity 
-            style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-            onPress={handleSave}
-          >
-            <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
-              {route.params.isScheduling ? 'Schedule' : 'Complete'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-            onPress={handleSave}
-          >
-            <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
-              Save
-            </Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity 
+          style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleSave}
+        >
+          <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
+            {isLogging ? 'Complete' : 'Save'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -822,6 +820,36 @@ const styles = StyleSheet.create({
               onChangeText={(value) => setLocalState(prev => ({ ...prev, description: value }))}
               multiline
             />
+          </View>
+        )}
+
+        {isLogging && localState.type !== 'standard' && (
+          <View style={styles.sectionInfoContainer}>
+            {localState.type === 'amrap' && (
+              <View style={styles.settingsContainer}>
+                <Text style={styles.settingsLabel}>Total Rounds</Text>
+                <TextInput
+                  style={styles.settingsInput}
+                  value={localState.settings?.completedRounds?.toString()}
+                  onChangeText={(value) => updateSettings('completedRounds', parseInt(value) || 0)}
+                  keyboardType="numeric"
+                  placeholder="Number of rounds completed"
+                  placeholderTextColor="#666"
+                />
+              </View>
+            )}
+            {localState.type === 'forTime' && (
+              <View style={styles.settingsContainer}>
+                <Text style={styles.settingsLabel}>Completion Time</Text>
+                <TextInput
+                  style={styles.settingsInput}
+                  value={localState.settings?.completionTime}
+                  onChangeText={(value) => updateSettings('completionTime', value)}
+                  placeholder="MM:SS"
+                  placeholderTextColor="#666"
+                />
+              </View>
+            )}
           </View>
         )}
 
@@ -921,6 +949,7 @@ const styles = StyleSheet.create({
                             onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'weight', value)}
                             keyboardType="numeric"
                             placeholder="-"
+                            placeholderTextColor="#666"
                           />
                         </View>
                         <View style={styles.metricColumn}>
@@ -931,6 +960,7 @@ const styles = StyleSheet.create({
                             onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'reps', value)}
                             keyboardType="numeric"
                             placeholder="-"
+                            placeholderTextColor="#666"
                           />
                         </View>
                         <View style={styles.metricColumn}>
@@ -940,6 +970,7 @@ const styles = StyleSheet.create({
                             value={set.rest}
                             onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'rest', value)}
                             placeholder="00:00"
+                            placeholderTextColor="#666"
                           />
                         </View>
                       </View>
@@ -971,6 +1002,7 @@ const styles = StyleSheet.create({
                     <TextInput
                       style={styles.notesInput}
                       placeholder="Add note..."
+                      placeholderTextColor="#666"
                       value={activity.metrics.notes}
                       onChangeText={(value) => {
                         const updated = [...activities];
@@ -1006,7 +1038,7 @@ const styles = StyleSheet.create({
         animationType="fade"
         onRequestClose={() => setMenuOption(null)}
       >
-                  <TouchableOpacity
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setMenuOption(null)}
@@ -1018,8 +1050,8 @@ const styles = StyleSheet.create({
             >
               <Ionicons name="trash-outline" size={24} color={theme.colors.error} />
               <Text style={[styles.menuItemText, { color: theme.colors.error }]}>Remove Exercise</Text>
-                  </TouchableOpacity>
-                </View>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
     </View>

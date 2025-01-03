@@ -507,89 +507,62 @@ export const scheduleBreathTest = async (userId, testId, scheduledDateTime, opti
 // Schedule a section
 export const scheduleSection = async (userId, section, scheduledDateTime, timeOfDay) => {
   try {
-    console.log('Scheduling section with dates:', {
-      inputDate: scheduledDateTime,
-      inputDateISO: scheduledDateTime.toISOString(),
-    });
+    const batch = writeBatch(db);
 
-    const scheduledExerciseRef = collection(db, 'scheduledExercises');
-    
-    // Normalize timeOfDay to match other functions (first letter uppercase)
-    const normalizedTimeOfDay = timeOfDay ? 
-      timeOfDay.charAt(0).toUpperCase() + timeOfDay.slice(1).toLowerCase() : 
-      'Anytime';
+    // Create a new section document
+    const sectionRef = doc(collection(db, 'scheduledExercises'));
+    const sectionId = sectionRef.id;
 
-    // Create the scheduled section with the new structure
+    // Prepare the section data
     const scheduledSection = {
+      id: sectionId,
       userId,
-      type: 'section',
-      exerciseTitle: section.title,
       title: section.title,
-      sectionTitle: section.title,
-      scheduledDateTime,
-      status: 'scheduled',
+      description: section.description || '',
+      type: 'section',
+      isParent: true,
       sectionType: section.type || 'standard',
-      settings: section.settings || {},
+      scheduledDateTime: scheduledDateTime,
       metrics: {
-        timeOfDay: normalizedTimeOfDay,
-        completed: false,
-        // Add type-specific metrics based on section type
-        ...(section.type === 'amrap' && {
-          totalRounds: 0,
-          totalReps: 0
-        }),
-        ...(section.type === 'forTime' && {
-          completionTime: '00:00'
-        })
+        timeOfDay: timeOfDay || 'anytime',
+        completed: false
       },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      createdBy: section.createdBy || userId,
-      assignedBy: section.assignedBy || userId,
-      isParent: true
+      settings: section.settings || {},
+      templateId: section.templateId || section.id,
+      createdAt: serverTimestamp()
     };
 
-    // First create the parent section
-    const sectionDocRef = await addDoc(scheduledExerciseRef, scheduledSection);
-    const sectionId = sectionDocRef.id;
+    // Set the section document
+    batch.set(sectionRef, scheduledSection);
 
-    // Then create individual activities linked to the section
-    if (section.activities && section.activities.length > 0) {
-      const activityPromises = section.activities.map(activity => {
-        // For each activity in the section, create a separate document
-        const scheduledActivity = {
+    // Schedule each activity in the section
+    if (section.activities && Array.isArray(section.activities)) {
+      section.activities.forEach((activity, index) => {
+        const activityRef = doc(collection(db, 'scheduledExercises'));
+        const activityData = {
+          id: activityRef.id,
           userId,
-          exerciseTitle: activity.title,
           title: activity.title,
-          type: activity.type || 'exercise',
           description: activity.description || '',
-          scheduledDateTime,
-          status: 'scheduled',
-          metrics: {
-            ...(activity.metrics || {
-              sets: [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: false,
-              notes: ''
-            }),
-            timeOfDay: normalizedTimeOfDay
-          },
-          sectionId, // Link to the newly created section
+          type: activity.type || 'exercise',
+          sectionId: sectionId,
           sectionTitle: section.title,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          createdBy: section.createdBy || userId,
-          assignedBy: section.assignedBy || userId
+          scheduledDateTime: scheduledDateTime,
+          order: activity.order || index,  // Preserve existing order or use index
+          metrics: {
+            ...(activity.metrics || {}),
+            timeOfDay: timeOfDay || 'anytime',
+            completed: false
+          },
+          templateId: activity.id,
+          createdAt: serverTimestamp()
         };
-
-        return addDoc(scheduledExerciseRef, scheduledActivity);
+        batch.set(activityRef, activityData);
       });
-
-      await Promise.all(activityPromises);
     }
+
+    // Commit all the changes
+    await batch.commit();
 
     console.log('Final scheduled section:', {
       id: sectionId,
@@ -603,7 +576,10 @@ export const scheduleSection = async (userId, section, scheduledDateTime, timeOf
     return { 
       id: sectionId,
       ...scheduledSection,
-      activities: section.activities || []
+      activities: section.activities?.map((activity, index) => ({
+        ...activity,
+        order: activity.order || index  // Ensure order is included in returned data
+      })) || []
     };
   } catch (error) {
     console.error('Error scheduling section:', error);
