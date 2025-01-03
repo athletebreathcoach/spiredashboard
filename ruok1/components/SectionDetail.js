@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, Animated } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,14 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { createSection, updateSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
+
+const SECTION_TYPES = [
+  { id: 'standard', label: 'Standard', icon: 'barbell-outline' },
+  { id: 'forTime', label: 'For Time', icon: 'timer-outline' },
+  { id: 'amrap', label: 'AMRAP', icon: 'infinite-outline' },
+  { id: 'chipper', label: 'Chipper', icon: 'list-outline' },
+  { id: 'intervals', label: 'Intervals', icon: 'repeat-outline' }
+];
 
 const ACTIVITY_TYPES = [
   { id: 'exercises', label: 'Exercise', icon: 'barbell-outline' },
@@ -15,13 +23,333 @@ const ACTIVITY_TYPES = [
   { id: 'guidedSessions', label: 'Guided Session', icon: 'play-circle-outline' },
 ];
 
-const SUPERSET_COLORS = [
-  '#4CAF50',  // Green
-  '#2196F3',  // Blue
-  '#9C27B0',  // Purple
-  '#FF9800',  // Orange
-  '#E91E63',  // Pink
-];
+// Helper function to get metrics preview for an activity
+const getMetricsPreview = (activity) => {
+  if (!activity.metrics?.sets || activity.metrics.sets.length === 0) return [];
+  
+  const { sets, eachSide } = activity.metrics;
+  
+  // Format each set
+  const setPreviews = sets.map((set, index) => {
+    const parts = [];
+    if (set.reps) parts.push(`${set.reps}`);
+    if (set.weight) parts.push(`@ ${set.weight}lb`);
+    return parts.join(' ');
+  });
+
+  // If all sets are the same, just show one number with the total sets
+  const allSetsEqual = setPreviews.every(preview => preview === setPreviews[0]);
+  let preview = allSetsEqual 
+    ? [`${sets.length} x ${setPreviews[0]}`]
+    : setPreviews;
+
+  // Add each side indicator if needed
+  if (eachSide) {
+    preview.push('each side');
+  }
+
+  return preview;
+};
+
+export default function SectionDetail({ navigation, route }) {
+  const theme = useTheme();
+  const [localState, setLocalState] = useState(() => {
+    const initialSection = route.params.section || {
+      title: '',
+      description: '',
+      type: 'standard',
+      settings: {}
+    };
+
+    return {
+      title: initialSection.title || '',
+      description: initialSection.description || '',
+      type: initialSection.type || 'standard',
+      settings: initialSection.settings || {},
+      id: initialSection.id
+    };
+  });
+  
+  const [activities, setActivities] = useState(() => {
+    if (route.params.section?.activities) {
+      // Flatten activities
+      const flattenedActivities = route.params.section.activities.reduce((acc, group) => 
+        [...acc, ...(group.items || []).map(item => ({
+          id: item.id,
+          title: item.title,
+          type: group.type,
+          description: item.description || '',
+          metrics: {
+            sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })) : [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: item.metrics?.eachSide || false,
+            notes: item.metrics?.notes || ''
+          }
+        }))], []
+      );
+
+      return flattenedActivities;
+    } else if (route.params.section?.exercises) {
+      // Handle exercises array from ActivitySelector
+      const exercises = route.params.section.exercises.map(exercise => ({
+        id: exercise.id,
+        title: exercise.title,
+        type: exercise.type,
+        description: exercise.description || '',
+        metrics: {
+          sets: Array.isArray(exercise.metrics?.sets) ? exercise.metrics.sets : [{
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          }],
+          eachSide: exercise.metrics?.eachSide || false,
+          notes: exercise.metrics?.notes || ''
+        }
+      }));
+
+      return exercises;
+    }
+    return [];
+  });
+
+  const [expandedCards, setExpandedCards] = useState({});
+  const isLogging = route.params.isLogging;
+  const [menuOption, setMenuOption] = useState(null);
+  const [menuActivityIndex, setMenuActivityIndex] = useState(null);
+
+  const updateSettings = (key, value) => {
+    setLocalState(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        [key]: value
+      }
+    }));
+
+    // Sync exercise sets with rounds/sets setting
+    if (key === 'rounds' || key === 'sets') {
+      const numSets = parseInt(value) || 1;
+      setActivities(current => {
+        return current.map(activity => {
+          // Keep existing set data where possible
+          const existingSets = activity.metrics.sets || [];
+          const newSets = Array(numSets).fill(0).map((_, index) => {
+            if (index < existingSets.length) {
+              return existingSets[index];
+            }
+            return {
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            };
+          });
+
+          return {
+            ...activity,
+            metrics: {
+              ...activity.metrics,
+              sets: newSets
+            }
+          };
+        });
+      });
+    }
+  };
+
+  const handleUpdateSet = (activityIndex, setIndex, field, value) => {
+    setActivities(current => {
+      const updated = [...current];
+      updated[activityIndex].metrics.sets[setIndex] = {
+        ...updated[activityIndex].metrics.sets[setIndex],
+        [field]: value
+      };
+      return updated;
+    });
+  };
+
+  const handleAddSet = (activityIndex) => {
+    setActivities(current => {
+      const updated = [...current];
+      updated[activityIndex].metrics.sets.push({
+        reps: '',
+        weight: '',
+        rest: '00:00'
+      });
+      return updated;
+    });
+  };
+
+  const handleToggleEachSide = (activityIndex) => {
+    setActivities(current => {
+      const updated = [...current];
+      updated[activityIndex].metrics.eachSide = !updated[activityIndex].metrics.eachSide;
+      return updated;
+    });
+  };
+
+  const toggleCardExpansion = (index) => {
+    setExpandedCards(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  const handleMoveActivity = (index, direction) => {
+    if ((direction === 'up' && index === 0) || 
+        (direction === 'down' && index === activities.length - 1)) {
+      return;
+    }
+
+    setActivities(current => {
+      const updated = [...current];
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    try {
+      console.log('Starting save process...');
+      
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        console.log('Save failed: User not authenticated');
+        Alert.alert('Error', 'You must be logged in to save a section.');
+        return;
+      }
+
+      if (!localState.title && !isLogging && !route.params.isScheduling) {
+        console.log('Save failed: Missing title');
+        Alert.alert('Required Field', 'Please enter a section title.');
+        return;
+      }
+
+      // When logging or scheduling, return the updated activities
+      if (isLogging || route.params.isScheduling) {
+        console.log('Handling logging/scheduling save...');
+        const updatedActivities = activities.map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          type: activity.type,
+          description: activity.description || '',
+          metrics: {
+            sets: activity.metrics.sets,
+            eachSide: activity.metrics.eachSide,
+            notes: activity.metrics.notes,
+            timeOfDay: route.params.timeOfDay
+          }
+        }));
+
+        // Include section type and settings for scheduling
+        const sectionData = {
+          ...localState,
+          activities: updatedActivities,
+          metrics: {
+            // Add section-level metrics based on type
+            ...(localState.type === 'amrap' && {
+              rounds: 0, // To be filled during logging
+              totalReps: 0 // To be filled during logging
+            }),
+            ...(localState.type === 'forTime' && {
+              completionTime: '00:00' // To be filled during logging
+            })
+          }
+        };
+
+        route.params.onComplete?.(sectionData);
+        navigation.goBack();
+        return;
+      }
+
+      // Validate section settings based on type
+      if (!localState.settings) {
+        console.log('Save failed: Missing settings');
+        Alert.alert('Required Field', 'Please configure section settings.');
+        return;
+      }
+
+      switch(localState.type) {
+        case 'standard':
+        case 'intervals':
+          if (!localState.settings.sets || localState.settings.sets <= 0) {
+            console.log('Save failed: Invalid sets value');
+            Alert.alert('Required Field', 'Please enter the number of sets.');
+            return;
+          }
+          if (localState.type === 'intervals' && (!localState.settings.workInterval || !localState.settings.restInterval)) {
+            console.log('Save failed: Missing interval settings');
+            Alert.alert('Required Field', 'Please enter work and rest intervals.');
+            return;
+          }
+          break;
+        case 'forTime':
+          if (!localState.settings.rounds || localState.settings.rounds <= 0) {
+            console.log('Save failed: Invalid rounds value');
+            Alert.alert('Required Field', 'Please enter the number of rounds.');
+            return;
+          }
+          break;
+        case 'amrap':
+          if (!localState.settings.timeLimit || localState.settings.timeLimit <= 0) {
+            console.log('Save failed: Invalid time limit');
+            Alert.alert('Required Field', 'Please enter the time cap.');
+            return;
+          }
+          break;
+      }
+
+      // Create section data for saving
+      const sectionData = {
+        title: localState.title.trim(),
+        description: (localState.description || '').trim(),
+        type: localState.type,
+        settings: localState.settings,
+        exercises: activities.map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          type: activity.type,
+          description: activity.description || '',
+          metrics: {
+            sets: activity.metrics.sets.map(set => ({
+              reps: set.reps || '',
+              weight: set.weight || '',
+              rest: set.rest || '00:00'
+            })),
+            eachSide: activity.metrics.eachSide || false,
+            notes: activity.metrics.notes || ''
+          }
+        })),
+        userId: auth.currentUser.uid,
+        createdBy: auth.currentUser.uid
+      };
+
+      if (localState.id) {
+        await updateSection(localState.id, sectionData);
+      } else {
+        await createSection(sectionData);
+      }
+      
+      // Navigate back to Sections screen
+      navigation.navigate('Programs', { screen: 'Sections' });
+    } catch (error) {
+      console.error('Error saving section:', error);
+      Alert.alert('Error', 'Failed to save section. Please try again.');
+    }
+  };
+
+  const handleRemoveActivity = (index) => {
+    setActivities(current => current.filter((_, i) => i !== index));
+    setMenuOption(null);
+    setMenuActivityIndex(null);
+  };
 
 const styles = StyleSheet.create({
   container: {
@@ -47,10 +375,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#fff',
   },
-  headerButton: {
-    padding: Layout.spacing.small,
-    width: 44,
-  },
   scrollView: {
     flex: 1,
   },
@@ -62,8 +386,6 @@ const styles = StyleSheet.create({
     borderRadius: Layout.borderRadius.large,
     padding: Layout.spacing.medium,
     marginBottom: Layout.spacing.medium,
-    borderLeftWidth: 3,
-    borderLeftColor: 'transparent',
   },
   activityHeader: {
     flexDirection: 'row',
@@ -142,13 +464,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2C2C2E',
-    padding: Layout.spacing.small,
-    borderRadius: Layout.borderRadius.medium,
-  },
   notesInput: {
     fontSize: 16,
     color: '#fff',
@@ -157,71 +472,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
     borderRadius: Layout.borderRadius.medium,
     marginTop: Layout.spacing.small,
-  },
-  bottomBar: {
-    position: 'absolute',
-    right: Layout.spacing.medium,
-    bottom: Layout.spacing.medium,
-  },
-  addButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  supersetDivider: {
-    position: 'relative',
-    height: 40,
-    marginVertical: -20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  supersetButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1C1C1E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2C2C2E',
-  },
-  menuButton: {
-    padding: 8,
-    borderRadius: 16,
-  },
-  menuOptions: {
-    position: 'absolute',
-    right: 0,
-    top: 40,
-    backgroundColor: '#2C2C2E',
-    borderRadius: Layout.borderRadius.medium,
-    padding: Layout.spacing.small,
-    zIndex: 2,
-  },
-  menuOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Layout.spacing.small,
-    gap: Layout.spacing.small,
-  },
-  menuOptionText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: Typography.fonts.medium,
-  },
-  menuOptionDelete: {
-    color: '#FF453A',
   },
   sectionInfoContainer: {
     backgroundColor: '#1C1C1E',
@@ -267,11 +517,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Layout.spacing.small,
   },
-  supersetLabel: {
-    fontSize: 16,
-    fontFamily: Typography.fonts.medium,
-    marginRight: Layout.spacing.small,
-  },
   expandButton: {
     position: 'absolute',
     right: Layout.spacing.small,
@@ -309,419 +554,182 @@ const styles = StyleSheet.create({
     backgroundColor: '#666',
     marginHorizontal: Layout.spacing.small,
   },
-  logButton: {
-    position: 'absolute',
-    bottom: Layout.spacing.large,
-    left: Layout.spacing.large,
-    right: Layout.spacing.large,
-    padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.large,
+    typeSelector: {
+      marginVertical: Layout.spacing.medium,
+    },
+    typeSelectorLabel: {
+      fontSize: 16,
+      color: '#666',
+      marginBottom: Layout.spacing.small,
+      fontFamily: Typography.fonts.medium,
+    },
+    typeList: {
+      flexDirection: 'row',
+    },
+    typeButton: {
+      flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logButtonText: {
-    fontSize: 17,
+      padding: Layout.spacing.small,
+      marginRight: Layout.spacing.small,
+      borderRadius: Layout.borderRadius.medium,
+      backgroundColor: '#2C2C2E',
+    },
+    typeButtonSelected: {
+      backgroundColor: '#6B4EFF20',
+    },
+    typeButtonText: {
+      color: '#666',
+      marginLeft: Layout.spacing.small,
+      fontSize: 16,
     fontFamily: Typography.fonts.medium,
+  },
+    typeButtonTextSelected: {
+      color: '#6B4EFF',
+    },
+    settingsContainer: {
+      marginBottom: Layout.spacing.medium,
+    padding: Layout.spacing.medium,
+      backgroundColor: '#2C2C2E',
+      borderRadius: Layout.borderRadius.medium,
+    },
+    settingsLabel: {
+      fontSize: 16,
+      color: '#666',
+      marginBottom: Layout.spacing.small,
+      fontFamily: Typography.fonts.medium,
+    },
+    settingsInput: {
+      fontSize: 16,
+      color: '#fff',
+      padding: Layout.spacing.small,
+      backgroundColor: '#1C1C1E',
+      borderRadius: Layout.borderRadius.small,
+    },
+    intervalInputs: {
+      flexDirection: 'row',
+    alignItems: 'center',
+    },
+    intervalInput: {
+      flex: 1,
+    },
+    intervalSeparator: {
+      color: '#666',
+      fontSize: 20,
+      marginHorizontal: Layout.spacing.small,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuModal: {
+      backgroundColor: '#1C1C1E',
+      borderRadius: Layout.borderRadius.large,
+      padding: Layout.spacing.medium,
+      width: '80%',
+      maxWidth: 300,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: Layout.spacing.medium,
+    },
+    menuItemText: {
+      fontSize: 16,
+    fontFamily: Typography.fonts.medium,
+      marginLeft: Layout.spacing.medium,
+    },
+    menuButton: {
+      padding: Layout.spacing.small,
   },
 });
 
-// Helper function to get metrics preview for an activity
-const getMetricsPreview = (activity) => {
-  if (!activity.metrics?.sets || activity.metrics.sets.length === 0) return [];
-  
-  const { sets, eachSide } = activity.metrics;
-  
-  // Format each set
-  const setPreviews = sets.map((set, index) => {
-    const parts = [];
-    if (set.reps) parts.push(`${set.reps}`);
-    if (set.weight) parts.push(`@ ${set.weight}lb`);
-    return parts.join(' ');
-  });
-
-  // If all sets are the same, just show one number with the total sets
-  const allSetsEqual = setPreviews.every(preview => preview === setPreviews[0]);
-  let preview = allSetsEqual 
-    ? [`${sets.length} x ${setPreviews[0]}`]
-    : setPreviews;
-
-  // Add each side indicator if needed
-  if (eachSide) {
-    preview.push('each side');
-  }
-
-  return preview;
-};
-
-// Helper function to get all superset chains
-const getAllSupersetChains = (activities) => {
-  const chains = [];
-  const visited = new Set();
-
-  activities.forEach((activity, index) => {
-    if (!visited.has(index) && activity.supersetId) {
-      const chain = [];
-      const letter = activity.supersetId.charAt(0);
-      
-      // Find all activities in this superset group
-      activities.forEach((a, i) => {
-        if (a.supersetId && a.supersetId.charAt(0) === letter) {
-          chain.push(i);
-          visited.add(i);
-        }
-      });
-
-      if (chain.length > 0) {
-        chains.push(chain);
-      }
+  const renderTypeSettings = () => {
+    switch(localState.type) {
+      case 'standard':
+        return (
+          <View style={styles.settingsContainer}>
+            <Text style={styles.settingsLabel}>Sets</Text>
+            <TextInput
+              style={styles.settingsInput}
+              value={localState.settings?.sets?.toString()}
+              onChangeText={(value) => updateSettings('sets', parseInt(value) || 0)}
+              keyboardType="numeric"
+              placeholder="Number of sets"
+              placeholderTextColor="#666"
+            />
+          </View>
+        );
+      case 'forTime':
+        return (
+          <View style={styles.settingsContainer}>
+            <Text style={styles.settingsLabel}>Rounds</Text>
+            <TextInput
+              style={styles.settingsInput}
+              value={localState.settings?.rounds?.toString()}
+              onChangeText={(value) => updateSettings('rounds', parseInt(value) || 0)}
+              keyboardType="numeric"
+              placeholder="Number of rounds"
+              placeholderTextColor="#666"
+            />
+          </View>
+        );
+      case 'intervals':
+        return (
+          <View>
+            <View style={styles.settingsContainer}>
+              <Text style={styles.settingsLabel}>Sets</Text>
+              <TextInput
+                style={styles.settingsInput}
+                value={localState.settings?.sets?.toString()}
+                onChangeText={(value) => updateSettings('sets', parseInt(value) || 0)}
+                keyboardType="numeric"
+                placeholder="Number of sets"
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.settingsContainer}>
+              <Text style={styles.settingsLabel}>Work/Rest Intervals</Text>
+              <View style={styles.intervalInputs}>
+                <TextInput
+                  style={[styles.settingsInput, styles.intervalInput]}
+                  value={localState.settings?.workInterval?.toString()}
+                  onChangeText={(value) => updateSettings('workInterval', parseInt(value) || 0)}
+                  keyboardType="numeric"
+                  placeholder="Work (sec)"
+                  placeholderTextColor="#666"
+                />
+                <Text style={styles.intervalSeparator}>/</Text>
+                <TextInput
+                  style={[styles.settingsInput, styles.intervalInput]}
+                  value={localState.settings?.restInterval?.toString()}
+                  onChangeText={(value) => updateSettings('restInterval', parseInt(value) || 0)}
+                  keyboardType="numeric"
+                  placeholder="Rest (sec)"
+                  placeholderTextColor="#666"
+                />
+              </View>
+            </View>
+          </View>
+        );
+      case 'amrap':
+        return (
+          <View style={styles.settingsContainer}>
+            <Text style={styles.settingsLabel}>Time Cap (minutes)</Text>
+            <TextInput
+              style={styles.settingsInput}
+              value={localState.settings?.timeLimit?.toString()}
+              onChangeText={(value) => updateSettings('timeLimit', parseInt(value) || 0)}
+              keyboardType="numeric"
+              placeholder="Time limit in minutes"
+              placeholderTextColor="#666"
+            />
+          </View>
+        );
+      default:
+        return null;
     }
-  });
-
-  return chains;
-};
-
-// Helper function to get superset info for an activity
-const getSupersetInfo = (activityIndex, activities) => {
-  const chains = getAllSupersetChains(activities);
-  for (let i = 0; i < chains.length; i++) {
-    if (chains[i].includes(activityIndex)) {
-      const activity = activities[activityIndex];
-      return {
-        color: SUPERSET_COLORS[i % SUPERSET_COLORS.length],
-        label: activity.supersetId,
-        isInSuperset: true
-      };
-    }
-  }
-  return { color: 'transparent', label: '', isInSuperset: false };
-};
-
-export default function SectionDetail({ navigation, route }) {
-  const theme = useTheme();
-  const [section, setSection] = useState(route.params.section || { title: '', description: '' });
-  const [activities, setActivities] = useState(() => {
-    if (route.params.section?.activities) {
-      // Flatten activities and preserve supersetId
-      const flattenedActivities = route.params.section.activities.reduce((acc, group) => 
-        [...acc, ...(group.items || []).map(item => ({
-          id: item.id,
-          title: item.title,
-          type: group.type,
-          description: item.description || '',
-          supersetId: item.supersetId,
-          metrics: {
-            sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets.map(set => ({
-              reps: set.reps || '',
-              weight: set.weight || '',
-              rest: set.rest || '00:00'
-            })) : [{
-              reps: '',
-              weight: '',
-              rest: '00:00'
-            }],
-            eachSide: item.metrics?.eachSide || false,
-            notes: item.metrics?.notes || ''
-          }
-        }))], []
-      );
-
-      console.log('Loaded activities with supersets:', flattenedActivities);
-      return flattenedActivities;
-    }
-    return [];
-  });
-  const [expandedCards, setExpandedCards] = useState({});
-  const [menuOpen, setMenuOpen] = useState(null);
-  const isLogging = route.params.isLogging;
-
-  const handleUpdateSet = (activityIndex, setIndex, field, value) => {
-    setActivities(current => {
-      const updated = [...current];
-      updated[activityIndex].metrics.sets[setIndex] = {
-        ...updated[activityIndex].metrics.sets[setIndex],
-        [field]: value
-      };
-      return updated;
-    });
-  };
-
-  const syncSupersetSets = (activityIndex) => {
-    setActivities(current => {
-      const updated = [...current];
-      const activity = updated[activityIndex];
-      
-      if (!activity.supersetId) return updated;
-      
-      // Find all activities in this superset
-      const letter = activity.supersetId.charAt(0);
-      const supersetActivities = updated.filter(a => 
-        a.supersetId && a.supersetId.charAt(0) === letter
-      );
-      
-      // Find the maximum number of sets in the superset
-      const maxSets = Math.max(...supersetActivities.map(a => a.metrics.sets.length));
-      
-      // Sync all activities to have the same number of sets
-      supersetActivities.forEach(a => {
-        while (a.metrics.sets.length < maxSets) {
-          a.metrics.sets.push({
-            reps: '',
-            weight: '',
-            rest: '00:00'
-          });
-        }
-      });
-      
-      return updated;
-    });
-  };
-
-  const handleAddSet = (activityIndex) => {
-    setActivities(current => {
-      const updated = [...current];
-      updated[activityIndex].metrics.sets.push({
-        reps: '',
-        weight: '',
-        rest: '00:00'
-      });
-      return updated;
-    });
-    // Sync sets after adding a new one
-    syncSupersetSets(activityIndex);
-  };
-
-  const handleToggleEachSide = (activityIndex) => {
-    setActivities(current => {
-      const updated = [...current];
-      updated[activityIndex].metrics.eachSide = !updated[activityIndex].metrics.eachSide;
-      return updated;
-    });
-  };
-
-  const toggleCardExpansion = (index) => {
-    setExpandedCards(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  };
-
-  const handleToggleSuperset = (index) => {
-    const currentItem = activities[index];
-    const nextItem = activities[index + 1];
-
-    if (!currentItem || !nextItem) return;
-
-    setActivities(current => {
-      const updated = [...current];
-      
-      // If they're already in a superset
-      if (currentItem.supersetId) {
-        const letter = currentItem.supersetId.charAt(0);
-        
-        // If next item is not in this superset, add it
-        if (!nextItem.supersetId || nextItem.supersetId.charAt(0) !== letter) {
-          // Find the highest number in this superset
-          let maxNumber = 0;
-          updated.forEach(item => {
-            if (item.supersetId && item.supersetId.charAt(0) === letter) {
-              const num = parseInt(item.supersetId.slice(1));
-              maxNumber = Math.max(maxNumber, num);
-            }
-          });
-          
-          // Add next item to this superset with next number
-          nextItem.supersetId = `${letter}${maxNumber + 1}`;
-        } else {
-          // If next item is already in this superset, remove it
-          delete nextItem.supersetId;
-          
-          // If only one item remains in superset, remove the superset entirely
-          const remainingInSuperset = updated.filter(item => 
-            item.supersetId && item.supersetId.charAt(0) === letter
-          ).length;
-          
-          if (remainingInSuperset <= 1) {
-            updated.forEach(item => {
-              if (item.supersetId && item.supersetId.charAt(0) === letter) {
-                delete item.supersetId;
-              }
-            });
-          }
-        }
-      } else {
-        // Create new superset relationship
-        const chains = getAllSupersetChains(current);
-        const letter = String.fromCharCode(65 + chains.length);
-        
-        currentItem.supersetId = `${letter}1`;
-        nextItem.supersetId = `${letter}2`;
-      }
-      
-      return updated;
-    });
-  };
-
-  const handleSave = () => {
-    if (!section.title && !isLogging && !route.params.isScheduling) {
-      Alert.alert('Required Field', 'Please enter a section title.');
-      return;
-    }
-
-    // When logging or scheduling, return the updated activities
-    if (isLogging || route.params.isScheduling) {
-      route.params.onComplete?.(activities.map(activity => ({
-        id: activity.id,
-        title: activity.title,
-        type: activity.type,
-        description: activity.description || '',
-        supersetId: activity.supersetId,
-        metrics: {
-          sets: activity.metrics.sets,
-          eachSide: activity.metrics.eachSide,
-          notes: activity.metrics.notes,
-          timeOfDay: route.params.timeOfDay
-        }
-      })));
-      navigation.goBack();
-      return;
-    }
-
-    // Normal save for editing/creating section
-    const groupedActivities = ACTIVITY_TYPES.map(type => ({
-      type: type.id,
-      items: activities
-        .filter(a => a.type === type.id)
-        .map(activity => ({
-          id: activity.id,
-          title: activity.title,
-          type: activity.type,
-          description: activity.description || '',
-          supersetId: activity.supersetId,
-          metrics: {
-            sets: activity.metrics.sets.map(set => ({
-              reps: set.reps || '',
-              weight: set.weight || '',
-              rest: set.rest || '00:00'
-            })),
-            eachSide: activity.metrics.eachSide,
-            notes: activity.metrics.notes
-          }
-        }))
-    })).filter(group => group.items.length > 0);
-
-    const sectionData = {
-      ...section,
-      activities: groupedActivities,
-      updatedAt: new Date().toISOString(),
-      updatedBy: auth.currentUser.uid,
-      userId: auth.currentUser.uid,
-      createdAt: section.createdAt || new Date().toISOString(),
-      createdBy: section.createdBy || auth.currentUser.uid
-    };
-
-    console.log('Saving section data:', JSON.stringify(sectionData, null, 2));
-
-    if (section.id) {
-      updateSection(section.id, sectionData)
-        .then(() => navigation.goBack())
-        .catch(error => {
-          console.error('Error updating section:', error);
-          Alert.alert('Error', 'Failed to update section. Please try again.');
-        });
-    } else {
-      createSection(sectionData)
-        .then(() => navigation.goBack())
-        .catch(error => {
-          console.error('Error creating section:', error);
-          Alert.alert('Error', 'Failed to create section. Please try again.');
-        });
-    }
-  };
-
-  const handleMoveActivity = (index, direction) => {
-    if ((direction === 'up' && index === 0) || 
-        (direction === 'down' && index === activities.length - 1)) {
-      return;
-    }
-
-    setActivities(current => {
-      const updated = [...current];
-      const activity = updated[index];
-      
-      // If this activity is part of a superset, move the entire superset
-      if (activity.supersetId) {
-        const letter = activity.supersetId.charAt(0);
-        const supersetIndices = updated
-          .map((a, i) => a.supersetId?.charAt(0) === letter ? i : null)
-          .filter(i => i !== null);
-        
-        if (direction === 'up') {
-          // Check if we can move up
-          if (supersetIndices[0] <= 0) return current;
-          
-          // Move each activity in the superset up one position
-          const targetIndex = supersetIndices[0] - 1;
-          const temp = updated[targetIndex];
-          
-          // Shift superset activities up
-          for (let i = supersetIndices.length - 1; i >= 0; i--) {
-            const currentIndex = supersetIndices[i];
-            const targetIndex = currentIndex - 1;
-            updated[targetIndex] = updated[currentIndex];
-          }
-          
-          // Place the displaced activity at the end of the superset
-          updated[supersetIndices[supersetIndices.length - 1]] = temp;
-          
-        } else {
-          // Check if we can move down
-          if (supersetIndices[supersetIndices.length - 1] >= updated.length - 1) return current;
-          
-          // Move each activity in the superset down one position
-          const targetIndex = supersetIndices[supersetIndices.length - 1] + 1;
-          const temp = updated[targetIndex];
-          
-          // Shift superset activities down
-          for (let i = 0; i < supersetIndices.length; i++) {
-            const currentIndex = supersetIndices[i];
-            const targetIndex = currentIndex + 1;
-            updated[targetIndex] = updated[currentIndex];
-          }
-          
-          // Place the displaced activity at the start of the superset
-          updated[supersetIndices[0]] = temp;
-        }
-      } else {
-        // Handle moving a single activity
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-        
-        // Check if target position is in the middle of a superset
-        const targetActivity = updated[newIndex];
-        if (targetActivity.supersetId) {
-          // Find the bounds of the superset
-          const letter = targetActivity.supersetId.charAt(0);
-          const supersetIndices = updated
-            .map((a, i) => a.supersetId?.charAt(0) === letter ? i : null)
-            .filter(i => i !== null);
-          
-          // Skip over the entire superset
-          if (direction === 'up') {
-            const targetIndex = supersetIndices[0] - 1;
-            if (targetIndex < 0) return current;
-            [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-          } else {
-            const targetIndex = supersetIndices[supersetIndices.length - 1] + 1;
-            if (targetIndex >= updated.length) return current;
-            [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-          }
-        } else {
-          // Normal swap for non-superset items
-          [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-        }
-      }
-      
-      return updated;
-    });
   };
 
   return (
@@ -734,7 +742,7 @@ export default function SectionDetail({ navigation, route }) {
           <Ionicons name="chevron-back" size={28} color={theme.colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isLogging || route.params.isScheduling ? section.title : (section.id ? 'Edit Section' : 'Create Section')}
+          {isLogging || route.params.isScheduling ? localState.title : (localState.id ? 'Edit Section' : 'Create Section')}
         </Text>
         {(isLogging || route.params.isScheduling) ? (
           <TouchableOpacity 
@@ -767,22 +775,57 @@ export default function SectionDetail({ navigation, route }) {
               style={styles.titleInput}
               placeholder="Section Title"
               placeholderTextColor="#666"
-              value={section.title}
-              onChangeText={(text) => setSection(prev => ({ ...prev, title: text }))}
+              value={localState.title}
+              maxLength={100}
+              onChangeText={(value) => setLocalState(prev => ({ ...prev, title: value }))}
             />
+            
+            <View style={styles.typeSelector}>
+              <Text style={styles.typeSelectorLabel}>Section Type</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.typeList}
+              >
+                {SECTION_TYPES.map(type => (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={[
+                      styles.typeButton,
+                      localState.type === type.id && styles.typeButtonSelected
+                    ]}
+                    onPress={() => setLocalState(prev => ({ ...prev, type: type.id, settings: {} }))}
+                  >
+                    <Ionicons 
+                      name={type.icon} 
+                      size={24} 
+                      color={localState.type === type.id ? theme.colors.primary : '#666'} 
+                    />
+                    <Text style={[
+                      styles.typeButtonText,
+                      localState.type === type.id && styles.typeButtonTextSelected
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {renderTypeSettings()}
+
             <TextInput
               style={styles.descriptionInput}
               placeholder="Description (optional)"
               placeholderTextColor="#666"
-              value={section.description}
-              onChangeText={(text) => setSection(prev => ({ ...prev, description: text }))}
+              value={localState.description}
+              onChangeText={(value) => setLocalState(prev => ({ ...prev, description: value }))}
               multiline
             />
           </View>
         )}
 
         {activities.map((activity, activityIndex) => {
-          const supersetInfo = getSupersetInfo(activityIndex, activities);
           const isExpanded = expandedCards[activityIndex];
           
           return (
@@ -792,8 +835,7 @@ export default function SectionDetail({ navigation, route }) {
                   styles.activityCard, 
                   { 
                     backgroundColor: theme.colors.surface,
-                    borderLeftColor: supersetInfo.color,
-                    marginBottom: supersetInfo.isInSuperset ? Layout.spacing.small : Layout.spacing.medium,
+                    marginBottom: Layout.spacing.medium,
                   }
                 ]}
               >
@@ -802,15 +844,10 @@ export default function SectionDetail({ navigation, route }) {
                     <Ionicons 
                       name={ACTIVITY_TYPES.find(t => t.id === activity.type)?.icon || 'fitness'} 
                       size={24} 
-                      color={supersetInfo.color === 'transparent' ? '#4CAF50' : supersetInfo.color}
+                      color={theme.colors.primary}
                     />
                   </View>
                   <View style={styles.titleContainer}>
-                    {supersetInfo.label && (
-                      <Text style={[styles.supersetLabel, { color: supersetInfo.color }]}>
-                        {supersetInfo.label}
-                      </Text>
-                    )}
                     <Text style={styles.activityTitle}>
                       {activity.title || activity.name}
                     </Text>
@@ -841,9 +878,12 @@ export default function SectionDetail({ navigation, route }) {
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={styles.menuButton}
-                        onPress={() => setMenuOpen(menuOpen === activityIndex ? null : activityIndex)}
+                        onPress={() => {
+                          setMenuActivityIndex(activityIndex);
+                          setMenuOption('menu');
+                        }}
                       >
-                        <Ionicons name="ellipsis-horizontal" size={24} color="#666" />
+                        <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -955,35 +995,33 @@ export default function SectionDetail({ navigation, route }) {
                   />
                 </TouchableOpacity>
               </View>
-
-              {!isLogging && activityIndex < activities.length - 1 && (
-                <View style={styles.supersetDivider}>
-                  <TouchableOpacity
-                    style={[
-                      styles.supersetButton,
-                      activities[activityIndex].supersetWith === activityIndex + 1 && {
-                        backgroundColor: SUPERSET_COLORS[
-                          getAllSupersetChains(activities).findIndex(chain => 
-                            chain.includes(activityIndex)
-                          ) % SUPERSET_COLORS.length
-                        ],
-                        borderColor: 'transparent'
-                      }
-                    ]}
-                    onPress={() => handleToggleSuperset(activityIndex)}
-                  >
-                    <Ionicons
-                      name={activities[activityIndex].supersetWith === activityIndex + 1 ? "link" : "link-outline"}
-                      size={20}
-                      color={activities[activityIndex].supersetWith === activityIndex + 1 ? "#fff" : "#666"}
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
             </React.Fragment>
           );
         })}
       </ScrollView>
+
+      <Modal
+        visible={menuOption === 'menu'}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuOption(null)}
+      >
+                  <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuOption(null)}
+        >
+          <View style={styles.menuModal}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => handleRemoveActivity(menuActivityIndex)}
+            >
+              <Ionicons name="trash-outline" size={24} color={theme.colors.error} />
+              <Text style={[styles.menuItemText, { color: theme.colors.error }]}>Remove Exercise</Text>
+                  </TouchableOpacity>
+                </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 } 

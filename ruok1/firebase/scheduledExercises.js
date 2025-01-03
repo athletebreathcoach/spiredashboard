@@ -504,111 +504,177 @@ export const scheduleBreathTest = async (userId, testId, scheduledDateTime, opti
   }
 };
 
-export const scheduleSection = async (userId, section, date, timeOfDay) => {
+// Schedule a section
+export const scheduleSection = async (userId, section, scheduledDateTime, timeOfDay) => {
   try {
-    const batch = writeBatch(db);
-    const scheduledExercisesRef = collection(db, 'scheduledExercises');
-
-    console.log('Scheduling section:', {
-      section,
-      activities: section.activities,
-      firstActivity: section.activities[0]?.items?.[0],
-      firstActivityMetrics: section.activities[0]?.items?.[0]?.metrics
+    console.log('Scheduling section with dates:', {
+      inputDate: scheduledDateTime,
+      inputDateISO: scheduledDateTime.toISOString(),
     });
 
-    // Create the section document first
-    const sectionDocRef = doc(scheduledExercisesRef);
-    const sectionDoc = {
+    const scheduledExerciseRef = collection(db, 'scheduledExercises');
+    
+    // Normalize timeOfDay to match other functions (first letter uppercase)
+    const normalizedTimeOfDay = timeOfDay ? 
+      timeOfDay.charAt(0).toUpperCase() + timeOfDay.slice(1).toLowerCase() : 
+      'Anytime';
+
+    // Create the scheduled section with the new structure
+    const scheduledSection = {
       userId,
-      scheduledDateTime: date,
       type: 'section',
       exerciseTitle: section.title,
       title: section.title,
-      description: section.description || '',
+      sectionTitle: section.title,
+      scheduledDateTime,
       status: 'scheduled',
+      sectionType: section.type || 'standard',
+      settings: section.settings || {},
       metrics: {
+        timeOfDay: normalizedTimeOfDay,
         completed: false,
-        timeOfDay: timeOfDay || 'Unscheduled'
+        // Add type-specific metrics based on section type
+        ...(section.type === 'amrap' && {
+          totalRounds: 0,
+          totalReps: 0
+        }),
+        ...(section.type === 'forTime' && {
+          completionTime: '00:00'
+        })
       },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      createdBy: userId,
-      isSection: true,
-      activities: section.activities // Store the full activities array
+      createdBy: section.createdBy || userId,
+      assignedBy: section.assignedBy || userId,
+      isParent: true
     };
-    batch.set(sectionDocRef, sectionDoc);
 
-    // Then create documents for each activity in the section
-    for (const activityGroup of section.activities) {
-      if (!activityGroup.items) {
-        console.error('Activity group missing items:', activityGroup);
-        continue;
-      }
+    // First create the parent section
+    const sectionDocRef = await addDoc(scheduledExerciseRef, scheduledSection);
+    const sectionId = sectionDocRef.id;
 
-      for (const item of activityGroup.items) {
-        if (!item.title) {
-          console.error('Item missing title:', item);
-          continue;
-        }
-
-        console.log('Processing item:', {
-          title: item.title,
-          metrics: item.metrics,
-          supersetIndex: item.supersetIndex,
-          supersetWith: item.supersetWith
-        });
-
-        const scheduledExercise = {
+    // Then create individual activities linked to the section
+    if (section.activities && section.activities.length > 0) {
+      const activityPromises = section.activities.map(activity => {
+        // For each activity in the section, create a separate document
+        const scheduledActivity = {
           userId,
-          scheduledDateTime: date,
-          type: item.type || 'exercise',
-          exerciseTitle: item.title,
-          title: item.title,
-          description: item.description || '',
+          exerciseTitle: activity.title,
+          title: activity.title,
+          type: activity.type || 'exercise',
+          description: activity.description || '',
+          scheduledDateTime,
           status: 'scheduled',
-          metrics: item.metrics ? {
-            ...item.metrics,
-            completed: false,
-            timeOfDay: timeOfDay || 'Unscheduled'
-          } : {
-            completed: false,
-            timeOfDay: timeOfDay || 'Unscheduled',
-            sets: [{
-              reps: '',
-              weight: '',
-              rest: '00:00'
-            }],
-            eachSide: false,
-            notes: ''
+          metrics: {
+            ...(activity.metrics || {
+              sets: [{
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              }],
+              eachSide: false,
+              notes: ''
+            }),
+            timeOfDay: normalizedTimeOfDay
           },
+          sectionId, // Link to the newly created section
+          sectionTitle: section.title,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          createdBy: userId,
-          sectionId: sectionDocRef.id,
-          sectionTitle: section.title,
-          activityId: item.id,
-          exerciseId: item.exerciseId,
-          supersetIndex: item.supersetIndex,
-          supersetWith: item.supersetWith,
-          data: item.data || {}
+          createdBy: section.createdBy || userId,
+          assignedBy: section.assignedBy || userId
         };
 
-        console.log('Created scheduledExercise:', {
-          title: scheduledExercise.title,
-          metrics: scheduledExercise.metrics,
-          supersetIndex: scheduledExercise.supersetIndex,
-          supersetWith: scheduledExercise.supersetWith
-        });
+        return addDoc(scheduledExerciseRef, scheduledActivity);
+      });
 
-        const newDocRef = doc(scheduledExercisesRef);
-        batch.set(newDocRef, scheduledExercise);
-      }
+      await Promise.all(activityPromises);
     }
 
-    await batch.commit();
-    return true;
+    console.log('Final scheduled section:', {
+      id: sectionId,
+      scheduledDateTime: scheduledSection.scheduledDateTime,
+      scheduledDateTimeISO: scheduledSection.scheduledDateTime.toISOString(),
+      timeOfDay: scheduledSection.metrics.timeOfDay,
+      type: scheduledSection.sectionType,
+      activitiesCount: section.activities?.length || 0
+    });
+
+    return { 
+      id: sectionId,
+      ...scheduledSection,
+      activities: section.activities || []
+    };
   } catch (error) {
     console.error('Error scheduling section:', error);
+    throw error;
+  }
+};
+
+// Update section progress
+export const updateSectionProgress = async (sectionId, exerciseUpdates, sectionMetrics = {}) => {
+  try {
+    const sectionRef = doc(db, 'scheduledExercises', sectionId);
+    const sectionDoc = await getDoc(sectionRef);
+    
+    if (!sectionDoc.exists()) {
+      throw new Error('Section not found');
+    }
+
+    const section = sectionDoc.data();
+    
+    // Update individual exercise metrics
+    const updatedExercises = section.exercises.map(exercise => {
+      const update = exerciseUpdates[exercise.id];
+      if (update) {
+        return {
+          ...exercise,
+          metrics: {
+            ...exercise.metrics,
+            ...update
+          }
+        };
+      }
+      return exercise;
+    });
+
+    // Update section
+    await updateDoc(sectionRef, {
+      exercises: updatedExercises,
+      ...(sectionMetrics && {
+        sectionMetrics: {
+          ...section.sectionMetrics,
+          ...sectionMetrics
+        }
+      }),
+      updatedAt: serverTimestamp(),
+      // Check if all exercises are completed
+      status: updatedExercises.every(ex => ex.metrics.completed) ? 'completed' : 'in_progress'
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error updating section progress:', error);
+    throw error;
+  }
+};
+
+// Get section with exercises
+export const getScheduledSection = async (sectionId) => {
+  try {
+    const sectionRef = doc(db, 'scheduledExercises', sectionId);
+    const sectionDoc = await getDoc(sectionRef);
+    
+    if (!sectionDoc.exists()) {
+      throw new Error('Section not found');
+    }
+
+    return {
+      id: sectionDoc.id,
+      ...sectionDoc.data()
+    };
+  } catch (error) {
+    console.error('Error getting scheduled section:', error);
     throw error;
   }
 };
@@ -677,6 +743,27 @@ export const updateSupersetMetrics = async (userId, supersetLetter, metricsUpdat
     return true;
   } catch (error) {
     console.error('Error updating superset metrics:', error);
+    throw error;
+  }
+};
+
+// Update section metrics when logging
+export const updateSectionMetrics = async (scheduledSectionId, metrics) => {
+  try {
+    const sectionRef = doc(db, 'scheduledExercises', scheduledSectionId);
+    
+    await updateDoc(sectionRef, {
+      metrics: {
+        ...metrics,
+        completed: true
+      },
+      status: 'completed',
+      updatedAt: serverTimestamp()
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error updating section metrics:', error);
     throw error;
   }
 };

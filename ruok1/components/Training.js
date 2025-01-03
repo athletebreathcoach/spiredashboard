@@ -798,14 +798,29 @@ export default function Training({ navigation, route }) {
     const standaloneExercises = [];
 
     exercises.forEach(exercise => {
-      // Skip parent section documents and untitled sections
-      if (exercise.isParent || (exercise.type === 'section' && !exercise.title)) {
+      // Skip untitled sections
+      if (exercise.type === 'section' && !exercise.title) {
         return;
       }
 
-      if (exercise.sectionId && !exercise.isParent) {
+      // Handle parent section documents
+      if (exercise.type === 'section' && exercise.isParent) {
+        sections[exercise.id] = {
+          id: exercise.id,
+          title: exercise.title || exercise.exerciseTitle,
+          type: 'section',
+          activities: [],
+          scheduledDateTime: exercise.scheduledDateTime,
+          metrics: exercise.metrics,
+          sectionType: exercise.sectionType
+        };
+        return;
+      }
+
+      // Handle activities that belong to sections
+      if (exercise.sectionId) {
         if (!sections[exercise.sectionId]) {
-          // Create new section with proper structure
+          // Create new section if it doesn't exist
           sections[exercise.sectionId] = {
             id: exercise.sectionId,
             title: exercise.sectionTitle,
@@ -819,7 +834,7 @@ export default function Training({ navigation, route }) {
           ...exercise,
           type: exercise.type || 'exercise'
         });
-      } else if (!exercise.sectionId) {  // Only add standalone exercises that aren't sections
+      } else if (!exercise.isParent) {  // Only add standalone exercises that aren't parent sections
         standaloneExercises.push(exercise);
       }
     });

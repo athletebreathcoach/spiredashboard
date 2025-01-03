@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
@@ -21,7 +22,6 @@ import { db } from '../config/firebase';
 import { auth } from '../config/firebase';
 
 const CATEGORIES = [
-  { id: 'sections', label: 'Sections', icon: 'layers-outline' },
   { id: 'exercises', label: 'Exercises', icon: 'barbell-outline' },
   { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
   { id: 'breathingTests', label: 'Breathing Tests', icon: 'fitness-outline' },
@@ -54,21 +54,6 @@ export default function ActivitySelector({ navigation, route }) {
 
       console.log('Breathing Tests:', breathingTests); // Debug log
 
-      // Fetch sections
-      const sectionsRef = collection(db, 'sections');
-      const sectionsQuery = query(
-        sectionsRef, 
-        where('userId', '==', auth.currentUser.uid)
-      );
-      const sectionsSnapshot = await getDocs(sectionsQuery);
-      const sections = sectionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        type: 'section'
-      }));
-      // Sort sections by title on the client side
-      sections.sort((a, b) => a.title.localeCompare(b.title));
-
       // Fetch guided sessions
       const guidedSessionsRef = collection(db, 'guidedSessions');
       const q = query(guidedSessionsRef, orderBy('title'));
@@ -87,7 +72,6 @@ export default function ActivitySelector({ navigation, route }) {
       }));
 
       setActivities({
-        sections,
         exercises: exercises || [],
         habitstasks: [...(habits || []), ...(tasks || [])],
         breathingTests: processedBreathingTests,
@@ -107,66 +91,59 @@ export default function ActivitySelector({ navigation, route }) {
       if (exists) {
         return current.filter(a => a.id !== activity.id);
       }
-      return [...current, { ...activity, type: selectedCategory }];
+      
+      // Clean the activity data when adding it
+      const cleanedActivity = {
+        id: activity.id,
+        title: activity.title || activity.name,
+        type: selectedCategory,
+        description: activity.description || '',
+        category: activity.category || '',
+        metrics: {
+          sets: [{
+            reps: '',
+            weight: '',
+            rest: '00:00'
+          }],
+          eachSide: false,
+          notes: ''
+        }
+      };
+      
+      return [...current, cleanedActivity];
     });
   };
 
   const handleNext = () => {
-    if (selectedActivities.length === 0) return;
-    
-    // Group activities by type
-    const groupedActivities = selectedActivities.reduce((groups, activity) => {
-      const type = activity.type.toLowerCase();
-      const group = groups.find(g => g.type === type);
-      
-      if (!group) {
-        groups.push({
-          type,
-          items: [{
-            id: activity.id,
-            title: activity.title || activity.name,
-            type: activity.type,
-            description: activity.description || '',
-            metrics: {
-              sets: [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: false,
-              notes: ''
-            }
-          }]
-        });
-      } else {
-        group.items.push({
-          id: activity.id,
-          title: activity.title || activity.name,
-          type: activity.type,
-          description: activity.description || '',
-          metrics: {
-            sets: [{
-              reps: '',
-              weight: '',
-              rest: '00:00'
-            }],
-            eachSide: false,
-            notes: ''
-          }
-        });
-      }
-      return groups;
-    }, []);
+    if (selectedActivities.length === 0) {
+      Alert.alert('Error', 'Please select at least one activity');
+      return;
+    }
 
-    // Create initial section data
-    const section = {
-      title: '',
-      description: '',
-      activities: groupedActivities,
-      isNew: true
-    };
-    
-    navigation.navigate('SectionDetail', { section });
+    // Clean the activities data to remove non-serializable Firebase references
+    const cleanedActivities = selectedActivities.map(activity => ({
+      id: activity.id,
+      title: activity.title || activity.name,
+      type: activity.type,
+      description: activity.description || '',
+      category: activity.category || '',
+      metrics: {
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false,
+        notes: ''
+      }
+    }));
+
+    // Navigate to the next screen with the cleaned activities
+    navigation.navigate(route.params.onNextScreen, {
+      section: {
+        exercises: cleanedActivities
+      }
+    });
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>

@@ -13,10 +13,19 @@ import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { useTheme } from '../theme/ThemeContext';
-import { createSection, updateSection, getSections, scheduleSection, deleteSection } from '../firebase/sections';
+import { createSection, updateSection, getSections, deleteSection } from '../firebase/sections';
+import { scheduleSection } from '../firebase/scheduledExercises';
 import { auth } from '../config/firebase';
 import { Calendar } from 'react-native-calendars';
 import { useSelectedClient } from '../context/SelectedClientContext';
+
+const SECTION_TYPES = [
+  { id: 'standard', label: 'Standard', icon: 'barbell-outline' },
+  { id: 'forTime', label: 'For Time', icon: 'timer-outline' },
+  { id: 'amrap', label: 'AMRAP', icon: 'infinite-outline' },
+  { id: 'chipper', label: 'Chipper', icon: 'list-outline' },
+  { id: 'intervals', label: 'Intervals', icon: 'repeat-outline' }
+];
 
 export default function Sections({ navigation, route, searchQuery = '' }) {
   const { selectedClient } = useSelectedClient();
@@ -24,6 +33,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSections, setSelectedSections] = useState([]);
+  const [selectedType, setSelectedType] = useState(null);
   const isSelectionMode = route.params?.selectedDate != null;
   const { selectedDate } = route.params || {};
   const [showCalendar, setShowCalendar] = useState(false);
@@ -33,11 +43,12 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
 
   useEffect(() => {
     loadSections();
-  }, []);
+  }, [selectedType]);
 
   const loadSections = async () => {
     try {
-      const sectionsData = await getSections(auth.currentUser.uid);
+      setLoading(true);
+      const sectionsData = await getSections(auth.currentUser.uid, selectedType);
       setSections(sectionsData);
     } catch (error) {
       console.error('Error loading sections:', error);
@@ -48,11 +59,7 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
 
   const handleCreateSection = () => {
     navigation.navigate('ActivitySelector', {
-      onNext: (selectedActivities) => {
-        navigation.navigate('SectionDetail', {
-          selectedActivities
-        });
-      }
+      onNextScreen: 'SectionDetail'
     });
   };
 
@@ -95,6 +102,30 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
     });
   };
 
+  const handleCalendarPress = (section) => {
+    setSelectedSection(section);
+    showTimeOfDayPicker();
+  };
+
+  const showTimeOfDayPicker = () => {
+    Alert.alert(
+      'Select Time of Day',
+      'When would you like to schedule this section?',
+      [
+        { text: 'Morning', onPress: () => handleTimeOfDaySelect('Morning') },
+        { text: 'Afternoon', onPress: () => handleTimeOfDaySelect('Afternoon') },
+        { text: 'Evening', onPress: () => handleTimeOfDaySelect('Evening') },
+        { text: 'Anytime', onPress: () => handleTimeOfDaySelect('Anytime') },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handleTimeOfDaySelect = (timeOfDay) => {
+    setSelectedTimeOfDay(timeOfDay);
+    setShowCalendar(true);
+  };
+
   const handleDayPress = (day) => {
     const dateString = day.dateString;
     const updatedDates = { ...selectedDates };
@@ -114,9 +145,8 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   const handleScheduleSection = async () => {
     try {
       const userId = selectedClient?.id || auth.currentUser.uid;
-      
-      // Schedule the section for each selected date
       const dates = Object.keys(selectedDates);
+      
       for (const dateString of dates) {
         const [year, month, day] = dateString.split('-').map(Number);
         const date = new Date();
@@ -124,178 +154,24 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
         date.setMonth(month - 1);
         date.setDate(day);
         date.setHours(12, 0, 0, 0);
-
-        // Ensure all required fields are present
-        const sectionToSchedule = {
-          ...selectedSection,
-          assignedBy: auth.currentUser.uid,
-          createdBy: auth.currentUser.uid,
-          activities: selectedSection.activities.map(group => ({
-            ...group,
-            items: group.items.map(item => ({
-              ...item,
-              metrics: {
-                ...(item.metrics || {}),
-                sets: item.metrics?.sets || [{
-                  reps: '',
-                  weight: '',
-                  rest: '00:00'
-                }],
-                eachSide: item.metrics?.eachSide || false,
-                notes: item.metrics?.notes || '',
-                timeOfDay: selectedTimeOfDay
-              },
-              supersetIndex: item.supersetIndex,
-              supersetWith: item.supersetWith
-            }))
-          }))
-        };
-
+        
         await scheduleSection(
-          userId, 
-          sectionToSchedule,
+          userId,
+          selectedSection,
           date,
           selectedTimeOfDay
         );
       }
 
-      Alert.alert('Success', 'Section scheduled successfully');
       setShowCalendar(false);
-      setSelectedTimeOfDay(null);
       setSelectedDates({});
+      setSelectedTimeOfDay(null);
       setSelectedSection(null);
+      Alert.alert('Success', 'Section scheduled successfully');
     } catch (error) {
       console.error('Error scheduling section:', error);
-      Alert.alert('Error', 'Failed to schedule section. Please try again.');
+      Alert.alert('Error', 'Failed to schedule section');
     }
-  };
-
-  const handleTimeSelection = (section, timeOfDay) => {
-    // Clean the section data for scheduling
-    const cleanSection = {
-      ...section,
-      activities: section.activities.map(group => ({
-        type: group.type,
-        items: group.items.map(item => ({
-          id: item.id,
-          title: item.title,
-          type: group.type,
-          description: item.description || '',
-          supersetId: item.supersetId, // Preserve supersetId
-          metrics: {
-            sets: Array.isArray(item.metrics?.sets) ? item.metrics.sets : [{
-              reps: '',
-              weight: '',
-              rest: '00:00'
-            }],
-            eachSide: item.metrics?.eachSide || false,
-            notes: item.metrics?.notes || ''
-          }
-        }))
-      }))
-    };
-
-    // Navigate to SectionDetail with clean data
-    navigation.navigate('SectionDetail', {
-      section: cleanSection,
-      isScheduling: true,
-      timeOfDay: timeOfDay,
-      onComplete: (updatedActivities) => {
-        // Update the selectedSection with the edited metrics
-        setSelectedSection(current => ({
-          ...current,
-          activities: current.activities.map(group => ({
-            ...group,
-            items: group.items.map(item => {
-              // Find the matching updated activity
-              const updatedActivity = updatedActivities.find(a => a.id === item.id);
-              if (updatedActivity) {
-                return {
-                  ...item,
-                  metrics: updatedActivity.metrics,
-                  supersetId: updatedActivity.supersetId // Preserve supersetId
-                };
-              }
-              return item;
-            })
-          }))
-        }));
-        setShowCalendar(true);
-      }
-    });
-  };
-
-  const handleCalendarPress = (section) => {
-    if (!selectedClient) {
-      Alert.alert(
-        "No Client Selected",
-        "Please select a client before scheduling a section.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    Alert.alert(
-      "Select Time of Day",
-      "When would you like to schedule this section?",
-      [
-        {
-          text: "Morning",
-          onPress: () => navigateToScheduling(section, 'morning')
-        },
-        {
-          text: "Afternoon",
-          onPress: () => navigateToScheduling(section, 'afternoon')
-        },
-        {
-          text: "Evening",
-          onPress: () => navigateToScheduling(section, 'evening')
-        },
-        {
-          text: "Anytime",
-          onPress: () => navigateToScheduling(section, 'anytime')
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
-    );
-  };
-
-  const navigateToScheduling = (section, timeOfDay) => {
-    navigation.navigate('SectionDetail', {
-      section,
-      isScheduling: true,
-      timeOfDay,
-      onComplete: async (updatedActivities) => {
-        try {
-          const userId = selectedClient?.id || auth.currentUser.uid;
-          
-          // Create the section data with the updated activities
-          const sectionToSchedule = {
-            ...section,
-            assignedBy: auth.currentUser.uid,
-            createdBy: auth.currentUser.uid,
-            activities: section.activities.map(group => ({
-              type: group.type,
-              items: group.items.map(item => {
-                const updatedActivity = updatedActivities.find(a => a.id === item.id);
-                return updatedActivity || item;
-              })
-            }))
-          };
-
-          // Show calendar for date selection
-          setSelectedSection(sectionToSchedule);
-          setSelectedTimeOfDay(timeOfDay);
-          setShowCalendar(true);
-        } catch (error) {
-          console.error('Error preparing section schedule:', error);
-          Alert.alert('Error', 'Failed to prepare section for scheduling. Please try again.');
-        }
-      }
-    });
   };
 
   const handleDeleteSection = (section) => {
@@ -402,6 +278,60 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
     (section.description && section.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Add type filter UI
+  const renderTypeFilters = () => (
+    <View style={styles.typeFiltersContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.typeFiltersContent}
+      >
+        <View style={styles.filterItem}>
+          <TouchableOpacity
+            style={[
+              styles.typeFilterButton,
+              selectedType === null && styles.typeFilterButtonSelected
+            ]}
+            onPress={() => setSelectedType(null)}
+          >
+            <Ionicons 
+              name="apps-outline" 
+              size={22} 
+              color={selectedType === null ? '#fff' : '#666'} 
+            />
+          </TouchableOpacity>
+          <Text style={[
+            styles.typeFilterText,
+            selectedType === null && styles.typeFilterTextSelected
+          ]}>All</Text>
+        </View>
+        {SECTION_TYPES.map(type => (
+          <View key={type.id} style={styles.filterItem}>
+            <TouchableOpacity
+              style={[
+                styles.typeFilterButton,
+                selectedType === type.id && styles.typeFilterButtonSelected
+              ]}
+              onPress={() => setSelectedType(type.id)}
+            >
+              <Ionicons 
+                name={type.icon} 
+                size={22} 
+                color={selectedType === type.id ? '#fff' : '#666'} 
+              />
+            </TouchableOpacity>
+            <Text style={[
+              styles.typeFilterText,
+              selectedType === type.id && styles.typeFilterTextSelected
+            ]}>
+              {type.label}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -413,6 +343,8 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
+        {!isSelectionMode && renderTypeFilters()}
+        
         {isSelectionMode && selectedSections.length > 0 && (
           <TouchableOpacity 
             style={[styles.programButton, { backgroundColor: theme.colors.primary }]}
@@ -425,7 +357,78 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
         )}
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {filteredSections.map(section => renderSection(section))}
+          {filteredSections.map(section => {
+            // Calculate activity counts for this section
+            const activityCounts = section.activities?.reduce((acc, activity) => {
+              const type = activity.type || 'exercise';
+              acc[type] = (acc[type] || 0) + 1;
+              return acc;
+            }, {}) || {};
+
+            return (
+              <TouchableOpacity
+                key={section.id}
+                style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => isSelectionMode ? handleSectionSelect(section) : handleSectionPress(section)}
+              >
+                <View style={styles.sectionContent}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                    {section.title}
+                  </Text>
+                  {section.description && (
+                    <Text 
+                      style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}
+                      numberOfLines={2}
+                    >
+                      {section.description}
+                    </Text>
+                  )}
+                  <View style={styles.categoryInfo}>
+                    {activityCounts?.exercise > 0 && (
+                      <Text style={[styles.categoryCount, { color: theme.colors.textSecondary }]}>
+                        {activityCounts.exercise} exercises
+                      </Text>
+                    )}
+                    {activityCounts?.habit > 0 && (
+                      <Text style={[styles.categoryCount, { color: theme.colors.textSecondary }]}>
+                        {activityCounts.habit} habits/tasks
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                {!isSelectionMode && (
+                  <View style={styles.sectionActions}>
+                    <TouchableOpacity 
+                      style={styles.calendarButton}
+                      onPress={() => handleCalendarPress(section)}
+                    >
+                      <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteSection(section)}
+                    >
+                      <Ionicons name="trash-outline" size={24} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {isSelectionMode && (
+                  <Ionicons 
+                    name={selectedSections.some(s => s.id === section.id) 
+                      ? "checkmark-circle" 
+                      : "ellipse-outline"
+                    } 
+                    size={24} 
+                    color={selectedSections.some(s => s.id === section.id)
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary
+                    } 
+                    style={styles.selectionIcon}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {!isSelectionMode && (
@@ -442,49 +445,67 @@ export default function Sections({ navigation, route, searchQuery = '' }) {
           transparent={true}
           animationType="slide"
         >
-          <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity 
-                onPress={() => {
-                  setShowCalendar(false);
-                  setSelectedDates({});
-                  setSelectedSection(null);
-                  setSelectedTimeOfDay(null);
-                }}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
+          <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Schedule Section
+                Select Dates
               </Text>
-              <TouchableOpacity 
-                onPress={handleScheduleSection}
-                style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-                disabled={Object.keys(selectedDates).length === 0}
-              >
-                <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
-                  Schedule
-                </Text>
-              </TouchableOpacity>
+              <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+                Selected dates: {Object.keys(selectedDates).length}
+              </Text>
+              <Calendar
+                style={styles.calendar}
+                theme={{
+                  backgroundColor: 'transparent',
+                  calendarBackground: 'transparent',
+                  textSectionTitleColor: theme.colors.textSecondary,
+                  selectedDayBackgroundColor: theme.colors.primary,
+                  selectedDayTextColor: theme.colors.white,
+                  todayTextColor: theme.colors.primary,
+                  dayTextColor: theme.colors.text,
+                  textDisabledColor: theme.colors.textSecondary,
+                  dotColor: theme.colors.primary,
+                  selectedDotColor: theme.colors.white,
+                  arrowColor: theme.colors.primary,
+                  monthTextColor: theme.colors.text,
+                  textDayFontFamily: Typography.fonts.regular,
+                  textMonthFontFamily: Typography.fonts.semibold,
+                  textDayHeaderFontFamily: Typography.fonts.medium,
+                  textDayFontSize: 16,
+                  textMonthFontSize: 18,
+                  textDayHeaderFontSize: 14,
+                }}
+                markedDates={selectedDates}
+                onDayPress={handleDayPress}
+                minDate={new Date().toISOString().split('T')[0]}
+                enableSwipeMonths={true}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: theme.colors.error }]}
+                  onPress={() => {
+                    setShowCalendar(false);
+                    setSelectedDates({});
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton, 
+                    { 
+                      backgroundColor: Object.keys(selectedDates).length > 0 
+                        ? theme.colors.primary 
+                        : theme.colors.textSecondary 
+                    }
+                  ]}
+                  onPress={handleScheduleSection}
+                  disabled={Object.keys(selectedDates).length === 0}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.colors.white }]}>Schedule</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <Calendar
-              onDayPress={handleDayPress}
-              markedDates={selectedDates}
-              theme={{
-                backgroundColor: theme.colors.background,
-                calendarBackground: theme.colors.background,
-                textSectionTitleColor: theme.colors.text,
-                selectedDayBackgroundColor: theme.colors.primary,
-                selectedDayTextColor: theme.colors.white,
-                todayTextColor: theme.colors.primary,
-                dayTextColor: theme.colors.text,
-                textDisabledColor: theme.colors.textSecondary,
-                monthTextColor: theme.colors.text,
-                arrowColor: theme.colors.primary,
-              }}
-            />
           </View>
         </Modal>
       </View>
@@ -603,5 +624,65 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: Layout.spacing.small,
+  },
+  typeFiltersContainer: {
+    marginBottom: Layout.spacing.small,
+  },
+  typeFiltersContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: Layout.spacing.small,
+    gap: Layout.spacing.medium,
+  },
+  typeFilterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2C2C2E',
+  },
+  typeFilterButtonSelected: {
+    backgroundColor: '#6B4EFF',
+  },
+  typeFilterText: {
+    fontSize: 12,
+    fontFamily: Typography.fonts.medium,
+    color: '#666',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  typeFilterTextSelected: {
+    color: '#fff',
+  },
+  filterItem: {
+    alignItems: 'center',
+    width: 60,
+  },
+  modalContent: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.large,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontFamily: Typography.fonts.medium,
+    marginBottom: Layout.spacing.small,
+  },
+  calendar: {
+    marginBottom: Layout.spacing.medium,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.medium,
+  },
+  modalButton: {
+    padding: Layout.spacing.medium,
+    borderRadius: Layout.borderRadius.medium,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
   },
 }); 
