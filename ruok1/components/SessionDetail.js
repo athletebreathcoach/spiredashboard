@@ -1,27 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 export default function SessionDetail({ route, navigation }) {
   const theme = useTheme();
-  const { session, isNew } = route.params;
+  const { session } = route.params;
   const [expandedItems, setExpandedItems] = useState({});
-  const [title, setTitle] = useState(session.title || 'New Session');
-  const [items, setItems] = useState(session.items || []);
-
-  // Auto-expand all items initially if it's a new session
-  useEffect(() => {
-    if (isNew) {
-      const expanded = {};
-      items.forEach(item => {
-        expanded[item.id] = true;
-      });
-      setExpandedItems(expanded);
-    }
-  }, [isNew]);
+  const [items] = useState(session.items || []);
 
   const toggleExpand = (itemId) => {
     setExpandedItems(prev => ({
@@ -30,33 +20,21 @@ export default function SessionDetail({ route, navigation }) {
     }));
   };
 
-  const handleAddActivity = () => {
-    navigation.navigate('ActivitySelector', {
-      type: 'session',
-      multiSelect: true,
-      onSelect: (selectedItems) => {
-        setItems(current => [
-          ...current,
-          ...selectedItems.map(item => ({
-            ...item,
-            id: Math.random().toString(), // Temporary ID for new items
-            metrics: item.type === 'exercise' ? {
-              sets: [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: false
-            } : undefined
-          }))
-        ]);
-      }
-    });
-  };
-
   const handleSave = async () => {
-    // TODO: Implement save functionality
-    navigation.goBack();
+    try {
+      const sessionData = {
+        title: 'New Session',
+        items,
+        userId: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'sessions'), sessionData);
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error saving session:', error);
+    }
   };
 
   const renderMetricsTable = (item) => {
@@ -82,38 +60,21 @@ export default function SessionDetail({ route, navigation }) {
           <Ionicons name="add" size={16} color={theme.colors.primary} />
           <Text style={[styles.addSetText, { color: theme.colors.primary }]}>Add Set</Text>
         </TouchableOpacity>
-        {item.metrics.eachSide && (
-          <View style={styles.eachSideContainer}>
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />
-            <Text style={[styles.eachSideText, { color: theme.colors.text }]}>Each side</Text>
-          </View>
-        )}
+        <View style={styles.eachSideContainer}>
+          <TouchableOpacity>
+            <Ionicons 
+              name={item.metrics.eachSide ? "checkmark-circle" : "ellipse-outline"} 
+              size={20} 
+              color={theme.colors.primary} 
+            />
+          </TouchableOpacity>
+          <Text style={[styles.eachSideText, { color: theme.colors.textSecondary }]}>Each side</Text>
+        </View>
+        <TouchableOpacity style={styles.addNoteButton}>
+          <Text style={[styles.addNoteText, { color: theme.colors.textSecondary }]}>Add note...</Text>
+        </TouchableOpacity>
       </View>
     );
-  };
-
-  const renderSectionItems = (section) => {
-    if (!section.items || !expandedItems[section.id]) return null;
-
-    return section.items.map((item, index) => (
-      <View key={index} style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}>
-        <TouchableOpacity 
-          style={styles.itemHeader}
-          onPress={() => toggleExpand(item.id)}
-        >
-          <View style={styles.itemTitleContainer}>
-            <Ionicons name="barbell-outline" size={24} color={theme.colors.primary} />
-            <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{item.title}</Text>
-          </View>
-          <Ionicons 
-            name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
-            size={24} 
-            color={theme.colors.textSecondary} 
-          />
-        </TouchableOpacity>
-        {expandedItems[item.id] && renderMetricsTable(item)}
-      </View>
-    ));
   };
 
   return (
@@ -122,72 +83,52 @@ export default function SessionDetail({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          {title}
-        </Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={[styles.saveButton, { color: theme.colors.primary }]}>Save</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>New Session</Text>
+        <TouchableOpacity 
+          style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
+          onPress={handleSave}
+        >
+          <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>Save</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
         {items.map((item, index) => (
-          <View key={index}>
-            {item.type === 'section' ? (
-              <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
-                <TouchableOpacity 
-                  style={styles.sectionHeader}
-                  onPress={() => toggleExpand(item.id)}
-                >
-                  <View style={styles.sectionTitleContainer}>
-                    <Ionicons name="layers-outline" size={24} color={theme.colors.primary} />
-                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{item.title}</Text>
-                  </View>
-                  <Ionicons 
-                    name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
-                    size={24} 
-                    color={theme.colors.textSecondary} 
-                  />
-                </TouchableOpacity>
-                {renderSectionItems(item)}
+          <View key={index} style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+            <TouchableOpacity 
+              style={styles.itemHeader}
+              onPress={() => toggleExpand(item.id)}
+            >
+              <View style={styles.itemTitleContainer}>
+                <Ionicons 
+                  name={item.type === 'section' ? 'layers-outline' : 'document-text-outline'} 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+                <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{item.title}</Text>
               </View>
-            ) : (
-              <View style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}>
-                <TouchableOpacity 
-                  style={styles.itemHeader}
-                  onPress={() => toggleExpand(item.id)}
-                >
-                  <View style={styles.itemTitleContainer}>
-                    <Ionicons 
-                      name={
-                        item.type === 'exercise' ? 'barbell-outline' :
-                        item.type === 'breathingTests' ? 'fitness-outline' :
-                        item.type === 'breathProtocols' ? 'pulse-outline' :
-                        item.type === 'habitstasks' ? 'checkbox-outline' :
-                        item.type === 'guidedSessions' ? 'play-circle-outline' :
-                        'document-text-outline'
-                      } 
-                      size={24} 
-                      color={theme.colors.primary} 
-                    />
-                    <Text style={[styles.itemTitle, { color: theme.colors.text }]}>{item.title}</Text>
-                  </View>
-                  <Ionicons 
-                    name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
-                    size={24} 
-                    color={theme.colors.textSecondary} 
-                  />
+              <View style={styles.itemControls}>
+                <TouchableOpacity>
+                  <Ionicons name="ellipsis-horizontal" size={24} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
-                {expandedItems[item.id] && renderMetricsTable(item)}
+                <Ionicons 
+                  name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
+                  size={24} 
+                  color={theme.colors.textSecondary} 
+                />
               </View>
-            )}
+            </TouchableOpacity>
+            {expandedItems[item.id] && renderMetricsTable(item)}
           </View>
         ))}
       </ScrollView>
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={handleAddActivity}
+        onPress={() => navigation.navigate('ActivitySelector', { 
+          type: 'session',
+          multiSelect: true
+        })}
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
@@ -211,37 +152,21 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fonts.bold,
   },
   saveButton: {
-    fontSize: Layout.text.large,
+    paddingHorizontal: Layout.spacing.large,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.medium,
+  },
+  saveButtonText: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
   },
   content: {
     flex: 1,
     padding: Layout.spacing.medium,
   },
-  sectionCard: {
+  card: {
     borderRadius: Layout.borderRadius.large,
     marginBottom: Layout.spacing.medium,
-    overflow: 'hidden',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Layout.spacing.medium,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Layout.spacing.small,
-  },
-  sectionTitle: {
-    fontSize: Layout.text.large,
-    fontFamily: Typography.fonts.bold,
-    marginLeft: Layout.spacing.small,
-  },
-  itemCard: {
-    borderRadius: Layout.borderRadius.large,
-    marginBottom: Layout.spacing.small,
     overflow: 'hidden',
   },
   itemHeader: {
@@ -259,6 +184,11 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
     marginLeft: Layout.spacing.small,
+  },
+  itemControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.small,
   },
   metricsContainer: {
     padding: Layout.spacing.medium,
@@ -306,6 +236,14 @@ const styles = StyleSheet.create({
     marginTop: Layout.spacing.small,
   },
   eachSideText: {
+    fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+  },
+  addNoteButton: {
+    marginTop: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+  },
+  addNoteText: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
   },
