@@ -53,9 +53,9 @@ import BreathTestHistory from './components/BreathTestHistory';
 import ClientBreathTestHistory from './components/ClientBreathTestHistory';
 import ActivitySelector from './components/ActivitySelector';
 import SectionMetrics from './components/SectionMetrics';
-import SessionDetail from './components/SessionDetail';
 import { SelectedClientProvider } from './context/SelectedClientContext';
 import ApneaTableSetup from './components/ApneaTableSetup';
+import SessionDetail from './components/SessionDetail';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -529,6 +529,13 @@ function AuthenticatedStack({ user }) {
         }}
       />
       <Stack.Screen
+        name="SessionDetail"
+        component={SessionDetail}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="WorkoutHistory"
         component={WorkoutHistory}
         options={{ headerShown: false }}
@@ -569,11 +576,6 @@ function AuthenticatedStack({ user }) {
           headerShown: false,
           presentation: 'modal'
         }}
-      />
-      <Stack.Screen 
-        name="SessionDetail" 
-        component={SessionDetail}
-        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

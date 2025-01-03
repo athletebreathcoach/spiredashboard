@@ -1,63 +1,20 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isCoach() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/coaches/$(request.auth.uid));
-    }
-
-    function isUserOrCoach(userId) {
-      return request.auth.uid == userId || isCoach();
-    }
-
-    // Rules for habitstasks collection
-    match /habitstasks/{itemId} {
-      allow read: if isAuthenticated();
-      allow write: if isCoach();  // Only coaches can create/modify habits and tasks
-    }
-
-    // Rules for scheduled exercises root collection
-    match /scheduledExercises/{exerciseId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||  // User can read their own scheduled exercises
-        isCoach()                                    // Coaches can read all scheduled exercises
-      );
-      
-      allow create: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid ||  // User can create their own scheduled exercises
-        (isCoach() && request.resource.data.createdBy == request.auth.uid)  // Coaches can create exercises for their clients
-      );
-      
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||  // User can update their own scheduled exercises
-        isCoach()                                    // Coaches can update their clients' scheduled exercises
-      );
-      
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||  // User can delete their own scheduled exercises
-        isCoach()                                    // Coaches can delete their clients' scheduled exercises
-      );
-    }
-
-    // Global collections that everyone can read
-    match /{collection}/{documentId} {
-      allow read: if isAuthenticated();
-      allow write: if false;  // Only admins can write to global collections
-    }
-    
-    // Coaches collection
-    match /coaches/{coachId} {
-      allow read: if isAuthenticated();
-      allow write: if false;  // Only admins can modify coaches
-    }
-
-    match /breathProtocols/{protocolId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/coaches/$(request.auth.uid)).data != null;
+{
+  "rules": {
+    "scheduledSessions": {
+      "$session": {
+        ".read": "auth != null && resource.data.userId == auth.uid",
+        ".write": "auth != null && (!resource.data || resource.data.userId == auth.uid)",
+        ".validate": "newData.hasChildren(['userId', 'scheduledDate', 'activities'])",
+        "userId": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "scheduledDate": {
+          ".validate": "newData.isString() || newData.isNumber()"
+        },
+        "activities": {
+          ".validate": "newData.isArray()"
+        }
+      }
     }
   }
 }

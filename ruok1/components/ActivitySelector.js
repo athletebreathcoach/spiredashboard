@@ -20,8 +20,10 @@ import { getBreathProtocols } from '../firebase/breathProtocols';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { auth } from '../config/firebase';
+import { getSections } from '../firebase/sections';
 
 const CATEGORIES = [
+  { id: 'sections', label: 'Sections', icon: 'layers-outline' },
   { id: 'exercises', label: 'Exercises', icon: 'barbell-outline' },
   { id: 'habitstasks', label: 'Habits & Tasks', icon: 'checkbox-outline' },
   { id: 'breathingTests', label: 'Breathing Tests', icon: 'fitness-outline' },
@@ -44,15 +46,21 @@ export default function ActivitySelector({ navigation, route }) {
   const loadActivities = async () => {
     try {
       setLoading(true);
-      const [exercises, habits, tasks, breathingTests, breathProtocols] = await Promise.all([
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        console.error('No user ID found');
+        setActivities({});
+        return;
+      }
+
+      const [sections, exercises, habits, tasks, breathingTests, breathProtocols] = await Promise.all([
+        getSections(userId),
         getExercises(),
         getHabits(),
         getTasks(),
         getBreathingTests(),
         getBreathProtocols()
       ]);
-
-      console.log('Breathing Tests:', breathingTests); // Debug log
 
       // Fetch guided sessions
       const guidedSessionsRef = collection(db, 'guidedSessions');
@@ -72,6 +80,7 @@ export default function ActivitySelector({ navigation, route }) {
       }));
 
       setActivities({
+        sections: sections || [],
         exercises: exercises || [],
         habitstasks: [...(habits || []), ...(tasks || [])],
         breathingTests: processedBreathingTests,
@@ -80,6 +89,7 @@ export default function ActivitySelector({ navigation, route }) {
       });
     } catch (error) {
       console.error('Error loading activities:', error);
+      setActivities({});
     } finally {
       setLoading(false);
     }
@@ -96,10 +106,11 @@ export default function ActivitySelector({ navigation, route }) {
       const cleanedActivity = {
         id: activity.id,
         title: activity.title || activity.name,
-        type: selectedCategory,
+        type: selectedCategory === 'sections' ? 'section' : selectedCategory,
         description: activity.description || '',
         category: activity.category || '',
-        metrics: {
+        items: activity.items || [],
+        metrics: selectedCategory === 'exercises' ? {
           sets: [{
             reps: '',
             weight: '',
@@ -107,7 +118,7 @@ export default function ActivitySelector({ navigation, route }) {
           }],
           eachSide: false,
           notes: ''
-        }
+        } : undefined
       };
       
       return [...current, cleanedActivity];
@@ -120,30 +131,37 @@ export default function ActivitySelector({ navigation, route }) {
       return;
     }
 
-    // Clean the activities data to remove non-serializable Firebase references
-    const cleanedActivities = selectedActivities.map(activity => ({
-      id: activity.id,
-      title: activity.title || activity.name,
-      type: activity.type,
-      description: activity.description || '',
-      category: activity.category || '',
-      metrics: {
-        sets: [{
-          reps: '',
-          weight: '',
-          rest: '00:00'
-        }],
-        eachSide: false,
-        notes: ''
-      }
-    }));
+    console.log('Route params:', route.params);
+    console.log('Selected activities:', selectedActivities);
 
-    // Navigate to the next screen with the cleaned activities
-    navigation.navigate(route.params.onNextScreen, {
-      section: {
-        exercises: cleanedActivities
-      }
-    });
+    if (route.params?.type === 'session') {
+      navigation.navigate('SessionDetail', {
+        session: {
+          title: 'New Session',
+          items: selectedActivities.map(item => ({
+            ...item,
+            id: Math.random().toString(), // Temporary ID for new items
+            metrics: item.type === 'exercise' ? {
+              sets: [{
+                reps: '',
+                weight: '',
+                rest: '00:00'
+              }],
+              eachSide: false
+            } : undefined
+          }))
+        },
+        isNew: true
+      });
+    } else if (route.params?.onNextScreen) {
+      navigation.navigate(route.params.onNextScreen, {
+        section: {
+          exercises: selectedActivities
+        }
+      });
+    } else {
+      console.error('No valid navigation action found');
+    }
   };
 
   const filteredActivities = activities[selectedCategory]?.filter(activity =>

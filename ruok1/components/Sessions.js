@@ -19,28 +19,39 @@ export default function Sessions({ navigation, searchQuery = '' }) {
   const loadSessions = async () => {
     try {
       const sessionsRef = collection(db, 'sessions');
+      const userId = auth.currentUser?.uid;
+      
+      if (!userId) {
+        console.error('No user ID found');
+        setSessions([]);
+        return;
+      }
+
       const q = query(
         sessionsRef,
-        where('userId', '==', auth.currentUser.uid)
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
       );
       const snapshot = await getDocs(q);
       const sessionsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      sessionsData.sort((a, b) => {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
       setSessions(sessionsData);
     } catch (error) {
       console.error('Error loading sessions:', error);
+      setSessions([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateSession = () => {
-    navigation.navigate('ActivitySelector');
+    console.log('Creating new session...');
+    navigation.navigate('ActivitySelector', { 
+      type: 'session',
+      multiSelect: true
+    });
   };
 
   const handleSessionPress = (session) => {
@@ -48,8 +59,8 @@ export default function Sessions({ navigation, searchQuery = '' }) {
   };
 
   const filteredSessions = sessions.filter(session =>
-    session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (session.description && session.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    session.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    session.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -98,7 +109,7 @@ export default function Sessions({ navigation, searchQuery = '' }) {
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={handleCreateSession}
       >
-        <Ionicons name="add" size={24} color="#fff" />
+        <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -150,20 +161,20 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: Layout.spacing.medium,
-    bottom: Layout.spacing.medium,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
+    right: Layout.spacing.large,
+    bottom: Layout.spacing.large,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
-    shadowColor: "#000",
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
   },
 }); 

@@ -7,29 +7,23 @@ import { Ionicons } from '@expo/vector-icons';
 import Sections from './Sections';
 import Sessions from './Sessions';
 
-const TABS = [
-  { id: 'programs', label: 'Programs' },
-  { id: 'sessions', label: 'Sessions' },
-  { id: 'sections', label: 'Sections' },
-];
-
 export default function Programs({ navigation }) {
   const theme = useTheme();
-  const [activeTab, setActiveTab] = useState('programs');
+  const [activeView, setActiveView] = useState('programs');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const renderTabContent = () => {
-    switch (activeTab) {
+  const renderContent = () => {
+    switch (activeView) {
       case 'programs':
         return (
           <ScrollView style={styles.scrollView}>
             {/* Existing programs content */}
           </ScrollView>
         );
-      case 'sessions':
-        return <Sessions navigation={navigation} searchQuery={searchQuery} />;
       case 'sections':
         return <Sections navigation={navigation} route={{ params: {} }} searchQuery={searchQuery} />;
+      case 'sessions':
+        return <Sessions navigation={navigation} searchQuery={searchQuery} />;
       default:
         return null;
     }
@@ -56,32 +50,59 @@ export default function Programs({ navigation }) {
         />
       </View>
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.colors.border }]}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[
+            styles.navButton,
+            { backgroundColor: activeView === 'programs' ? theme.colors.primary : theme.colors.surface }
+          ]}
+          onPress={() => setActiveView('programs')}
+        >
+          <Text
             style={[
-              styles.tab,
-              activeTab === tab.id && styles.activeTab,
-              { borderBottomColor: theme.colors.primary }
+              styles.buttonText,
+              { color: activeView === 'programs' ? '#FFFFFF' : theme.colors.textSecondary }
             ]}
-            onPress={() => setActiveTab(tab.id)}
           >
-            <Text
-              style={[
-                styles.tabText,
-                { color: theme.colors.textSecondary },
-                activeTab === tab.id && { color: theme.colors.primary }
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+            Programs
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.navButton,
+            { backgroundColor: activeView === 'sections' ? theme.colors.primary : theme.colors.surface }
+          ]}
+          onPress={() => setActiveView('sections')}
+        >
+          <Text
+            style={[
+              styles.buttonText,
+              { color: activeView === 'sections' ? '#FFFFFF' : theme.colors.textSecondary }
+            ]}
+          >
+            Sections
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.navButton,
+            { backgroundColor: activeView === 'sessions' ? theme.colors.primary : theme.colors.surface }
+          ]}
+          onPress={() => setActiveView('sessions')}
+        >
+          <Text
+            style={[
+              styles.buttonText,
+              { color: activeView === 'sessions' ? '#FFFFFF' : theme.colors.textSecondary }
+            ]}
+          >
+            Sessions
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        {renderTabContent()}
+        {renderContent()}
       </View>
     </View>
   );
@@ -110,22 +131,21 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
   },
-  tabBar: {
+  buttonContainer: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
+    paddingHorizontal: Layout.spacing.medium,
+    marginBottom: Layout.spacing.medium,
+    gap: Layout.spacing.medium,
   },
-  tab: {
+  navButton: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: Layout.spacing.medium,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderRadius: Layout.borderRadius.large,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  activeTab: {
-    borderBottomWidth: 2,
-  },
-  tabText: {
-    fontSize: 15,
+  buttonText: {
+    fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.medium,
   },
   content: {
@@ -133,5 +153,26 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  sessionsContainer: {
+    flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    right: Layout.spacing.large,
+    bottom: Layout.spacing.large,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 }); 

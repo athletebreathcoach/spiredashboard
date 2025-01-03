@@ -46,12 +46,6 @@ export default function ProgramDayEdit({ route, navigation }) {
 
   const categories = [
     {
-      id: 'sessions',
-      title: 'Sessions',
-      icon: 'calendar-outline',
-      description: 'Add complete training sessions',
-    },
-    {
       id: 'sections',
       title: 'Sections',
       icon: 'layers-outline',
@@ -91,7 +85,6 @@ export default function ProgramDayEdit({ route, navigation }) {
 
   const handleCategoryPress = (category) => {
     const screens = {
-      sessions: 'Programs',
       sections: 'Programs',
       breathingTests: 'BreathingTests',
       exercises: 'Exercises',
