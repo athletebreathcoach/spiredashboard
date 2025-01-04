@@ -63,6 +63,43 @@ export default function Sessions({ navigation, searchQuery = '' }) {
     session.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const renderSession = (session) => {
+    return (
+      <TouchableOpacity
+        key={session.id}
+        style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}
+        onPress={() => navigation.navigate('SessionDetail', { session })}
+      >
+        <View style={styles.sessionContent}>
+          <View style={styles.sessionIcon}>
+            <Ionicons name="barbell-outline" size={24} color={theme.colors.primary} />
+          </View>
+          <View style={styles.sessionInfo}>
+            <Text style={[styles.sessionTitle, { color: theme.colors.text }]}>
+              {session.title}
+            </Text>
+            {session.description && (
+              <Text style={[styles.sessionDescription, { color: theme.colors.textSecondary }]}>
+                {session.description}
+              </Text>
+            )}
+          </View>
+          <View style={styles.sessionActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('SessionDetail', { 
+                session,
+                isScheduling: true
+              })}
+            >
+              <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -74,35 +111,7 @@ export default function Sessions({ navigation, searchQuery = '' }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        {filteredSessions.map(session => (
-          <TouchableOpacity
-            key={session.id}
-            style={[styles.sessionCard, { backgroundColor: theme.colors.surface }]}
-            onPress={() => handleSessionPress(session)}
-          >
-            <View style={styles.sessionContent}>
-              <Text style={[styles.sessionTitle, { color: theme.colors.text }]}>
-                {session.title}
-              </Text>
-              {session.description && (
-                <Text 
-                  style={[styles.sessionDescription, { color: theme.colors.textSecondary }]}
-                  numberOfLines={2}
-                >
-                  {session.description}
-                </Text>
-              )}
-              <View style={styles.sessionFooter}>
-                <Text style={[styles.itemCount, { color: theme.colors.textSecondary }]}>
-                  {session.items?.length || 0} items
-                </Text>
-                <Text style={[styles.date, { color: theme.colors.textSecondary }]}>
-                  {new Date(session.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {filteredSessions.map(session => renderSession(session))}
       </ScrollView>
 
       <TouchableOpacity
@@ -176,5 +185,18 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  sessionIcon: {
+    marginRight: Layout.spacing.medium,
+  },
+  sessionInfo: {
+    flex: 1,
+  },
+  sessionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: Layout.spacing.small,
   },
 }); 

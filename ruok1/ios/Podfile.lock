@@ -1347,14 +1347,10 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-pager-view (6.1.2):
-    - RCT-Folly
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Codegen
+  - react-native-get-random-values (1.11.0):
     - React-Core
-    - React-RCTFabric
-    - ReactCommon/turbomodule/core
+  - react-native-pager-view (6.0.1):
+    - React-Core
   - react-native-safe-area-context (4.12.0):
     - DoubleConversion
     - glog
@@ -1730,6 +1726,27 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNCPicker (2.10.2):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - RNDateTimePicker (8.2.0):
     - DoubleConversion
     - glog
@@ -1780,25 +1797,34 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated (3.6.3):
+  - RNReanimated (3.3.0):
     - DoubleConversion
+    - FBLazyVector
     - glog
     - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
+    - RCT-Folly
     - RCTRequired
     - RCTTypeSafety
+    - React-callinvoker
+    - React-Codegen
     - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
+    - React-Core/DevSupport
+    - React-Core/RCTWebSocket
+    - React-CoreModules
+    - React-cxxreact
+    - React-hermes
+    - React-jsi
+    - React-jsiexecutor
+    - React-jsinspector
+    - React-RCTActionSheet
+    - React-RCTAnimation
+    - React-RCTBlob
     - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
+    - React-RCTImage
+    - React-RCTLinking
+    - React-RCTNetwork
+    - React-RCTSettings
+    - React-RCTText
     - ReactCommon/turbomodule/core
     - Yoga
   - RNScreens (4.1.0):
@@ -1941,6 +1967,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - react-native-pager-view (from `../node_modules/react-native-pager-view`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-webview (from `../node_modules/react-native-webview`)
@@ -1972,6 +1999,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCPicker (from `../node_modules/@react-native-picker/picker`)"
   - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
@@ -2090,6 +2118,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-get-random-values:
+    :path: "../node_modules/react-native-get-random-values"
   react-native-pager-view:
     :path: "../node_modules/react-native-pager-view"
   react-native-safe-area-context:
@@ -2152,6 +2182,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNCPicker:
+    :path: "../node_modules/@react-native-picker/picker"
   RNDateTimePicker:
     :path: "../node_modules/@react-native-community/datetimepicker"
   RNFBApp:
@@ -2227,7 +2259,8 @@ SPEC CHECKSUMS:
   React-logger: 697873f06b8ba436e3cddf28018ab4741e8071b6
   React-Mapbuffer: c79216258c659d70cdebaf76f8c110cc46dce8db
   React-microtasksnativemodule: 8d918db5d7c4526de2a0a4692d878a21b338c3f0
-  react-native-pager-view: d607d1d01df02c9bfa2cf0a73fb66d90de6a3c51
+  react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
+  react-native-pager-view: 3051346698a0ba0c4e13e40097cc11b00ee03cca
   react-native-safe-area-context: 908ee3cf872b29ed987a0514f1a6ccbf57f0fef4
   react-native-webview: 47c9d892756ec3930810f2b539e732c01858e1c9
   React-nativeconfig: 565ebf4340d9ede95b523f0e3640f48286985ef5
@@ -2258,16 +2291,17 @@ SPEC CHECKSUMS:
   ReactCodegen: 8d7f9f05befdeb108948bbaa18d149b25a964f72
   ReactCommon: 858d61cce81635d57be89348568b603e838b3cac
   RNCAsyncStorage: ed97da7a45c1af0c6a938c8b66da1ec24792fcab
+  RNCPicker: d8b2d2dfded7fa0b2a1ca57cd16250aa771aaa21
   RNDateTimePicker: b4dbbbe7a49cf4c9d9c01179f6d30242018e20da
   RNFBApp: 1de631bffe154f4f8b56f8dbfb13d6305d658e97
   RNFBMessaging: 3b6af169c3caf08af40ca79fa4bdc422c3f1a10c
   RNGestureHandler: 598e45cedb905b157e9764acbef0b5e365693451
-  RNReanimated: 960156253329527a8e86a16dcb80956e9e347b08
+  RNReanimated: 04ff5cbde0229190bd98ef093493bf785f45b1a9
   RNScreens: e9cfdcedde2fb10f17f390fb239ee8a2ee7a4fd9
   RNSVG: 16775caac1e5d193c876ee15431494d7a9649aec
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 7548e4449365bf0ef60db4aefe58abff37fcabec
 
-PODFILE CHECKSUM: b3e21dc6102630be3c51961378914ba9db906832
+PODFILE CHECKSUM: fd48b55529d75d4823899a2419346d344a04cbae
 
 COCOAPODS: 1.16.2

@@ -31,6 +31,14 @@ const CATEGORIES = [
   { id: 'guidedSessions', label: 'Guided Sessions', icon: 'play-circle-outline' },
 ];
 
+const SECTION_TYPES = [
+  { id: 'standard', label: 'Standard', icon: 'barbell-outline' },
+  { id: 'forTime', label: 'For Time', icon: 'timer-outline' },
+  { id: 'amrap', label: 'AMRAP', icon: 'infinite-outline' },
+  { id: 'chipper', label: 'Chipper', icon: 'list-outline' },
+  { id: 'intervals', label: 'Intervals', icon: 'repeat-outline' }
+];
+
 export default function ActivitySelector({ navigation, route }) {
   const theme = useTheme();
   const [selectedCategory, setSelectedCategory] = useState('exercises');
@@ -106,10 +114,11 @@ export default function ActivitySelector({ navigation, route }) {
       const cleanedActivity = {
         id: activity.id,
         title: activity.title || activity.name,
-        type: selectedCategory === 'sections' ? 'section' : selectedCategory,
+        type: selectedCategory === 'sections' ? activity.type || 'section' : selectedCategory,
         description: activity.description || '',
         category: activity.category || '',
-        items: activity.items || [],
+        settings: activity.settings || {},
+        activities: activity.exercises || [], // Include exercises for sections
         metrics: selectedCategory === 'exercises' ? {
           sets: [{
             reps: '',
@@ -138,18 +147,41 @@ export default function ActivitySelector({ navigation, route }) {
       navigation.navigate('SessionDetail', {
         session: {
           title: 'New Session',
-          items: selectedActivities.map(item => ({
-            ...item,
-            id: Math.random().toString(), // Temporary ID for new items
-            metrics: item.type === 'exercise' ? {
-              sets: [{
-                reps: '',
-                weight: '',
-                rest: '00:00'
-              }],
-              eachSide: false
-            } : undefined
-          }))
+          items: selectedActivities.map(item => {
+            if (item.type === 'section' || SECTION_TYPES.some(t => t.id === item.type)) {
+              // For sections, include their exercises and settings
+              return {
+                ...item,
+                id: Math.random().toString(), // Temporary ID for new items
+                activities: item.activities.map(exercise => ({
+                  ...exercise,
+                  id: Math.random().toString(),
+                  metrics: {
+                    sets: [{
+                      reps: '',
+                      weight: '',
+                      rest: '00:00'
+                    }],
+                    eachSide: false
+                  }
+                }))
+              };
+            } else {
+              // For regular activities
+              return {
+                ...item,
+                id: Math.random().toString(), // Temporary ID for new items
+                metrics: item.type === 'exercise' ? {
+                  sets: [{
+                    reps: '',
+                    weight: '',
+                    rest: '00:00'
+                  }],
+                  eachSide: false
+                } : undefined
+              };
+            }
+          })
         },
         isNew: true
       });

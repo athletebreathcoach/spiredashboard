@@ -11,6 +11,7 @@ import {
   updateExerciseMetrics, 
   updateExerciseStatus 
 } from '../firebase/scheduledExercises';
+import { getScheduledSessions, updateScheduledSession } from '../firebase/scheduledSessions';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
@@ -178,10 +179,55 @@ export default function Training({ navigation, route }) {
       endOfDay.setHours(23, 59, 59, 999);
 
       const userId = selectedClient?.id || auth.currentUser.uid;
-      const exercisesForDate = await getScheduledExercises(userId, startOfDay, endOfDay);
-      setExercises(exercisesForDate);
+      
+      console.log('Loading exercises for date:', {
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString(),
+        userId
+      });
+
+      // Get both exercises and sessions
+      const [exercisesForDate, sessionsForDate] = await Promise.all([
+        getScheduledExercises(userId, startOfDay, endOfDay),
+        getScheduledSessions(userId, startOfDay, endOfDay)
+      ]);
+
+      console.log('Fetched data:', {
+        exercisesCount: exercisesForDate.length,
+        sessionsCount: sessionsForDate.length,
+        sessions: sessionsForDate
+      });
+
+      // Convert sessions to the same format as exercises
+      const formattedSessions = sessionsForDate.map(session => ({
+        ...session,
+        type: 'session',
+        exerciseTitle: session.title,
+        metrics: {
+          ...session.metrics,
+          timeOfDay: session.timeOfDay || 'anytime',
+          completed: session.status === 'completed'
+        }
+      }));
+
+      console.log('Formatted sessions:', formattedSessions);
+
+      // Sort all activities by scheduledDateTime
+      const allActivities = [...exercisesForDate, ...formattedSessions].sort((a, b) => {
+        const timeA = a.scheduledDateTime?.toDate?.() || a.scheduledDateTime;
+        const timeB = b.scheduledDateTime?.toDate?.() || b.scheduledDateTime;
+        return timeA - timeB;
+      });
+
+      console.log('Final activities:', {
+        totalCount: allActivities.length,
+        activities: allActivities
+      });
+
+      setExercises(allActivities);
     } catch (error) {
       console.error('Error loading exercises:', error);
+      Alert.alert('Error', 'Failed to load exercises. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -867,7 +913,75 @@ export default function Training({ navigation, route }) {
 
   const renderActivity = (activity, date) => {
     const isSection = activity.type === 'section';
+    const isSession = activity.type === 'session';
     const isCompleted = activity.metrics?.completed;
+
+    if (isSession) {
+      return (
+        <TouchableOpacity
+          key={activity.id}
+          style={[
+            styles.activityCard,
+            { backgroundColor: theme.colors.surface },
+            isCompleted && styles.completedActivity
+          ]}
+          onPress={() => navigation.navigate('SessionDetail', { session: activity })}
+        >
+          <View style={styles.exerciseHeader}>
+            <View style={[styles.exerciseIcon, { backgroundColor: theme.colors.primary }]}>
+              <Ionicons
+                name="calendar-outline"
+                size={24}
+                color={theme.colors.white}
+              />
+            </View>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
+                {activity.title}
+              </Text>
+              <View style={styles.sessionMetrics}>
+                <Text style={[styles.sectionMetrics, { color: theme.colors.textSecondary }]}>
+                  {activity.items?.length || 0} activities
+                </Text>
+                {activity.scheduledTime && (
+                  <Text style={[styles.scheduledTime, { color: theme.colors.textSecondary }]}>
+                    {activity.scheduledTime}
+                  </Text>
+                )}
+              </View>
+            </View>
+            {isCompleted ? (
+              <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
+            ) : (
+              <TouchableOpacity
+                style={[styles.completeButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => handleCompleteSession(activity)}
+              >
+                <Text style={[styles.completeButtonText, { color: theme.colors.white }]}>Complete</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {activity.items && activity.items.length > 0 && (
+            <View style={styles.sessionPreview}>
+              {activity.items.slice(0, 3).map((item, index) => (
+                <Text 
+                  key={index} 
+                  style={[styles.previewItem, { color: theme.colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  • {item.title || item.name}
+                </Text>
+              ))}
+              {activity.items.length > 3 && (
+                <Text style={[styles.moreItems, { color: theme.colors.textSecondary }]}>
+                  +{activity.items.length - 3} more
+                </Text>
+              )}
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    }
 
     return (
       <TouchableOpacity
@@ -911,6 +1025,21 @@ export default function Training({ navigation, route }) {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const handleCompleteSession = async (session) => {
+    try {
+      await updateScheduledSession(session.id, {
+        metrics: {
+          ...session.metrics,
+          completed: true
+        }
+      });
+      loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', 'Failed to complete session. Please try again.');
+    }
   };
 
   return (
@@ -1527,6 +1656,39 @@ const styles = StyleSheet.create({
     marginRight: Layout.spacing.medium,
   },
   completedActivity: {
-    backgroundColor: 'rgba(0, 181, 224, 0.1)',
+    opacity: 0.7,
+  },
+  completeButton: {
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.small,
+  },
+  completeButtonText: {
+    fontSize: 14,
+    fontFamily: Typography.fonts.medium,
+  },
+  sessionMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Layout.spacing.xsmall,
+  },
+  scheduledTime: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.xsmall,
+  },
+  sessionPreview: {
+    marginTop: Layout.spacing.small,
+  },
+  previewItem: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  moreItems: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+    marginTop: Layout.spacing.xsmall,
   },
 }); 
