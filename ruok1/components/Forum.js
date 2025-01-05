@@ -29,6 +29,8 @@ import {
   onSnapshot,
   updateDoc,
   collectionGroup,
+  limit,
+  startAfter,
 } from 'firebase/firestore';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -49,6 +51,10 @@ const debounce = (func, wait) => {
 export default function Forum() {
   const theme = useTheme();
   const [posts, setPosts] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const POSTS_PER_PAGE = 10;
   const [newPost, setNewPost] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCoach, setIsCoach] = useState(false);
@@ -70,18 +76,34 @@ export default function Forum() {
 
   useEffect(() => {
     checkIfCoach();
+    loadInitialPosts();
     
-    // Set up real-time listener for posts
+    // Set up real-time listener for new posts only
     const postsRef = collection(db, 'forum_posts');
-    const q = query(postsRef, orderBy('timestamp', 'desc'));
+    const q = query(postsRef, orderBy('timestamp', 'desc'), limit(1));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      loadPosts();
+      if (!snapshot.empty) {
+        const newPostDoc = snapshot.docs[0];
+        const newPostData = newPostDoc.data();
+        const newPost = {
+          id: newPostDoc.id,
+          ...newPostData,
+          timestamp: newPostData.timestamp?.toDate() || new Date()
+        };
+        
+        // Only update if it's actually a new post
+        setPosts(prevPosts => {
+          if (prevPosts.length === 0 || prevPosts[0].id !== newPost.id) {
+            return [newPost, ...prevPosts];
+          }
+          return prevPosts;
+        });
+      }
     }, (error) => {
       console.error('Error listening to posts:', error);
     });
 
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, []);
 
@@ -94,88 +116,67 @@ export default function Forum() {
     }
   };
 
-  const loadPosts = async () => {
+  const loadInitialPosts = async () => {
+    setLoading(true);
     try {
       const postsRef = collection(db, 'forum_posts');
-      const q = query(postsRef, orderBy('timestamp', 'desc'));
+      const q = query(postsRef, orderBy('timestamp', 'desc'), limit(POSTS_PER_PAGE));
       const snapshot = await getDocs(q);
       
-      // First pass: collect all unique coach IDs
-      const coachIds = new Set();
-      const postsWithCoachIds = [];
-      
-      for (const document of snapshot.docs) {
-        const postData = document.data();
-        
-        // Get comments for this post
-        const commentsRef = collection(db, 'forum_posts', document.id, 'comments');
-        const commentsQuery = query(commentsRef, orderBy('timestamp', 'desc'));
-        const commentsSnapshot = await getDocs(commentsQuery);
-        const comments = commentsSnapshot.docs.map(commentDoc => ({
-          id: commentDoc.id,
-          ...commentDoc.data(),
-          timestamp: commentDoc.data().timestamp?.toDate() || new Date(),
-        }));
-        
-        // Extract coachId based on different formats
-        let coachId = null;
-        let isCoachPost = false;
-        
-        if (postData.coachId) {
-          coachId = postData.coachId;
-          isCoachPost = true;
-        } else if (postData.coachRef?._key?.path?.segments) {
-          coachId = postData.coachRef._key.path.segments.slice(-1)[0];
-          isCoachPost = true;
-        } else if (postData.isCoach && postData.userId) {
-          coachId = postData.userId;
-          isCoachPost = true;
-        }
-
-        if (isCoachPost && coachId) {
-          coachIds.add(coachId);
-        }
-
-        postsWithCoachIds.push({
-          id: document.id,
-          coachId,
-          isCoachPost,
-          text: postData.text,
-          image: postData.image,
-          authorEmail: postData.coachEmail || postData.userEmail,
-          authorId: coachId || postData.userId,
-          timestamp: postData.timestamp?.toDate() || new Date(),
-          likes: postData.likes || [],
-          comments: comments || []
+      if (!snapshot.empty) {
+        const fetchedPosts = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate() || new Date()
+          };
         });
+        setPosts(fetchedPosts);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      } else {
+        setHasMore(false);
       }
-
-      // Fetch all coach data in parallel
-      const coachPromises = Array.from(coachIds).map(id => 
-        getDoc(doc(db, 'coaches', id))
-      );
-      const coachDocs = await Promise.all(coachPromises);
-      
-      // Create a map of coach data
-      const coachDataMap = {};
-      coachDocs.forEach((doc, index) => {
-        const id = Array.from(coachIds)[index];
-        coachDataMap[id] = doc.exists() ? doc.data() : null;
-      });
-
-      // Create final posts array with comments included
-      const postsData = postsWithCoachIds.map(post => ({
-        ...post,
-        authorName: post.isCoachPost 
-          ? (coachDataMap[post.coachId]?.name || post.authorEmail?.split('@')[0] || 'Unknown Coach')
-          : (post.authorEmail?.split('@')[0] || 'Unknown User'),
-      }));
-      
-      setPosts(postsData);
     } catch (error) {
       console.error('Error loading posts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMorePosts = async () => {
+    if (isLoadingMore || !hasMore || !lastVisible) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const postsRef = collection(db, 'forum_posts');
+      const q = query(
+        postsRef,
+        orderBy('timestamp', 'desc'),
+        startAfter(lastVisible),
+        limit(POSTS_PER_PAGE)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const morePosts = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate() || new Date()
+          };
+        });
+        setPosts(prevPosts => [...prevPosts, ...morePosts]);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more posts:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -268,8 +269,12 @@ export default function Forum() {
   const formatDate = useCallback((date) => {
     if (!date) return '';
     
+    // Convert Firebase Timestamp to Date if needed
+    const dateObj = date instanceof Date ? date : date?.toDate?.();
+    if (!dateObj) return '';
+    
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - dateObj.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
     if (days === 0) {
@@ -277,9 +282,9 @@ export default function Forum() {
     } else if (days === 1) {
       return 'Yesterday';
     } else if (days < 7) {
-      return date.toLocaleDateString([], { weekday: 'long' });
+      return dateObj.toLocaleDateString([], { weekday: 'long' });
     }
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }, []);
 
   const deletePost = async (postId) => {
@@ -373,56 +378,100 @@ export default function Forum() {
     }
   };
 
+  const loadCommentsForPost = async (postId) => {
+    try {
+      const commentsRef = collection(db, 'forum_posts', postId, 'comments');
+      const commentsQuery = query(commentsRef, orderBy('timestamp', 'desc'));
+      const commentsSnapshot = await getDocs(commentsQuery);
+      
+      const comments = commentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date(),
+      }));
+      
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === postId 
+            ? { ...post, comments } 
+            : post
+        )
+      );
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    }
+  };
+
+  const toggleComments = async (postId) => {
+    // If comments are not loaded yet, load them
+    const post = posts.find(p => p.id === postId);
+    if (!post.comments && !showComments[postId]) {
+      await loadCommentsForPost(postId);
+    }
+    
+    setShowComments(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  };
+
+  // Memoize the comment rendering
   const renderComment = useCallback(({ item, postId }) => {
-    const isAuthor = item.userId === auth.currentUser.uid;
     return (
-      <View style={styles.commentContainer}>
+      <View style={[styles.commentContainer, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.commentHeader}>
           <View style={styles.commentAuthorInfo}>
             <View style={[
               styles.commentAvatar,
-              item.isCoach ? styles.coachAvatar : styles.clientAvatar
+              { backgroundColor: item.isCoach ? theme.colors.primary : '#FF9500' }
             ]}>
-              <Text style={styles.commentInitials}>
+              <Text style={[styles.commentInitials, { color: theme.colors.text }]}>
                 {(item.userEmail?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
               </Text>
             </View>
             <View>
-              <Text style={styles.commentAuthorName}>
+              <Text style={[styles.commentAuthorName, { color: theme.colors.text }]}>
                 {item.userEmail?.split('@')[0] || 'Anonymous'}
               </Text>
-              <Text style={styles.commentRole}>
+              <Text style={[styles.commentRole, { color: theme.colors.textSecondary }]}>
                 {item.isCoach ? 'Coach' : 'Client'}
               </Text>
             </View>
           </View>
-          {isAuthor && (
+          {item.userId === auth.currentUser.uid && (
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => deleteComment(postId, item.id)}
             >
-              <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+              <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
             </TouchableOpacity>
           )}
         </View>
         {item.image && (
-          <Image source={{ uri: item.image }} style={styles.commentGif} />
+          <Image 
+            source={{ uri: item.image }} 
+            style={[styles.commentGif, { marginVertical: 8 }]} 
+            resizeMode="cover"
+          />
         )}
         {item.text && (
-          <Text style={styles.commentText}>{item.text}</Text>
+          <Text style={[styles.commentText, { color: theme.colors.text }]}>
+            {item.text}
+          </Text>
         )}
-        <Text style={styles.commentTimestamp}>
+        <Text style={[styles.commentTimestamp, { color: theme.colors.textSecondary }]}>
           {formatDate(item.timestamp)}
         </Text>
       </View>
     );
-  }, [formatDate]);
+  }, [theme, auth.currentUser.uid, formatDate, deleteComment]);
 
+  // Update the renderPost function to use the new comment system
   const renderPost = useCallback(({ item }) => {
     const isLiked = item.likes?.includes(auth.currentUser.uid);
     const hasComments = item.comments?.length > 0;
     const isCommentsVisible = showComments[item.id];
-
+    
     return (
       <View style={[
         styles.postContainer,
@@ -485,33 +534,34 @@ export default function Forum() {
             >
               <LungsIcon 
                 size={24} 
-                color={isLiked ? "#00B5E0" : "#8E8E93"} 
+                color={isLiked ? theme.colors.primary : theme.colors.textSecondary} 
               />
               {item.likes?.length > 0 && (
-                <Text style={styles.likeCount}>{item.likes.length}</Text>
+                <Text style={[styles.likeCount, { color: theme.colors.textSecondary }]}>
+                  {item.likes.length}
+                </Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.commentButton}
-              onPress={() => setShowComments(prev => ({
-                ...prev,
-                [item.id]: !prev[item.id]
-              }))}
+              onPress={() => toggleComments(item.id)}
             >
               <Ionicons 
                 name={hasComments ? "chatbubble" : "chatbubble-outline"} 
                 size={20} 
-                color="#8E8E93" 
+                color={theme.colors.textSecondary} 
               />
               {hasComments && (
-                <Text style={styles.commentCount}>{item.comments.length}</Text>
+                <Text style={[styles.commentCount, { color: theme.colors.textSecondary }]}>
+                  {item.comments.length}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
 
         {isCommentsVisible && (
-          <View style={styles.commentsSection}>
+          <View style={[styles.commentsSection, { borderTopColor: theme.colors.border }]}>
             <View style={styles.commentInput}>
               <TextInput
                 style={[
@@ -541,62 +591,27 @@ export default function Forum() {
                 <Ionicons name="send" size={20} color={theme.colors.background} />
               </TouchableOpacity>
             </View>
-            {item.comments && item.comments.length > 0 ? (
-              item.comments.map(comment => (
-                <View key={comment.id} style={[styles.commentContainer, { borderBottomColor: theme.colors.border }]}>
-                  <View style={styles.commentHeader}>
-                    <View style={styles.commentAuthorInfo}>
-                      <View style={[
-                        styles.commentAvatar,
-                        { backgroundColor: comment.isCoach ? theme.colors.primary : '#FF9500' }
-                      ]}>
-                        <Text style={[styles.commentInitials, { color: theme.colors.text }]}>
-                          {(comment.userEmail?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text style={[styles.commentAuthorName, { color: theme.colors.text }]}>
-                          {comment.userEmail?.split('@')[0] || 'Anonymous'}
-                        </Text>
-                        <Text style={[styles.commentRole, { color: theme.colors.textSecondary }]}>
-                          {comment.isCoach ? 'Coach' : 'Client'}
-                        </Text>
-                      </View>
-                    </View>
-                    {comment.userId === auth.currentUser.uid && (
-                      <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => deleteComment(item.id, comment.id)}
-                      >
-                        <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  {comment.image && (
-                    <Image 
-                      source={{ uri: comment.image }} 
-                      style={[styles.commentGif, { marginVertical: 8 }]} 
-                      resizeMode="cover"
-                    />
-                  )}
-                  {comment.text && (
-                    <Text style={[styles.commentText, { color: theme.colors.text }]}>
-                      {comment.text}
-                    </Text>
-                  )}
-                  <Text style={[styles.commentTimestamp, { color: theme.colors.textSecondary }]}>
-                    {formatDate(comment.timestamp)}
+            
+            {item.comments ? (
+              <FlatList
+                data={item.comments}
+                renderItem={({ item: comment }) => renderComment({ item: comment, postId: item.id })}
+                keyExtractor={comment => comment.id}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                  <Text style={[styles.noCommentsText, { color: theme.colors.textSecondary }]}>
+                    No comments yet
                   </Text>
-                </View>
-              ))
+                }
+              />
             ) : (
-              <Text style={styles.noCommentsText}>No comments yet</Text>
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ padding: 16 }} />
             )}
           </View>
         )}
       </View>
     );
-  }, [formatDate, isCoach, deletePost, toggleLike, showComments, newComment, submittingComment]);
+  }, [theme, showComments, auth.currentUser.uid, toggleLike, toggleComments, renderComment]);
 
   const openPostModal = () => {
     setIsModalVisible(true);
@@ -898,193 +913,19 @@ export default function Forum() {
 
       <FlatList
         data={posts}
-        renderItem={({ item }) => (
-          <View style={[
-            styles.postContainer,
-            { backgroundColor: theme.colors.surface },
-            item.isCoachPost && [
-              styles.coachPostContainer,
-              { borderLeftColor: theme.colors.primary }
-            ]
-          ]}>
-            <View style={styles.postHeader}>
-              <View style={styles.coachInfo}>
-                <View style={[
-                  styles.coachAvatar,
-                  !item.isCoachPost && styles.clientAvatar,
-                  { backgroundColor: item.isCoachPost ? theme.colors.primary : '#FF9500' }
-                ]}>
-                  <Text style={[styles.coachInitials, { color: theme.colors.text }]}>
-                    {(item.authorName || 'Anonymous').substring(0, 2).toUpperCase()}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={[styles.coachName, { color: theme.colors.text }]}>
-                    {item.authorName || 'Anonymous'}
-                  </Text>
-                  <Text style={[styles.roleText, { color: theme.colors.textSecondary }]}>
-                    {item.isCoachPost ? 'Coach' : 'Client'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.postActions}>
-                <Text style={[styles.timestamp, { color: theme.colors.textSecondary }]}>
-                  {formatDate(item.timestamp)}
-                </Text>
-                {((isCoach && item.authorId === auth.currentUser.uid) || 
-                  (!isCoach && item.authorId === auth.currentUser.uid)) && (
-                  <TouchableOpacity 
-                    style={styles.deleteButton}
-                    onPress={() => deletePost(item.id)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-            {item.image && (
-              <Image 
-                source={{ uri: item.image }} 
-                style={styles.postGif}
-                resizeMode="cover"
-              />
-            )}
-            {item.text && (
-              <Text style={[styles.postText, { color: theme.colors.text }]}>{item.text}</Text>
-            )}
-            <View style={[styles.postFooter, { borderTopColor: theme.colors.border }]}>
-              <View style={styles.footerActions}>
-                <TouchableOpacity 
-                  style={styles.likeButton} 
-                  onPress={() => toggleLike(item.id)}
-                >
-                  <LungsIcon 
-                    size={24} 
-                    color={item.likes?.includes(auth.currentUser.uid) ? theme.colors.primary : theme.colors.textSecondary} 
-                  />
-                  {item.likes?.length > 0 && (
-                    <Text style={[styles.likeCount, { color: theme.colors.textSecondary }]}>
-                      {item.likes.length}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.commentButton}
-                  onPress={() => setShowComments(prev => ({
-                    ...prev,
-                    [item.id]: !prev[item.id]
-                  }))}
-                >
-                  <Ionicons 
-                    name={item.comments?.length > 0 ? "chatbubble" : "chatbubble-outline"} 
-                    size={20} 
-                    color={theme.colors.textSecondary} 
-                  />
-                  {item.comments?.length > 0 && (
-                    <Text style={[styles.commentCount, { color: theme.colors.textSecondary }]}>
-                      {item.comments.length}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {showComments[item.id] && (
-              <View style={[styles.commentsSection, { borderTopColor: theme.colors.border }]}>
-                <View style={styles.commentInput}>
-                  <TextInput
-                    style={[
-                      styles.commentTextInput,
-                      { 
-                        backgroundColor: theme.colors.surface,
-                        color: theme.colors.text
-                      }
-                    ]}
-                    value={newComment}
-                    onChangeText={setNewComment}
-                    placeholder="Write a comment..."
-                    placeholderTextColor={theme.colors.textSecondary}
-                    multiline
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.commentSubmitButton,
-                      { 
-                        backgroundColor: theme.colors.primary,
-                        opacity: newComment.trim() && !submittingComment ? 1 : 0.5 
-                      }
-                    ]}
-                    onPress={() => addComment(item.id)}
-                    disabled={!newComment.trim() || submittingComment}
-                  >
-                    <Ionicons name="send" size={20} color={theme.colors.background} />
-                  </TouchableOpacity>
-                </View>
-                {item.comments && item.comments.length > 0 ? (
-                  item.comments.map(comment => (
-                    <View key={comment.id} style={[styles.commentContainer, { borderBottomColor: theme.colors.border }]}>
-                      <View style={styles.commentHeader}>
-                        <View style={styles.commentAuthorInfo}>
-                          <View style={[
-                            styles.commentAvatar,
-                            { backgroundColor: comment.isCoach ? theme.colors.primary : '#FF9500' }
-                          ]}>
-                            <Text style={[styles.commentInitials, { color: theme.colors.text }]}>
-                              {(comment.userEmail?.split('@')[0] || 'A').substring(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View>
-                            <Text style={[styles.commentAuthorName, { color: theme.colors.text }]}>
-                              {comment.userEmail?.split('@')[0] || 'Anonymous'}
-                            </Text>
-                            <Text style={[styles.commentRole, { color: theme.colors.textSecondary }]}>
-                              {comment.isCoach ? 'Coach' : 'Client'}
-                            </Text>
-                          </View>
-                        </View>
-                        {comment.userId === auth.currentUser.uid && (
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => deleteComment(item.id, comment.id)}
-                          >
-                            <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      {comment.image && (
-                        <Image 
-                          source={{ uri: comment.image }} 
-                          style={[styles.commentGif, { marginVertical: 8 }]} 
-                          resizeMode="cover"
-                        />
-                      )}
-                      {comment.text && (
-                        <Text style={[styles.commentText, { color: theme.colors.text }]}>
-                          {comment.text}
-                        </Text>
-                      )}
-                      <Text style={[styles.commentTimestamp, { color: theme.colors.textSecondary }]}>
-                        {formatDate(comment.timestamp)}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={[styles.noCommentsText, { color: theme.colors.textSecondary }]}>
-                    No comments yet
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
+        renderItem={renderPost}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.postsList}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        initialNumToRender={5}
+        onEndReached={loadMorePosts}
         onEndReachedThreshold={0.5}
+        ListFooterComponent={() => (
+          isLoadingMore ? (
+            <ActivityIndicator 
+              size="small" 
+              color={theme.colors.primary}
+              style={{ padding: 16 }}
+            />
+          ) : null
+        )}
       />
     </View>
   );

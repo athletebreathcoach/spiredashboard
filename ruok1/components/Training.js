@@ -192,25 +192,27 @@ export default function Training({ navigation, route }) {
         getScheduledSessions(userId, startOfDay, endOfDay)
       ]);
 
-      console.log('Fetched data:', {
-        exercisesCount: exercisesForDate.length,
-        sessionsCount: sessionsForDate.length,
-        sessions: sessionsForDate
-      });
+      console.log('Raw sessions from Firebase:', JSON.stringify(sessionsForDate, null, 2));
 
       // Convert sessions to the same format as exercises
-      const formattedSessions = sessionsForDate.map(session => ({
-        ...session,
-        type: 'session',
-        exerciseTitle: session.title,
-        metrics: {
-          ...session.metrics,
-          timeOfDay: session.timeOfDay || 'anytime',
-          completed: session.status === 'completed'
-        }
-      }));
+      const formattedSessions = sessionsForDate.map(session => {
+        console.log('Raw session before formatting:', JSON.stringify(session, null, 2));
+        const formattedSession = {
+          ...session,
+          type: 'session',
+          exerciseTitle: session.title,
+          items: session.items || [], // Preserve items array
+          metrics: {
+            ...session.metrics,
+            timeOfDay: session.timeOfDay || 'anytime',
+            completed: session.status === 'completed'
+          }
+        };
+        console.log('Formatted session:', JSON.stringify(formattedSession, null, 2));
+        return formattedSession;
+      });
 
-      console.log('Formatted sessions:', formattedSessions);
+      console.log('All formatted sessions:', JSON.stringify(formattedSessions, null, 2));
 
       // Sort all activities by scheduledDateTime
       const allActivities = [...exercisesForDate, ...formattedSessions].sort((a, b) => {
@@ -221,7 +223,7 @@ export default function Training({ navigation, route }) {
 
       console.log('Final activities:', {
         totalCount: allActivities.length,
-        activities: allActivities
+        activities: JSON.stringify(allActivities, null, 2)
       });
 
       setExercises(allActivities);

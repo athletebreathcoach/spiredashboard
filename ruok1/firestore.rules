@@ -38,21 +38,24 @@ service cloud.firestore {
     match /scheduledSessions/{sessionId} {
       allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||  // User can read their own scheduled sessions
+        resource.data.createdBy == request.auth.uid ||  // Creator can read sessions they created
         isCoach()                                    // Coaches can read all scheduled sessions
       );
       
       allow create: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid ||  // User can create their own scheduled sessions
+        (request.resource.data.userId == request.auth.uid && request.resource.data.createdBy == request.auth.uid) ||  // User can create their own scheduled sessions
         (isCoach() && request.resource.data.createdBy == request.auth.uid)  // Coaches can create sessions for their clients
       );
       
       allow update: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||  // User can update their own scheduled sessions
+        resource.data.createdBy == request.auth.uid ||  // Creator can update sessions they created
         isCoach()                                    // Coaches can update their clients' scheduled sessions
       );
       
       allow delete: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||  // User can delete their own scheduled sessions
+        resource.data.createdBy == request.auth.uid ||  // Creator can delete sessions they created
         isCoach()                                    // Coaches can delete their clients' scheduled sessions
       );
     }

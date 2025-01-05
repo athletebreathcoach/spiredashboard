@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, TextInput, Animated } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { useSelectedClient } from '../context/SelectedClientContext';
 import { Ionicons } from '@expo/vector-icons';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
@@ -27,7 +28,8 @@ const SECTION_TYPES = [
 
 export default function SessionDetail({ navigation, route }) {
   const theme = useTheme();
-  const { session } = route.params;
+  const { selectedClient } = useSelectedClient();
+  const { session, isScheduling = false } = route.params;
   const [activities, setActivities] = useState(session?.items || []);
   const [localState, setLocalState] = useState({
     title: session?.title || '',
@@ -67,6 +69,20 @@ export default function SessionDetail({ navigation, route }) {
       console.error('Error completing session:', error);
       Alert.alert('Error', 'Failed to complete session. Please try again.');
     }
+  };
+
+  const handleSchedulePress = () => {
+    Alert.alert(
+      'Select Time of Day',
+      'When would you like to schedule this session?',
+      [
+        { text: 'Morning', onPress: () => handleTimeOfDaySelect('Morning') },
+        { text: 'Afternoon', onPress: () => handleTimeOfDaySelect('Afternoon') },
+        { text: 'Evening', onPress: () => handleTimeOfDaySelect('Evening') },
+        { text: 'Anytime', onPress: () => handleTimeOfDaySelect('Anytime') },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const handleUpdateSet = (activityIndex, setIndex, field, value) => {
@@ -624,21 +640,54 @@ export default function SessionDetail({ navigation, route }) {
         description: localState.description,
         items: activities.map(item => {
           if (item.type === 'section' || SECTION_TYPES.some(t => t.id === item.type)) {
+            // Handle sections
             return {
-              ...item,
-              activities: item.activities.map(exercise => ({
-                ...exercise,
-                id: Math.random().toString()
-              }))
+              id: item.id || Math.random().toString(),
+              title: item.title,
+              type: item.type,
+              description: item.description || '',
+              settings: item.settings || {},
+              activities: Array.isArray(item.activities) ? item.activities.map(exercise => ({
+                id: exercise.id || Math.random().toString(),
+                title: exercise.title,
+                type: exercise.type || 'exercise',
+                description: exercise.description || '',
+                metrics: {
+                  sets: (exercise.metrics?.sets || []).map(set => ({
+                    reps: set.reps || '',
+                    weight: set.weight || '',
+                    rest: set.rest || '00:00'
+                  })),
+                  eachSide: exercise.metrics?.eachSide || false,
+                  notes: exercise.metrics?.notes || ''
+                }
+              })) : []
             };
           } else {
-            return item;
+            // Handle regular activities
+            return {
+              id: item.id || Math.random().toString(),
+              title: item.title,
+              type: item.type,
+              description: item.description || '',
+              metrics: {
+                sets: (item.metrics?.sets || []).map(set => ({
+                  reps: set.reps || '',
+                  weight: set.weight || '',
+                  rest: set.rest || '00:00'
+                })),
+                eachSide: item.metrics?.eachSide || false,
+                notes: item.metrics?.notes || ''
+              }
+            };
           }
         })
       };
 
+      const userId = selectedClient?.id || auth.currentUser.uid;
+
       await scheduleSession(
-        auth.currentUser.uid,
+        userId,
         sessionData,
         date,
         selectedTimeOfDay

@@ -11,13 +11,22 @@ import {
   orderBy,
   serverTimestamp 
 } from 'firebase/firestore';
+import { auth } from '../config/firebase';
 
 export const scheduleSession = async (userId, session, scheduledDateTime, timeOfDay) => {
   try {
+    console.log('Scheduling session with data:', {
+      userId,
+      session: JSON.stringify(session, null, 2),
+      scheduledDateTime,
+      timeOfDay
+    });
+
     const scheduledSessionRef = collection(db, 'scheduledSessions');
     
     const scheduledSession = {
       userId,
+      createdBy: auth.currentUser.uid,
       title: session.title,
       description: session.description || '',
       items: session.items.map(item => {
@@ -43,8 +52,12 @@ export const scheduleSession = async (userId, session, scheduledDateTime, timeOf
       updatedAt: serverTimestamp()
     };
 
+    console.log('Formatted scheduled session:', JSON.stringify(scheduledSession, null, 2));
+
     const docRef = await addDoc(scheduledSessionRef, scheduledSession);
-    return { id: docRef.id, ...scheduledSession };
+    const result = { id: docRef.id, ...scheduledSession };
+    console.log('Successfully scheduled session:', JSON.stringify(result, null, 2));
+    return result;
   } catch (error) {
     console.error('Error scheduling session:', error);
     throw error;
