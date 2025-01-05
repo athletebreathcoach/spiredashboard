@@ -18,6 +18,7 @@ import { GiftedChat, Bubble, InputToolbar, Composer, Send, Day } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { auth, db } from '../config/firebase';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   collection,
   query,
@@ -28,6 +29,7 @@ import {
   getDoc,
   doc,
   deleteDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import { GiphyFetch } from '@giphy/js-fetch-api';
 
@@ -44,9 +46,25 @@ export default function Chat({ navigation, route, hideHeader }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
   const { client } = route.params || {};
+  const [isScheduleModalVisible, setIsScheduleModalVisible] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(new Date());
+  const [messageToSchedule, setMessageToSchedule] = useState(null);
+  const [isCoach, setIsCoach] = useState(false);
 
   useEffect(() => {
     loadCurrentUserName();
+  }, []);
+
+  useEffect(() => {
+    const checkIfCoach = async () => {
+      try {
+        const coachDoc = await getDoc(doc(db, 'coaches', auth.currentUser.uid));
+        setIsCoach(coachDoc.exists());
+      } catch (error) {
+        console.error('Error checking coach status:', error);
+      }
+    };
+    checkIfCoach();
   }, []);
 
   const loadCurrentUserName = async () => {
@@ -160,6 +178,42 @@ export default function Chat({ navigation, route, hideHeader }) {
     setIsGiphyModalVisible(false);
   };
 
+  const handleScheduleMessage = (message) => {
+    setMessageToSchedule(message);
+    setIsScheduleModalVisible(true);
+  };
+
+  const saveScheduledMessage = async () => {
+    if (!client?.id || !messageToSchedule) return;
+
+    const chatId = [auth.currentUser.uid, client.id].sort().join('_');
+    const scheduledMessagesRef = collection(db, 'scheduledMessages');
+
+    try {
+      await addDoc(scheduledMessagesRef, {
+        chatId,
+        senderId: auth.currentUser.uid,
+        recipientId: client.id,
+        text: messageToSchedule.text,
+        image: messageToSchedule.image,
+        scheduledFor: Timestamp.fromDate(scheduledDate),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+
+      Alert.alert(
+        'Message Scheduled',
+        `Message will be sent on ${scheduledDate.toLocaleString()}`,
+      );
+    } catch (error) {
+      console.error('Error scheduling message:', error);
+      Alert.alert('Error', 'Failed to schedule message');
+    }
+
+    setIsScheduleModalVisible(false);
+    setMessageToSchedule(null);
+  };
+
   const renderBubble = (props) => {
     return (
       <Bubble
@@ -245,11 +299,21 @@ export default function Chat({ navigation, route, hideHeader }) {
 
   const renderSend = (props) => {
     return (
-      <Send {...props} containerStyle={{ justifyContent: 'center', height: 44, marginRight: 4 }}>
-        <View style={{ padding: 8 }}>
-          <Ionicons name="send" size={24} color={theme.colors.primary} />
-        </View>
-      </Send>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {isCoach && (
+          <TouchableOpacity
+            style={{ padding: 8, marginRight: 4 }}
+            onPress={() => handleScheduleMessage(props.text ? { text: props.text } : null)}
+          >
+            <Ionicons name="time" size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
+        )}
+        <Send {...props} containerStyle={{ justifyContent: 'center', height: 44, marginRight: 4 }}>
+          <View style={{ padding: 8 }}>
+            <Ionicons name="send" size={24} color={theme.colors.primary} />
+          </View>
+        </Send>
+      </View>
     );
   };
 
@@ -406,6 +470,47 @@ export default function Chat({ navigation, route, hideHeader }) {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={isScheduleModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsScheduleModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Schedule Message
+            </Text>
+            
+            <View style={styles.datePickerContainer}>
+              <DateTimePicker
+                value={scheduledDate}
+                mode="datetime"
+                display="spinner"
+                onChange={(event, date) => date && setScheduledDate(date)}
+                minimumDate={new Date()}
+                style={{ width: 300 }}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
+                onPress={() => setIsScheduleModalVisible(false)}
+              >
+                <Text style={{ color: theme.colors.text }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={saveScheduledMessage}
+              >
+                <Text style={{ color: theme.colors.background }}>Schedule</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -442,13 +547,15 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    flex: 1,
-    marginTop: 50,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    width: '90%',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -460,7 +567,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
   closeButton: {
     padding: 8,
@@ -487,5 +595,20 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 150,
     resizeMode: 'cover',
+  },
+  datePickerContainer: {
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    margin: 8,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 }); 

@@ -1,13 +1,79 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { auth, db } from '../config/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  orderBy, 
+  limit, 
+  onSnapshot 
+} from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import Forum from './Forum';
 import Chat from './Chat';
+import { format } from 'date-fns';
+
+const ChatPreview = ({ client, lastMessage, onPress, theme }) => {
+  const getPreviewText = () => {
+    if (!lastMessage) return 'No messages yet';
+    if (lastMessage.image) return '🖼️ Image';
+    return lastMessage.text || 'No messages yet';
+  };
+
+  const getTimeString = () => {
+    if (!lastMessage?.timestamp) return '';
+    const date = lastMessage.timestamp.toDate();
+    const now = new Date();
+    
+    if (date.toDateString() === now.toDateString()) {
+      return format(date, 'h:mm a');
+    }
+    if (date.getFullYear() === now.getFullYear()) {
+      return format(date, 'MMM d');
+    }
+    return format(date, 'MM/dd/yy');
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.chatPreview, { backgroundColor: theme.colors.surface }]}
+      onPress={onPress}
+    >
+      <View style={styles.avatarContainer}>
+        <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[styles.avatarText, { color: theme.colors.background }]}>
+            {(client.firstName?.[0] || client.name?.[0] || 'C').toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.previewContent}>
+        <View style={styles.previewHeader}>
+          <Text style={[styles.clientName, { color: theme.colors.text }]} numberOfLines={1}>
+            {client.firstName && client.lastName 
+              ? `${client.firstName} ${client.lastName}`
+              : client.name}
+          </Text>
+          <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>
+            {getTimeString()}
+          </Text>
+        </View>
+        <Text 
+          style={[styles.previewText, { color: theme.colors.textSecondary }]} 
+          numberOfLines={1}
+        >
+          {getPreviewText()}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export default function Community() {
   const theme = useTheme();
@@ -17,6 +83,7 @@ export default function Community() {
   const [isCoach, setIsCoach] = useState(false);
   const [coachData, setCoachData] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [clientMessages, setClientMessages] = useState({});
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -96,6 +163,28 @@ export default function Community() {
     }
   }, [isCoach]);
 
+  useEffect(() => {
+    if (!isCoach || clients.length === 0) return;
+
+    const unsubscribes = clients.map(client => {
+      const chatId = [auth.currentUser.uid, client.id].sort().join('_');
+      const messagesRef = collection(db, 'chats', chatId, 'messages');
+      const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
+
+      return onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const messageData = snapshot.docs[0].data();
+          setClientMessages(prev => ({
+            ...prev,
+            [client.id]: messageData
+          }));
+        }
+      });
+    });
+
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [isCoach, clients]);
+
   const handleClientSelect = (client) => {
     setSelectedClient(client);
   };
@@ -138,24 +227,17 @@ export default function Community() {
         return (
           <View style={[styles.clientList, { backgroundColor: theme.colors.background }]}>
             <Text style={[styles.clientListTitle, { color: theme.colors.text }]}>
-              Select a Client
+              Messages
             </Text>
             <ScrollView>
               {clients.map((client) => (
-                <TouchableOpacity
+                <ChatPreview
                   key={client.id}
-                  style={[styles.clientItem, { backgroundColor: theme.colors.surface }]}
+                  client={client}
+                  lastMessage={clientMessages[client.id]}
                   onPress={() => handleClientSelect(client)}
-                >
-                  <Text style={[styles.clientName, { color: theme.colors.text }]}>
-                    {client.firstName && client.lastName 
-                      ? `${client.firstName} ${client.lastName}`
-                      : client.name}
-                  </Text>
-                  <Text style={[styles.clientEmail, { color: theme.colors.textSecondary }]}>
-                    {client.email}
-                  </Text>
-                </TouchableOpacity>
+                  theme={theme}
+                />
               ))}
               {clients.length === 0 && (
                 <Text style={[styles.noClientsText, { color: theme.colors.textSecondary }]}>
@@ -264,5 +346,43 @@ const styles = StyleSheet.create({
     fontSize: Layout.text.medium,
     textAlign: 'center',
     marginTop: 24,
+  },
+  chatPreview: {
+    flexDirection: 'row',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+  },
+  avatarContainer: {
+    marginRight: 12,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontFamily: Typography.fonts.medium,
+  },
+  previewContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  timeText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
+  },
+  previewText: {
+    fontSize: Layout.text.small,
+    fontFamily: Typography.fonts.regular,
   },
 }); 
