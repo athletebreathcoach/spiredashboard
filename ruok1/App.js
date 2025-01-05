@@ -56,6 +56,7 @@ import SectionMetrics from './components/SectionMetrics';
 import { SelectedClientProvider } from './context/SelectedClientContext';
 import ApneaTableSetup from './components/ApneaTableSetup';
 import SessionDetail from './components/SessionDetail';
+import LoadingScreen from './components/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -220,10 +221,12 @@ function TabNavigator() {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setIsLoading(false);
     });
 
     return unsubscribe;
@@ -232,12 +235,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <SelectedClientProvider>
-          <NavigationContainer>
-            <StatusBar style="auto" />
-            {user ? <AuthenticatedStack user={user} /> : <UnauthenticatedStack />}
-          </NavigationContainer>
-        </SelectedClientProvider>
+        {isLoading ? (
+          <LoadingScreen />
+        ) : (
+          <SelectedClientProvider>
+            <NavigationContainer>
+              <StatusBar style="auto" />
+              {user ? <AuthenticatedStack user={user} /> : <UnauthenticatedStack />}
+            </NavigationContainer>
+          </SelectedClientProvider>
+        )}
       </ThemeProvider>
     </GestureHandlerRootView>
   );
