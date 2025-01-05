@@ -88,10 +88,42 @@ export default function SessionDetail({ navigation, route }) {
   const handleUpdateSet = (activityIndex, setIndex, field, value) => {
     setActivities(current => {
       const updated = [...current];
-      updated[activityIndex].metrics.sets[setIndex] = {
-        ...updated[activityIndex].metrics.sets[setIndex],
-        [field]: value
-      };
+      // Check if this is a nested activity by looking for a hyphen in the index
+      if (typeof activityIndex === 'string' && activityIndex.includes('-')) {
+        const [sectionIndex, exerciseIndex] = activityIndex.split('-').map(Number);
+        if (!updated[sectionIndex].activities[exerciseIndex].metrics) {
+          updated[sectionIndex].activities[exerciseIndex].metrics = {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[sectionIndex].activities[exerciseIndex].metrics.sets[setIndex] = {
+          ...updated[sectionIndex].activities[exerciseIndex].metrics.sets[setIndex],
+          [field]: value
+        };
+      } else {
+        // Handle non-nested activity
+        if (!updated[activityIndex].metrics) {
+          updated[activityIndex].metrics = {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[activityIndex].metrics.sets[setIndex] = {
+          ...updated[activityIndex].metrics.sets[setIndex],
+          [field]: value
+        };
+      }
       return updated;
     });
   };
@@ -99,11 +131,36 @@ export default function SessionDetail({ navigation, route }) {
   const handleAddSet = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
-      updated[activityIndex].metrics.sets.push({
-              reps: '',
-              weight: '',
-              rest: '00:00'
-      });
+      // Check if this is a nested activity
+      if (typeof activityIndex === 'string' && activityIndex.includes('-')) {
+        const [sectionIndex, exerciseIndex] = activityIndex.split('-').map(Number);
+        if (!updated[sectionIndex].activities[exerciseIndex].metrics) {
+          updated[sectionIndex].activities[exerciseIndex].metrics = {
+            sets: [],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[sectionIndex].activities[exerciseIndex].metrics.sets.push({
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        });
+      } else {
+        // Handle non-nested activity
+        if (!updated[activityIndex].metrics) {
+          updated[activityIndex].metrics = {
+            sets: [],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[activityIndex].metrics.sets.push({
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        });
+      }
       return updated;
     });
   };
@@ -111,7 +168,37 @@ export default function SessionDetail({ navigation, route }) {
   const handleToggleEachSide = (activityIndex) => {
     setActivities(current => {
       const updated = [...current];
-      updated[activityIndex].metrics.eachSide = !updated[activityIndex].metrics.eachSide;
+      // Check if this is a nested activity
+      if (typeof activityIndex === 'string' && activityIndex.includes('-')) {
+        const [sectionIndex, exerciseIndex] = activityIndex.split('-').map(Number);
+        if (!updated[sectionIndex].activities[exerciseIndex].metrics) {
+          updated[sectionIndex].activities[exerciseIndex].metrics = {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[sectionIndex].activities[exerciseIndex].metrics.eachSide = 
+          !updated[sectionIndex].activities[exerciseIndex].metrics.eachSide;
+      } else {
+        // Handle non-nested activity
+        if (!updated[activityIndex].metrics) {
+          updated[activityIndex].metrics = {
+            sets: [{
+              reps: '',
+              weight: '',
+              rest: '00:00'
+            }],
+            eachSide: false,
+            notes: ''
+          };
+        }
+        updated[activityIndex].metrics.eachSide = !updated[activityIndex].metrics.eachSide;
+      }
       return updated;
     });
   };
@@ -379,6 +466,19 @@ export default function SessionDetail({ navigation, route }) {
     const isExpanded = expandedCards[activityIndex];
     const isSection = activity.type === 'section' || SECTION_TYPES.some(t => t.id === activity.type);
 
+    // Ensure metrics object exists with default values
+    if (!activity.metrics) {
+      activity.metrics = {
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false,
+        notes: ''
+      };
+    }
+
     return (
       <View 
         key={activityIndex}
@@ -409,39 +509,39 @@ export default function SessionDetail({ navigation, route }) {
             </Text>
           </View>
           {!isNested && (
-          <View style={styles.activityControls}>
-            <TouchableOpacity 
+            <View style={styles.activityControls}>
+              <TouchableOpacity 
                 style={[styles.moveButton, activityIndex === 0 && styles.moveButtonDisabled]}
                 onPress={() => handleMoveActivity(activityIndex, 'up')}
                 disabled={activityIndex === 0}
-            >
-              <Ionicons 
-                name="chevron-up" 
-                size={20} 
+              >
+                <Ionicons 
+                  name="chevron-up" 
+                  size={20} 
                   color={activityIndex === 0 ? "#444" : "#666"} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
                 style={[styles.moveButton, activityIndex === activities.length - 1 && styles.moveButtonDisabled]}
                 onPress={() => handleMoveActivity(activityIndex, 'down')}
                 disabled={activityIndex === activities.length - 1}
-            >
-              <Ionicons 
-                name="chevron-down" 
-                size={20} 
+              >
+                <Ionicons 
+                  name="chevron-down" 
+                  size={20} 
                   color={activityIndex === activities.length - 1 ? "#444" : "#666"} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.menuButton}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.menuButton}
                 onPress={() => {
                   setMenuActivityIndex(activityIndex);
                   setMenuOption('menu');
                 }}
-            >
+              >
                 <Ionicons name="ellipsis-vertical" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -460,16 +560,95 @@ export default function SessionDetail({ navigation, route }) {
           </View>
         ) : (
           <>
-            {isSection && renderSectionSettings(activity)}
-            {activity.activities ? (
-              <View style={styles.nestedActivitiesContainer}>
-                {activity.activities.map((nestedActivity, nestedIndex) => 
-                  renderActivity(nestedActivity, `${activityIndex}-${nestedIndex}`, true)
-                )}
+            {activity.metrics?.sets?.map((set, setIndex) => (
+              <View 
+                key={`${activityIndex}-set-${setIndex}`} 
+                style={styles.metricsRow}
+              >
+                <View style={styles.metricColumn}>
+                  <Text style={styles.metricLabel}>SET</Text>
+                  <Text style={styles.metricValue}>{setIndex + 1}</Text>
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={styles.metricLabel}>LB</Text>
+                  <TextInput
+                    style={styles.metricInput}
+                    value={set.weight}
+                    onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'weight', value)}
+                    keyboardType="numeric"
+                    placeholder="-"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={styles.metricLabel}>REPS</Text>
+                  <TextInput
+                    style={styles.metricInput}
+                    value={set.reps}
+                    onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'reps', value)}
+                    keyboardType="numeric"
+                    placeholder="-"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+                <View style={styles.metricColumn}>
+                  <Text style={styles.metricLabel}>REST</Text>
+                  <TextInput
+                    style={styles.metricInput}
+                    value={set.rest}
+                    onChangeText={(value) => handleUpdateSet(activityIndex, setIndex, 'rest', value)}
+                    placeholder="00:00"
+                    placeholderTextColor="#666"
+                  />
+                </View>
               </View>
-            ) : (
-              renderMetrics(activity, activityIndex)
-            )}
+            ))}
+
+            <TouchableOpacity 
+              style={styles.addSetButton}
+              onPress={() => handleAddSet(activityIndex)}
+            >
+              <Ionicons name="add" size={20} color="#6B4EFF" />
+              <Text style={styles.addSetText}>Add Set</Text>
+            </TouchableOpacity>
+
+            <View style={styles.eachSideRow}>
+              <TouchableOpacity 
+                style={[
+                  styles.checkbox,
+                  activity.metrics?.eachSide && { backgroundColor: '#6B4EFF', borderColor: '#6B4EFF' }
+                ]}
+                onPress={() => handleToggleEachSide(activityIndex)}
+              >
+                {activity.metrics?.eachSide && (
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                )}
+              </TouchableOpacity>
+              <Text style={styles.eachSideText}>Each side</Text>
+            </View>
+
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Add note..."
+              placeholderTextColor="#666"
+              value={activity.metrics?.notes || ''}
+              onChangeText={(value) => {
+                const updated = [...activities];
+                if (!updated[activityIndex].metrics) {
+                  updated[activityIndex].metrics = {
+                    sets: [{
+                      reps: '',
+                      weight: '',
+                      rest: '00:00'
+                    }],
+                    eachSide: false,
+                    notes: ''
+                  };
+                }
+                updated[activityIndex].metrics.notes = value;
+                setActivities(updated);
+              }}
+            />
           </>
         )}
 
