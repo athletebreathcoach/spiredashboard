@@ -22,7 +22,7 @@ export default function WorkoutHistory({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Default colors to use when theme isn't ready
+  // Default theme colors to use when theme isn't ready
   const defaultColors = {
     background: '#000000',
     surface: '#1C1C1E',
@@ -195,6 +195,20 @@ export default function WorkoutHistory({ navigation }) {
                   ))}
                 </View>
               )}
+
+              {/* Show section or session context if available */}
+              {(item.sectionTitle || item.sessionTitle) && (
+                <View style={[styles.contextContainer, { borderTopColor: colors.border }]}>
+                  <Ionicons 
+                    name={item.sectionTitle ? "layers-outline" : "calendar-outline"} 
+                    size={16} 
+                    color={colors.textSecondary} 
+                  />
+                  <Text style={[styles.contextText, { color: colors.textSecondary }]}>
+                    From {item.sectionTitle ? "section" : "session"}: {item.sectionTitle || item.sessionTitle}
+                  </Text>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -278,12 +292,26 @@ const styles = StyleSheet.create({
   notes: {
     fontSize: Layout.text.medium,
     fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.small,
   },
   setsContainer: {
     marginBottom: Layout.spacing.medium,
   },
   setDetails: {
     fontSize: Layout.text.medium,
+    fontFamily: Typography.fonts.regular,
+    marginBottom: Layout.spacing.xsmall,
+  },
+  contextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.spacing.small,
+    paddingTop: Layout.spacing.medium,
+    marginTop: Layout.spacing.medium,
+    borderTopWidth: 1,
+  },
+  contextText: {
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
   },
 }); 
