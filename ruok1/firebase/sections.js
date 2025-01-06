@@ -42,12 +42,15 @@ export const createSection = async (sectionData) => {
       id: exercise.id,
       title: exercise.title,
       description: exercise.description || '',
+      type: exercise.type || 'exercise',
       metrics: {
-        reps: exercise.metrics?.reps || null,
-        weight: exercise.metrics?.weight || null,
-        distance: exercise.metrics?.distance || null,
-        duration: exercise.metrics?.duration || null,
-        target: exercise.metrics?.target || null
+        sets: exercise.metrics?.sets?.map(set => ({
+          reps: set.reps || '',
+          weight: set.weight || '',
+          rest: set.rest || '00:00'
+        })) || [],
+        eachSide: exercise.metrics?.eachSide || false,
+        notes: exercise.metrics?.notes || ''
       }
     }));
 
@@ -92,12 +95,15 @@ export const updateSection = async (sectionId, updateData) => {
         id: exercise.id,
         title: exercise.title,
         description: exercise.description || '',
+        type: exercise.type || 'exercise',
         metrics: {
-          reps: exercise.metrics?.reps || null,
-          weight: exercise.metrics?.weight || null,
-          distance: exercise.metrics?.distance || null,
-          duration: exercise.metrics?.duration || null,
-          target: exercise.metrics?.target || null
+          sets: exercise.metrics?.sets?.map(set => ({
+            reps: set.reps || '',
+            weight: set.weight || '',
+            rest: set.rest || '00:00'
+          })) || [],
+          eachSide: exercise.metrics?.eachSide || false,
+          notes: exercise.metrics?.notes || ''
         }
       }));
     }

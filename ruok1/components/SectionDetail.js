@@ -323,20 +323,7 @@ export default function SectionDetail({ navigation, route }) {
             notes: activity.metrics.notes || ''
           }
         })),
-        activities: activities.map(activity => ({
-          title: activity.title,
-          type: activity.type,
-          description: activity.description || '',
-          metrics: {
-            sets: activity.metrics.sets.map(set => ({
-              reps: set.reps || '',
-              weight: set.weight || '',
-              rest: set.rest || '00:00'
-            })),
-            eachSide: activity.metrics.eachSide || false,
-            notes: activity.metrics.notes || ''
-          }
-        })),
+        settings: localState.settings || {},
         userId: auth.currentUser.uid,
         createdBy: auth.currentUser.uid
       };
