@@ -43,9 +43,14 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
         clientIds.map(async (clientId) => {
           const clientDoc = await getDoc(doc(db, 'users', clientId));
           if (clientDoc.exists()) {
+            const data = clientDoc.data();
             return {
-              id: clientDoc.id,
-              ...clientDoc.data()
+              id: clientId,
+              name: data.firstName && data.lastName 
+                ? `${data.firstName} ${data.lastName}`
+                : data.email?.split('@')[0] || 'Client',
+              email: data.email,
+              ...data
             };
           }
           return null;
@@ -166,7 +171,7 @@ export default function ClientSelector({ onClientSelect, selectedClientId }) {
                             color={theme.colors.primary} 
                           />
                           <Text style={[styles.clientName, { color: theme.colors.text }]}>
-                            {client.name || client.email}
+                            {client.name}
                           </Text>
                         </View>
                         {selectedClient?.id === client.id && (

@@ -8,6 +8,7 @@ import Typography from '../constants/Typography';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { scheduleSession } from '../firebase/scheduledSessions';
+import { updateExerciseMetrics, updateExerciseStatus } from '../firebase/scheduledExercises';
 import { Calendar } from 'react-native-calendars';
 
 const ACTIVITY_TYPES = [
@@ -29,8 +30,16 @@ const SECTION_TYPES = [
 export default function SessionDetail({ navigation, route }) {
   const theme = useTheme();
   const { selectedClient } = useSelectedClient();
-  const { session, isScheduling = false } = route.params;
-  const [activities, setActivities] = useState(session?.items || []);
+  const { session, mode = 'create', isLogging = false, isScheduling = false } = route.params;
+  const [activities, setActivities] = useState(session?.items?.map(item => ({
+    ...item,
+    metrics: {
+      ...item.metrics,
+      sets: item.metrics?.sets || [],
+      eachSide: item.metrics?.eachSide || false,
+      notes: item.metrics?.notes || ''
+    }
+  })) || []);
   const [localState, setLocalState] = useState({
     title: session?.title || '',
     description: session?.description || '',
@@ -47,26 +56,76 @@ export default function SessionDetail({ navigation, route }) {
       headerTitle: session?.title || 'New Session',
       headerRight: () => (
         <TouchableOpacity
-          style={[styles.scheduleButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleSchedulePress}
+          style={[
+            styles.headerButton, 
+            { backgroundColor: mode === 'log' ? theme.colors.success : theme.colors.primary }
+          ]}
+          onPress={mode === 'log' ? handleCompleteSession : handleSchedulePress}
         >
-          <Text style={[styles.scheduleButtonText, { color: theme.colors.white }]}>Schedule</Text>
+          <Text style={[styles.headerButtonText, { color: theme.colors.white }]}>
+            {mode === 'log' ? 'Complete' : 'Schedule'}
+          </Text>
         </TouchableOpacity>
       )
     });
-  }, [navigation, session]);
+  }, [navigation, session, mode]);
 
-  const handleCompleteSession = async (session) => {
+  const handleCompleteSession = async () => {
     try {
-      await updateScheduledSession(session.id, {
-      metrics: {
-          ...session.metrics,
-          completed: true
+      const now = new Date().toISOString();
+      
+      // Update each activity's metrics in the scheduled session
+      const updatedItems = activities.map(activity => ({
+        ...activity,
+        metrics: {
+          ...activity.metrics,
+          completed: true,
+          completedAt: now
         }
+      }));
+
+      // Use the correct ID from scheduledSessions
+      const scheduledSessionId = session.scheduledSessionId || session.id;
+      console.log('Completing session with ID:', scheduledSessionId);
+      
+      // Update session completion status in scheduledSessions collection
+      const scheduledSessionRef = doc(db, 'scheduledSessions', scheduledSessionId);
+      await updateDoc(scheduledSessionRef, {
+        status: 'completed',
+        items: updatedItems,
+        metrics: {
+          ...session.metrics,
+          completed: true,
+          completedAt: serverTimestamp()
+        },
+        updatedAt: serverTimestamp()
       });
+
+      // Save activities to exercise history
+      const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
+      for (const activity of activities) {
+        await addDoc(historyRef, {
+          exerciseId: activity.id,
+          title: activity.title,
+          type: activity.type,
+          metrics: {
+            ...activity.metrics,
+            completed: true,
+            completedAt: now
+          },
+          completedAt: serverTimestamp(),
+          sessionId: scheduledSessionId,
+          sessionTitle: session.title
+        });
+      }
+
       navigation.goBack();
     } catch (error) {
-      console.error('Error completing session:', error);
+      console.error('Error completing session:', error, {
+        sessionId: session.id,
+        scheduledSessionId: session.scheduledSessionId,
+        mode
+      });
       Alert.alert('Error', 'Failed to complete session. Please try again.');
     }
   };
@@ -226,6 +285,11 @@ export default function SessionDetail({ navigation, route }) {
 
   const handleSave = async () => {
     try {
+      if (mode === 'log') {
+        // If we're in log mode, use handleCompleteSession instead
+        return handleCompleteSession();
+      }
+
       if (!localState.title.trim()) {
         Alert.alert('Error', 'Please enter a title for the session');
         return;
@@ -234,54 +298,20 @@ export default function SessionDetail({ navigation, route }) {
       const sessionData = {
         title: localState.title,
         description: localState.description,
-        items: activities.map(item => {
-          if (item.type === 'section' || SECTION_TYPES.some(t => t.id === item.type)) {
-            // Handle sections
-            return {
-              id: item.id,
-              title: item.title,
-              type: item.type,
-              description: item.description || '',
-              settings: item.settings || {},
-              activities: Array.isArray(item.activities) ? item.activities.map(exercise => ({
-                id: exercise.id,
-                title: exercise.title,
-                type: exercise.type || 'exercise',
-                description: exercise.description || '',
-                metrics: {
-                  sets: exercise.metrics.sets.map(set => ({
-                    reps: set.reps || '',
-                    weight: set.weight || '',
-                    rest: set.rest || '00:00'
-                  })),
-                  eachSide: exercise.metrics.eachSide || false,
-                  notes: exercise.metrics.notes || ''
-                }
-              })) : []
-            };
-          } else {
-            // Handle regular activities
-            return {
-              id: item.id,
-              title: item.title,
-              type: item.type,
-              description: item.description || '',
-              metrics: {
-                sets: item.metrics.sets.map(set => ({
-                  reps: set.reps || '',
-                  weight: set.weight || '',
-                  rest: set.rest || '00:00'
-                })),
-                eachSide: item.metrics.eachSide || false,
-                notes: item.metrics.notes || ''
-              }
-            };
+        items: activities.map(activity => ({
+          ...activity,
+          metrics: {
+            ...activity.metrics,
+            sets: activity.metrics?.sets || [],
+            eachSide: activity.metrics?.eachSide || false,
+            notes: activity.metrics?.notes || ''
           }
-        }),
+        })),
         userId: auth.currentUser.uid,
         updatedAt: serverTimestamp()
       };
 
+      // Only update sessions collection if we're not in log mode
       if (session.id) {
         await updateDoc(doc(db, 'sessions', session.id), sessionData);
       } else {
@@ -880,7 +910,7 @@ export default function SessionDetail({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -893,22 +923,10 @@ export default function SessionDetail({ navigation, route }) {
         </Text>
         <TouchableOpacity 
           style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
-          onPress={isScheduling ? () => {
-            Alert.alert(
-              'Select Time of Day',
-              'When would you like to schedule this session?',
-              [
-                { text: 'Morning', onPress: () => handleTimeOfDaySelect('Morning') },
-                { text: 'Afternoon', onPress: () => handleTimeOfDaySelect('Afternoon') },
-                { text: 'Evening', onPress: () => handleTimeOfDaySelect('Evening') },
-                { text: 'Anytime', onPress: () => handleTimeOfDaySelect('Anytime') },
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
-          } : handleSave}
+          onPress={mode === 'log' ? handleCompleteSession : (isScheduling ? handleSchedulePress : handleSave)}
         >
           <Text style={[styles.saveButtonText, { color: theme.colors.white }]}>
-            {isScheduling ? 'Schedule' : 'Save'}
+            {mode === 'log' ? 'Complete' : (isScheduling ? 'Schedule' : 'Save')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -919,21 +937,31 @@ export default function SessionDetail({ navigation, route }) {
       >
         <View style={styles.sectionInfoContainer}>
           <TextInput
-            style={styles.titleInput}
+            style={[
+              styles.titleInput,
+              { color: theme.colors.text },
+              mode === 'log' && styles.readOnlyInput
+            ]}
             placeholder="Session Title"
             placeholderTextColor="#666"
             value={localState.title}
             maxLength={100}
-            onChangeText={(value) => setLocalState(prev => ({ ...prev, title: value }))}
+            onChangeText={mode === 'create' ? (value) => setLocalState(prev => ({ ...prev, title: value })) : undefined}
+            editable={mode === 'create'}
           />
 
           <TextInput
-            style={styles.descriptionInput}
+            style={[
+              styles.descriptionInput,
+              { color: theme.colors.text },
+              mode === 'log' && styles.readOnlyInput
+            ]}
             placeholder="Description (optional)"
             placeholderTextColor="#666"
             value={localState.description}
-            onChangeText={(value) => setLocalState(prev => ({ ...prev, description: value }))}
+            onChangeText={mode === 'create' ? (value) => setLocalState(prev => ({ ...prev, description: value })) : undefined}
             multiline
+            editable={mode === 'create'}
           />
         </View>
 
@@ -946,33 +974,35 @@ export default function SessionDetail({ navigation, route }) {
         })}
       </ScrollView>
 
+      {mode === 'create' && (
         <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('ActivitySelector', { 
-          type: 'session',
-          multiSelect: true,
-          onSelect: (selectedItems) => {
-            setActivities(current => [
-              ...current,
-              ...selectedItems.map(item => ({
-                ...item,
-                id: Math.random().toString(),
-                metrics: {
-                  sets: [{
-                    reps: '',
-                    weight: '',
-                    rest: '00:00'
-                  }],
-                  eachSide: false,
-                  notes: ''
-                }
-              }))
-            ]);
-          }
-        })}
-      >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.navigate('ActivitySelector', { 
+            type: 'session',
+            multiSelect: true,
+            onSelect: (selectedItems) => {
+              setActivities(current => [
+                ...current,
+                ...selectedItems.map(item => ({
+                  ...item,
+                  id: Math.random().toString(),
+                  metrics: {
+                    sets: [{
+                      reps: '',
+                      weight: '',
+                      rest: '00:00'
+                    }],
+                    eachSide: false,
+                    notes: ''
+                  }
+                }))
+              ]);
+            }
+          })}
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <Modal
         visible={menuOption === 'menu'}
@@ -1453,4 +1483,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
   },
+  headerButton: {
+    paddingHorizontal: Layout.spacing.medium,
+    paddingVertical: Layout.spacing.small,
+    borderRadius: Layout.borderRadius.medium,
+    marginRight: Layout.spacing.medium,
+  },
+  headerButtonText: {
+    fontSize: 17,
+    fontFamily: Typography.fonts.medium,
+  },
+  readOnlyInput: {
+    opacity: 0.7,
+  }
 }); 

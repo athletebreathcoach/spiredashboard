@@ -6,7 +6,9 @@ import Layout from '../constants/Layout';
 import Typography from '../constants/Typography';
 import { createSection, updateSection } from '../firebase/sections';
 import { auth } from '../config/firebase';
-import { scheduleSection } from '../firebase/scheduledExercises';
+import { scheduleSection, updateExerciseMetrics, updateExerciseStatus, updateSectionMetrics } from '../firebase/scheduledExercises';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 const SECTION_TYPES = [
   { id: 'standard', label: 'Standard', icon: 'barbell-outline' },
@@ -296,6 +298,66 @@ export default function SectionDetail({ navigation, route }) {
               { text: 'Cancel', style: 'cancel' }
             ]
           );
+          return;
+        }
+
+        if (isLogging) {
+          try {
+            // Get the section ID from route params
+            const sectionId = route.params.section.id;
+            
+            // Update each activity's metrics in scheduledExercises collection
+            for (const activity of updatedActivities) {
+              await updateExerciseMetrics(activity.id, {
+                ...activity.metrics,
+                completed: true
+              });
+              await updateExerciseStatus(activity.id, 'completed');
+
+              // Save to exercise history
+              const historyRef = collection(db, 'users', auth.currentUser.uid, 'exerciseHistory');
+              await addDoc(historyRef, {
+                exerciseId: activity.id,
+                title: activity.title,
+                type: activity.type,
+                metrics: activity.metrics,
+                completedAt: serverTimestamp(),
+                sectionId: sectionId,
+                sectionTitle: localState.title
+              });
+            }
+
+            // Prepare section metrics based on type
+            const sectionMetrics = {
+              timeOfDay: route.params.section.metrics?.timeOfDay || 'anytime',
+              completed: true
+            };
+
+            // Add type-specific scoring metrics
+            switch (localState.type) {
+              case 'amrap':
+                sectionMetrics.completedRounds = localState.settings?.completedRounds || 0;
+                break;
+              case 'forTime':
+                sectionMetrics.completionTime = localState.settings?.completionTime || '00:00';
+                break;
+              case 'chipper':
+                sectionMetrics.completionTime = localState.settings?.completionTime || '00:00';
+                break;
+              case 'intervals':
+                sectionMetrics.completedRounds = localState.settings?.completedRounds || 0;
+                sectionMetrics.completedSets = localState.settings?.completedSets || 0;
+                break;
+            }
+
+            // Update the section's completion status with scoring metrics
+            await updateSectionMetrics(sectionId, sectionMetrics);
+
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error saving logged metrics:', error);
+            Alert.alert('Error', 'Failed to save logged metrics. Please try again.');
+          }
           return;
         }
 

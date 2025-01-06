@@ -15,7 +15,6 @@ import { getScheduledSessions, updateScheduledSession } from '../firebase/schedu
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, getDocs, where, orderBy } from 'firebase/firestore';
 import ClientSelector from './ClientSelector';
-import ActivityMetricsForm from './ActivityMetricsForm';
 import { useSelectedClient } from '../context/SelectedClientContext';
 
 const { width } = Dimensions.get('window');
@@ -30,7 +29,6 @@ export default function Training({ navigation, route }) {
   const [isCoach, setIsCoach] = useState(false);
   const { selectedClient, updateSelectedClient } = useSelectedClient();
   const [refreshing, setRefreshing] = useState(false);
-  const [showMetricsForm, setShowMetricsForm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [metrics, setMetrics] = useState({
     sets: [{
@@ -201,11 +199,20 @@ export default function Training({ navigation, route }) {
           ...session,
           type: 'session',
           exerciseTitle: session.title,
-          items: session.items || [], // Preserve items array
+          items: session.items?.map(item => ({
+            ...item,
+            metrics: {
+              ...item.metrics,
+              sets: item.metrics?.sets || [],
+              eachSide: item.metrics?.eachSide || false,
+              notes: item.metrics?.notes || ''
+            }
+          })) || [],
           metrics: {
             ...session.metrics,
             timeOfDay: session.timeOfDay || 'anytime',
-            completed: session.status === 'completed'
+            completed: session.status === 'completed',
+            sets: session.metrics?.sets || []
           }
         };
         console.log('Formatted session:', JSON.stringify(formattedSession, null, 2));
@@ -471,22 +478,16 @@ export default function Training({ navigation, route }) {
     });
   };
 
-  const handleActivityPress = (activity) => {
-    if (activity.type === 'section') {
-      // If it's a section, show the first exercise in the metrics form
-      const firstExercise = activity.activities[0];
-      if (firstExercise) {
-        setSelectedActivity({
-          ...firstExercise,
-          sectionId: activity.id,
-          sectionTitle: activity.exerciseTitle
-        });
-        setShowMetricsForm(true);
-      }
-    } else {
-      setSelectedActivity(activity);
-      setShowMetricsForm(true);
-    }
+  const handleSessionPress = (session) => {
+    navigation.navigate('SessionDetail', {
+      session: {
+        ...session,  // Preserve all original session data
+        scheduledSessionId: session.id  // Keep the original ID as a reference
+      },
+      mode: 'log',
+      isLogging: true,
+      isScheduling: false
+    });
   };
 
   const handleMoveExercise = async (exercise, newTimeOfDay) => {
@@ -848,48 +849,24 @@ export default function Training({ navigation, route }) {
   };
 
   const renderTimeOfDayGroup = (timeOfDay, exercises) => {
-    // Group exercises by section
+    // Group exercises into sections and standalone exercises
     const sections = {};
     const standaloneExercises = [];
 
     exercises.forEach(exercise => {
-      // Skip untitled sections
-      if (exercise.type === 'section' && !exercise.title) {
-        return;
-      }
-
-      // Handle parent section documents
-      if (exercise.type === 'section' && exercise.isParent) {
-        sections[exercise.id] = {
-          id: exercise.id,
-          title: exercise.title || exercise.exerciseTitle,
-          type: 'section',
-          activities: [],
-          scheduledDateTime: exercise.scheduledDateTime,
-          metrics: exercise.metrics,
-          sectionType: exercise.sectionType
-        };
-        return;
-      }
-
-      // Handle activities that belong to sections
-      if (exercise.sectionId) {
+      if (exercise.type === 'session') {
+        // Handle sessions using renderActivity
+        standaloneExercises.push(exercise);
+      } else if (exercise.sectionId) {
+        // Handle section items
         if (!sections[exercise.sectionId]) {
-          // Create new section if it doesn't exist
           sections[exercise.sectionId] = {
-            id: exercise.sectionId,
-            title: exercise.sectionTitle,
-            type: 'section',
-            activities: [],
-            scheduledDateTime: exercise.scheduledDateTime,
-            metrics: exercise.metrics
+            ...exercise,
+            activities: []
           };
         }
-        sections[exercise.sectionId].activities.push({
-          ...exercise,
-          type: exercise.type || 'exercise'
-        });
-      } else if (!exercise.isParent) {  // Only add standalone exercises that aren't parent sections
+        sections[exercise.sectionId].activities.push(exercise);
+      } else {
         standaloneExercises.push(exercise);
       }
     });
@@ -908,9 +885,28 @@ export default function Training({ navigation, route }) {
           <View style={[styles.timeOfDayDivider, { backgroundColor: theme.colors.border }]} />
         </View>
         {Object.values(sections).map(section => renderSection(section, timeOfDay))}
-        {standaloneExercises.map(exercise => renderExercise(exercise, timeOfDay))}
+        {standaloneExercises.map(exercise => 
+          exercise.type === 'session' 
+            ? renderActivity(exercise, selectedDate)
+            : renderExercise(exercise, timeOfDay)
+        )}
       </View>
     );
+  };
+
+  const handleCompleteSession = async (session) => {
+    try {
+      await updateScheduledSession(session.id, {
+        metrics: {
+          ...session.metrics,
+          completed: true
+        }
+      });
+      loadExercisesForDate(selectedDate);
+    } catch (error) {
+      console.error('Error completing session:', error);
+      Alert.alert('Error', 'Failed to complete session. Please try again.');
+    }
   };
 
   const renderActivity = (activity, date) => {
@@ -927,12 +923,12 @@ export default function Training({ navigation, route }) {
             { backgroundColor: theme.colors.surface },
             isCompleted && styles.completedActivity
           ]}
-          onPress={() => navigation.navigate('SessionDetail', { session: activity })}
+          onPress={() => handleSessionPress(activity)}
         >
           <View style={styles.exerciseHeader}>
             <View style={[styles.exerciseIcon, { backgroundColor: theme.colors.primary }]}>
               <Ionicons
-                name="calendar-outline"
+                name="barbell-outline"
                 size={24}
                 color={theme.colors.white}
               />
@@ -941,16 +937,9 @@ export default function Training({ navigation, route }) {
               <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
                 {activity.title}
               </Text>
-              <View style={styles.sessionMetrics}>
-                <Text style={[styles.sectionMetrics, { color: theme.colors.textSecondary }]}>
-                  {activity.items?.length || 0} activities
-                </Text>
-                {activity.scheduledTime && (
-                  <Text style={[styles.scheduledTime, { color: theme.colors.textSecondary }]}>
-                    {activity.scheduledTime}
-                  </Text>
-                )}
-              </View>
+              <Text style={[styles.exerciseSubtitle, { color: theme.colors.textSecondary }]}>
+                {activity.items?.length || 0} exercises
+              </Text>
             </View>
             {isCompleted ? (
               <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
@@ -996,8 +985,6 @@ export default function Training({ navigation, route }) {
         onPress={() => {
           if (isSection) {
             navigation.navigate('SectionMetrics', { section: activity, date });
-          } else {
-            handleActivityPress(activity);
           }
         }}
       >
@@ -1027,21 +1014,6 @@ export default function Training({ navigation, route }) {
         </View>
       </TouchableOpacity>
     );
-  };
-
-  const handleCompleteSession = async (session) => {
-    try {
-      await updateScheduledSession(session.id, {
-        metrics: {
-          ...session.metrics,
-          completed: true
-        }
-      });
-      loadExercisesForDate(selectedDate);
-    } catch (error) {
-      console.error('Error completing session:', error);
-      Alert.alert('Error', 'Failed to complete session. Please try again.');
-    }
   };
 
   return (
@@ -1514,6 +1486,11 @@ const styles = StyleSheet.create({
     marginBottom: Layout.spacing.small,
   },
   exerciseIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: Layout.spacing.medium,
   },
   habitTaskMetrics: {
@@ -1529,9 +1506,8 @@ const styles = StyleSheet.create({
     marginLeft: Layout.spacing.small,
   },
   exerciseSubtitle: {
-    fontSize: 14,
+    fontSize: Layout.text.small,
     fontFamily: Typography.fonts.regular,
-    marginTop: 4,
   },
   startButton: {
     marginTop: 8,
@@ -1642,20 +1618,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   activityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: Layout.borderRadius.large,
+    marginBottom: Layout.spacing.medium,
     padding: Layout.spacing.medium,
-    borderRadius: Layout.borderRadius.medium,
-    marginBottom: Layout.spacing.small,
+    overflow: 'hidden',
   },
   activityTitle: {
-    fontSize: Layout.text.medium,
-    fontFamily: Typography.fonts.semibold,
+    fontSize: Layout.text.large,
+    fontFamily: Typography.fonts.bold,
     marginBottom: Layout.spacing.xsmall,
   },
   titleContainer: {
     flex: 1,
-    marginRight: Layout.spacing.medium,
   },
   completedActivity: {
     opacity: 0.7,
@@ -1663,25 +1637,15 @@ const styles = StyleSheet.create({
   completeButton: {
     paddingHorizontal: Layout.spacing.medium,
     paddingVertical: Layout.spacing.small,
-    borderRadius: Layout.borderRadius.small,
+    borderRadius: Layout.borderRadius.medium,
   },
   completeButtonText: {
-    fontSize: 14,
-    fontFamily: Typography.fonts.medium,
-  },
-  sessionMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Layout.spacing.xsmall,
-  },
-  scheduledTime: {
     fontSize: Layout.text.small,
-    fontFamily: Typography.fonts.regular,
-    marginTop: Layout.spacing.xsmall,
+    fontFamily: Typography.fonts.medium,
   },
   sessionPreview: {
     marginTop: Layout.spacing.small,
+    paddingLeft: Layout.spacing.xlarge + Layout.spacing.medium,
   },
   previewItem: {
     fontSize: Layout.text.small,
