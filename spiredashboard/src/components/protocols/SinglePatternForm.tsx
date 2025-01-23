@@ -41,16 +41,16 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
   });
 
   useEffect(() => {
-    if (editProtocol?.pattern) {
+    if (editProtocol) {
       setSettings({
-        title: editProtocol.title,
-        description: editProtocol.description,
-        inhaleTime: editProtocol.pattern.inhaleTime,
-        inhaleHoldTime: editProtocol.pattern.inhaleHoldTime,
-        exhaleTime: editProtocol.pattern.exhaleTime,
-        exhaleHoldTime: editProtocol.pattern.exhaleHoldTime,
-        rounds: editProtocol.pattern.rounds,
-        restAfter: editProtocol.pattern.restAfter,
+        title: editProtocol.title || '',
+        description: editProtocol.description || '',
+        inhaleTime: editProtocol.pattern?.inhaleTime || 4,
+        inhaleHoldTime: editProtocol.pattern?.inhaleHoldTime || 0,
+        exhaleTime: editProtocol.pattern?.exhaleTime || 4,
+        exhaleHoldTime: editProtocol.pattern?.exhaleHoldTime || 0,
+        rounds: editProtocol.pattern?.rounds || 3,
+        restAfter: editProtocol.pattern?.restAfter || 0,
         tags: editProtocol.tags || [],
         benefits: editProtocol.benefits || [],
       });

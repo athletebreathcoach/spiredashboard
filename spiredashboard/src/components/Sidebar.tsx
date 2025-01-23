@@ -12,6 +12,7 @@ import {
   BoltIcon,
   CalendarIcon
 } from '@heroicons/react/24/solid';
+import Image from 'next/image';
 
 const navItems = [
   { name: 'Coaches', path: '/coaches', icon: UserGroupIcon },
@@ -30,7 +31,13 @@ export default function Sidebar() {
     <aside className="w-20 min-h-screen bg-dark border-r border-dark-100">
       <div className="py-4 flex flex-col items-center">
         <div className="mb-8">
-          <h1 className="text-xl font-bold text-white">SP</h1>
+          <Image
+            src="/gradient spire icon.svg"
+            alt="Spire Logo"
+            width={32}
+            height={32}
+            priority
+          />
         </div>
         <nav className="space-y-6 w-full">
           {navItems.map((item) => {

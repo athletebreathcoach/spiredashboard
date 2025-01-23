@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import SinglePatternForm from './protocols/SinglePatternForm';
+import { BreathProtocol } from '@/services/breathProtocols';
 
 const protocolTypes = [
   {
@@ -45,8 +46,11 @@ export default function BreathProtocolForm({ isOpen, onClose, onSave, editProtoc
 
   useEffect(() => {
     if (editProtocol) {
-      setSelectedType(editProtocol.type.name.toLowerCase().replace(' ', '-'));
-      setShowTypeForm(true);
+      // Safely handle older protocol formats by checking if type exists and has a name
+      const typeName = editProtocol.type?.name?.toLowerCase() || '';
+      const typeId = typeName.replace(/\s+/g, '-');
+      setSelectedType(typeId);
+      setShowTypeForm(true); // Immediately show form when editing
     }
   }, [editProtocol]);
 
@@ -72,8 +76,8 @@ export default function BreathProtocolForm({ isOpen, onClose, onSave, editProtoc
     handleFormClose();
   };
 
-  // If a type is selected and showTypeForm is true, show the specific form
-  if (showTypeForm && selectedType) {
+  // If editing or if type is selected and showTypeForm is true, show the specific form
+  if ((editProtocol || (showTypeForm && selectedType))) {
     switch (selectedType) {
       case 'single-pattern':
         return (
@@ -106,7 +110,7 @@ export default function BreathProtocolForm({ isOpen, onClose, onSave, editProtoc
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-800">
               <Dialog.Title className="text-xl font-bold text-white">
-                Create New Breath Protocol
+                {editProtocol ? 'Edit' : 'Create New'} Breath Protocol
               </Dialog.Title>
               <button
                 onClick={onClose}
