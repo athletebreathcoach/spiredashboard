@@ -27,13 +27,12 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700 shadow-xl">
-      <div className="p-6">
-        <h1 className="text-2xl font-black text-white mb-8 uppercase tracking-wider flex items-center">
-          <BoltIcon className="w-8 h-8 text-yellow-500 mr-2" />
-          Spire
-        </h1>
-        <nav className="space-y-3">
+    <aside className="w-20 min-h-screen bg-dark border-r border-dark-100">
+      <div className="py-4 flex flex-col items-center">
+        <div className="mb-8">
+          <h1 className="text-xl font-bold text-white">SP</h1>
+        </div>
+        <nav className="space-y-6 w-full">
           {navItems.map((item) => {
             const isActive = pathname === item.path;
             const Icon = item.icon;
@@ -41,14 +40,17 @@ export default function Sidebar() {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex items-center space-x-3 px-4 py-3.5 rounded-lg transition-all transform hover:scale-105 ${
+                className={`flex flex-col items-center py-2 relative ${
                   isActive
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-yellow-500'
+                    ? 'text-white'
+                    : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <Icon className="w-6 h-6" />
-                <span className="font-bold tracking-wide">{item.name}</span>
+                <Icon className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium">{item.name}</span>
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-r" />
+                )}
               </Link>
             );
           })}
