@@ -3,18 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --background: #1C1C1E;
-  --foreground: #FFFFFF;
-  --primary: #2C2C2E;
-  --secondary: #3A3A3C;
-  --accent: #48484A;
-  --dark-bg: #000000;
+  --primary: #1a237e; /* Deep navy blue */
+  --secondary: #c41e3a; /* Athletic red */
+  --accent: #ffd700; /* Champion gold */
+  --dark-bg: #111827; /* Deep charcoal */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1C1C1E;
-    --foreground: #FFFFFF;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
@@ -22,7 +20,7 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
-  background-image: linear-gradient(to bottom right, var(--dark-bg), var(--background));
+  background-image: linear-gradient(to bottom right, var(--dark-bg), #1f2937);
 }
 
 /* Athletic gradient animation for hover effects */
