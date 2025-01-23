@@ -125,9 +125,9 @@ export default function ChatConversation() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between mb-6 pb-4 border-b border-gray-700">
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+      {/* Header - Fixed */}
+      <div className="flex-shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-700 bg-gray-900">
         <div>
           <h2 className="text-2xl font-bold text-white">
             {clientInfo?.firstName && clientInfo?.lastName
@@ -138,47 +138,51 @@ export default function ChatConversation() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto mb-4 space-y-4 min-h-0">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.senderId === user?.uid ? 'justify-end' : 'justify-start'}`}
-          >
+      {/* Messages - Scrollable */}
+      <div className="flex-1 overflow-y-auto px-6 min-h-0">
+        <div className="space-y-4 py-4">
+          {messages.map((message) => (
             <div
-              className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                message.senderId === user?.uid
-                  ? 'bg-yellow-500 text-gray-900'
-                  : 'bg-gray-700 text-white'
-              }`}
+              key={message.id}
+              className={`flex ${message.senderId === user?.uid ? 'justify-end' : 'justify-start'}`}
             >
-              <p>{message.text}</p>
-              <span className="text-xs opacity-75 mt-1 block">
-                {message.timestamp?.toLocaleTimeString()}
-              </span>
+              <div
+                className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                  message.senderId === user?.uid
+                    ? 'bg-yellow-500 text-gray-900'
+                    : 'bg-gray-700 text-white'
+                }`}
+              >
+                <p>{message.text}</p>
+                <span className="text-xs opacity-75 mt-1 block">
+                  {message.timestamp?.toLocaleTimeString()}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Message Input */}
-      <form onSubmit={sendMessage} className="flex-shrink-0 flex items-center space-x-4 pt-4 border-t border-gray-700">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-1 bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
-        />
-        <button
-          type="submit"
-          disabled={!newMessage.trim()}
-          className="bg-yellow-500 text-gray-900 p-2 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <PaperAirplaneIcon className="w-6 h-6" />
-        </button>
-      </form>
+      {/* Message Input - Fixed */}
+      <div className="flex-shrink-0 border-t border-gray-700 p-6">
+        <form onSubmit={sendMessage} className="flex items-center space-x-4">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim()}
+            className="bg-yellow-500 text-gray-900 p-2 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <PaperAirplaneIcon className="w-6 h-6" />
+          </button>
+        </form>
+      </div>
     </div>
   );
 } 

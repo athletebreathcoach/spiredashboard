@@ -9,12 +9,14 @@ import {
   TrophyIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
-  BoltIcon
+  BoltIcon,
+  CalendarIcon
 } from '@heroicons/react/24/solid';
 
 const navItems = [
   { name: 'Coaches', path: '/coaches', icon: UserGroupIcon },
   { name: 'Clients', path: '/clients', icon: UsersIcon },
+  { name: 'Training', path: '/training', icon: CalendarIcon },
   { name: 'Library', path: '/library', icon: BookOpenIcon },
   { name: 'Forums', path: '/forums', icon: TrophyIcon },
   { name: 'Chat', path: '/chat', icon: ChatBubbleLeftRightIcon },
