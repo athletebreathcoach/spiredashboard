@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isToday, endOfWeek } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import ClientSelector from '@/components/ClientSelector';
+import ActivitySelectorModal from '@/components/ActivitySelectorModal';
 import { db } from '@/config/firebase';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
@@ -39,6 +40,9 @@ export default function TrainingPage() {
   const [weekDates, setWeekDates] = useState<Date[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [activities, setActivities] = useState<ScheduledActivity[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: Date; timeOfDay: string } | null>(null);
 
   // Generate week dates
   useEffect(() => {
@@ -178,6 +182,59 @@ export default function TrainingPage() {
     }
   };
 
+  const handleAddActivity = (date: Date, timeOfDay: string, event: React.MouseEvent) => {
+    // Get the button's position for the modal animation
+    const button = event.currentTarget as HTMLButtonElement;
+    const rect = button.getBoundingClientRect();
+    
+    setModalPosition({ x: rect.x, y: rect.y });
+    setSelectedTimeSlot({ date, timeOfDay });
+    setModalOpen(true);
+  };
+
+  const handleActivityScheduled = () => {
+    // Refresh the activities list
+    const fetchActivities = async () => {
+      if (!selectedClient) return;
+
+      try {
+        const start = startOfWeek(selectedDate);
+        const end = endOfWeek(selectedDate);
+
+        const exercisesRef = collection(db, 'scheduledExercises');
+        const q = query(
+          exercisesRef,
+          where('userId', '==', selectedClient.id),
+          where('scheduledDateTime', '>=', start),
+          where('scheduledDateTime', '<=', end)
+        );
+
+        const snapshot = await getDocs(q);
+        const fetchedActivities = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            exerciseTitle: data.exerciseTitle || 'Untitled',
+            type: data.type || data.exerciseType || 'exercise',
+            exerciseType: data.exerciseType,
+            scheduledDateTime: data.scheduledDateTime,
+            status: data.status || 'scheduled',
+            metrics: {
+              timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
+              ...(data.metrics || {})
+            }
+          } as ScheduledActivity;
+        });
+
+        setActivities(fetchedActivities);
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      }
+    };
+
+    fetchActivities();
+  };
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <div className="flex items-center justify-between px-6 py-4">
@@ -223,11 +280,34 @@ export default function TrainingPage() {
                 {timeSlots.map((slot, slotIndex) => (
                   <div
                     key={slotIndex}
-                    className={`px-4 py-5 border-b border-gray-700/50 ${
+                    className={`px-4 py-5 border-b border-gray-700/50 relative ${
                       isToday(date) ? 'bg-gray-800/20' : ''
                     }`}
                   >
-                    <div className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-3">{slot}</div>
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="text-xs uppercase tracking-wider font-semibold text-gray-500">
+                        {slot}
+                      </div>
+                      <button
+                        onClick={(e) => handleAddActivity(date, slot, e)}
+                        className="w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
+                        title={`Add activity for ${format(date, 'MMM d')} - ${slot}`}
+                      >
+                        <svg
+                          className="w-4 h-4 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                     {/* Activities */}
                     <div className="space-y-2.5">
                       {(() => {
@@ -283,6 +363,22 @@ export default function TrainingPage() {
           </div>
         </div>
       </div>
+
+      {/* Activity Selector Modal */}
+      {selectedTimeSlot && selectedClient && (
+        <ActivitySelectorModal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setSelectedTimeSlot(null);
+          }}
+          position={modalPosition}
+          date={selectedTimeSlot.date}
+          timeOfDay={selectedTimeSlot.timeOfDay}
+          selectedClientId={selectedClient.id}
+          onActivityScheduled={handleActivityScheduled}
+        />
+      )}
     </div>
   );
 } 
