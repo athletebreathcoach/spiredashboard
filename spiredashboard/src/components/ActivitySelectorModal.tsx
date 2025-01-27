@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/config/firebase';
 import { collection, query, getDocs, addDoc, Timestamp } from 'firebase/firestore';
+import { scheduleExercise } from '@/services/scheduledExercises';
 
 interface ActivitySelectorModalProps {
   isOpen: boolean;
@@ -138,21 +139,19 @@ export default function ActivitySelectorModal({
       setLoading(true);
       const scheduledDateTime = new Date(date);
       
-      // Create the scheduled exercise
-      const scheduledExercise = {
-        userId: selectedClientId,
-        exerciseId: selectedActivity.id,
-        exerciseTitle: selectedActivity.title,
-        scheduledDateTime: Timestamp.fromDate(scheduledDateTime),
-        status: 'scheduled',
-        metrics: {
+      // Use our new service to schedule the exercise
+      await scheduleExercise(
+        selectedClientId,
+        selectedActivity.id,
+        scheduledDateTime,
+        {
           timeOfDay: timeOfDay.toLowerCase(),
-          completed: false
-        },
-        ...selectedActivity // This will include the type and other data
-      };
-
-      await addDoc(collection(db, 'scheduledExercises'), scheduledExercise);
+          metrics: {
+            completed: false,
+            timeOfDay: timeOfDay.toLowerCase()
+          }
+        }
+      );
       
       if (onActivityScheduled) {
         onActivityScheduled();
