@@ -6,7 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import ClientSelector from '@/components/ClientSelector';
 import ActivitySelectorModal from '@/components/ActivitySelectorModal';
 import { db } from '@/config/firebase';
-import { collection, query, where, getDocs, Timestamp, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot, DroppableStateSnapshot } from 'react-beautiful-dnd';
 
 interface Client {
   id: string;
@@ -40,108 +41,61 @@ interface ActivityCardProps {
   onActivityClick: (activity: ScheduledActivity, event: React.MouseEvent) => void;
 }
 
-const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onActivityClick }) => {
+const ActivityCard = ({ activity, onActivityClick }: ActivityCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const getActivityColor = (type: string | ActivityType) => {
-    const typeStr = typeof type === 'string' ? type : type.name;
-    switch (typeStr.toLowerCase()) {
+  const getActivityColor = (type: string) => {
+    switch (type.toLowerCase()) {
       case 'exercise':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+        return 'bg-blue-500/20 border-blue-500/30';
       case 'breathprotocol':
-        return 'bg-green-500/10 text-green-400 border-green-500/30';
+        return 'bg-green-500/20 border-green-500/30';
       case 'breathtest':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+        return 'bg-yellow-500/20 border-yellow-500/30';
       case 'guidedsession':
-        return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-      case 'habit':
-        return 'bg-pink-500/10 text-pink-400 border-pink-500/30';
-      case 'task':
-        return 'bg-orange-500/10 text-orange-400 border-orange-500/30';
+        return 'bg-purple-500/20 border-purple-500/30';
+      case 'note':
+        return 'bg-gray-500/20 border-gray-500/30';
       default:
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+        return 'bg-gray-700/50 border-gray-600/30';
     }
   };
 
   const typeStr = typeof activity.type === 'string' ? activity.type : activity.type.name;
-  const colorClasses = getActivityColor(activity.type);
+  const colorClasses = getActivityColor(typeStr);
 
   return (
-    <div 
-      className={`group relative rounded-md bg-gray-900/50 hover:bg-gray-800/50 transition-all duration-200 border ${
-        colorClasses.split(' ')[2]
-      } cursor-pointer`}
-      onClick={() => setIsExpanded(!isExpanded)}
-    >
-      <div className="px-2 py-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2 min-w-0">
-            <div className={`flex-shrink-0 w-5 h-5 ${colorClasses.split(' ')[0]} rounded-sm flex items-center justify-center text-sm mt-0.5`}>
-              {activity.type === 'exercise' ? '💪' : 
-               activity.type === 'habit' ? '🔄' : 
-               activity.type === 'breathprotocol' ? '🫁' : '📝'}
+    <Draggable draggableId={activity.id} index={0}>
+      {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          onClick={(e) => onActivityClick(activity, e)}
+          className={`group relative p-2 rounded-lg border ${colorClasses} 
+            hover:bg-opacity-30 transition-colors cursor-pointer
+            ${snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''}`}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-white">{activity.exerciseTitle}</h3>
+              <p className="text-xs text-gray-400 capitalize">{typeof activity.type === 'string' ? activity.type : activity.type.name}</p>
             </div>
-            <h3 className="text-sm font-medium text-white break-words min-w-0 pr-2">{activity.exerciseTitle}</h3>
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button 
-              className="p-0.5 hover:bg-gray-700/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 onActivityClick(activity, e);
               }}
+              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
             >
-              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <button className="p-0.5 hover:bg-gray-700/50 rounded">
-              <svg 
-                className={`w-3.5 h-3.5 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
           </div>
         </div>
-        {isExpanded && (
-          <div className="mt-1.5 pt-1.5 border-t border-gray-800">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className={`px-1.5 py-0.5 rounded-sm font-medium uppercase tracking-wider ${colorClasses.split(' ').slice(0, 2).join(' ')}`}>
-                  {typeStr}
-                </span>
-                <span className="text-gray-400">
-                  {activity.status || 'scheduled'}
-                </span>
-              </div>
-              {activity.metrics && Object.keys(activity.metrics).length > 0 && (
-                <div className="text-xs text-gray-400 grid grid-cols-2 gap-x-4 gap-y-1 pt-1.5 border-t border-gray-800">
-                  {Object.entries(activity.metrics)
-                    .filter(([key]) => key !== 'timeOfDay')
-                    .map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between">
-                        <span className="capitalize opacity-75">{key}:</span>
-                        <span>{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}</span>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-      <div 
-        className={`absolute right-1 bottom-1 w-2.5 h-2.5 rounded-full ${
-          activity.status === 'completed' ? 'bg-green-500' : 
-          activity.status === 'in_progress' ? 'bg-yellow-500' : 
-          'bg-gray-600'
-        }`} 
-      />
-    </div>
+      )}
+    </Draggable>
   );
 };
 
@@ -279,11 +233,34 @@ export default function TrainingPage() {
   };
 
   const handleAddActivity = (date: Date, timeOfDay: string, event: React.MouseEvent) => {
-    // Get the button's position for the modal animation
+    // Get the button's position and viewport dimensions
     const button = event.currentTarget as HTMLButtonElement;
     const rect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     
-    setModalPosition({ x: rect.x, y: rect.y });
+    // Modal dimensions (smaller by default)
+    const MODAL_WIDTH = 400;
+    const MODAL_HEIGHT = 400;
+    const PADDING = 20;
+
+    // Calculate x position
+    let x = rect.x;
+    
+    // If button is in the right third of the screen, position modal to the left of the button
+    if (rect.x + MODAL_WIDTH + PADDING > viewportWidth) {
+      x = Math.max(PADDING, viewportWidth - MODAL_WIDTH - PADDING);
+    }
+    
+    // Calculate y position
+    let y = rect.y + rect.height + 5; // 5px gap below button
+    
+    // If modal would go off bottom of screen, position it above the button
+    if (y + MODAL_HEIGHT + PADDING > viewportHeight) {
+      y = Math.max(PADDING, rect.y - MODAL_HEIGHT - 5); // 5px gap above button
+    }
+    
+    setModalPosition({ x, y });
     setSelectedTimeSlot({ date, timeOfDay });
     setModalOpen(true);
   };
@@ -389,6 +366,56 @@ export default function TrainingPage() {
     }
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || !selectedClient) return;
+
+    const { draggableId, destination } = result;
+    const [destDate, destTimeOfDay] = destination.droppableId.split('_');
+
+    try {
+      // Find the activity being dragged
+      const activity = activities.find(a => a.id === draggableId);
+      if (!activity) return;
+
+      // Parse the date string and create a new Date object in local timezone
+      const [year, month, day] = destDate.split('-').map(Number);
+      const targetDate = new Date(year, month - 1, day); // month is 0-indexed in JS Date
+      
+      // Set time to noon to avoid any timezone issues
+      targetDate.setHours(12, 0, 0, 0);
+
+      console.log('Target Date:', targetDate, 'Original destDate:', destDate);
+
+      // Update in Firestore
+      const activityRef = doc(db, 'scheduledExercises', draggableId);
+      const updateData = {
+        scheduledDateTime: Timestamp.fromDate(targetDate),
+        'metrics.timeOfDay': destTimeOfDay.toLowerCase()
+      };
+
+      await updateDoc(activityRef, updateData);
+
+      // Update local state
+      setActivities(prevActivities => {
+        return prevActivities.map(a => {
+          if (a.id === draggableId) {
+            return {
+              ...a,
+              scheduledDateTime: Timestamp.fromDate(targetDate),
+              metrics: {
+                ...a.metrics,
+                timeOfDay: destTimeOfDay.toLowerCase()
+              }
+            };
+          }
+          return a;
+        });
+      });
+    } catch (error) {
+      console.error('Error updating activity:', error);
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-[#111827]">
       {/* Header */}
@@ -481,107 +508,136 @@ export default function TrainingPage() {
 
         {/* Activities Grid */}
         <div className="flex-1 overflow-auto">
-          {isWeekView ? (
-            <div className="grid grid-cols-7 h-full divide-x divide-gray-800">
-              {weekDates.map((date) => (
-                <div key={date.toISOString()} className="min-w-[180px] flex flex-col">
-                  {timeSlots.map((slot) => {
-                    const activitiesInSlot = getActivitiesForDateAndSlot(date, slot);
-                    return (
-                      <div key={slot} className="relative border-b border-gray-800">
-                        <div className="sticky top-0 z-10 flex items-center justify-between p-2 bg-[#111827]/95 backdrop-blur-sm">
-                          <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{slot}</h2>
-                          <button
-                            onClick={(e) => handleAddActivity(date, slot, e)}
-                            className="w-5 h-5 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
-                            title={`Add activity for ${format(date, 'MMM d')} - ${slot}`}
-                          >
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="p-2 space-y-1">
-                          {activitiesInSlot
-                            .filter(activity => 
-                              activity && 
-                              typeof activity === 'object' && 
-                              'id' in activity && 
-                              'exerciseTitle' in activity
-                            )
-                            .map((activity) => (
-                              <ActivityCard
-                                key={activity.id}
-                                activity={activity}
-                                onActivityClick={handleActivityClick}
-                              />
-                            ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6 space-y-6">
-              {timeSlots.map((slot) => {
-                const activitiesInSlot = getActivitiesForDateAndSlot(selectedDate, slot);
-                return (
-                  <div key={slot} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{slot}</h2>
-                      <button
-                        onClick={(e) => handleAddActivity(selectedDate, slot, e)}
-                        className="w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
-                        title={`Add activity for ${format(selectedDate, 'MMM d')} - ${slot}`}
-                      >
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+          <DragDropContext onDragEnd={handleDragEnd}>
+            {isWeekView ? (
+              <div className="grid grid-cols-7 h-full divide-x divide-gray-800">
+                {weekDates.map((date) => (
+                  <div key={date.toISOString()} className="min-w-[180px] flex flex-col">
+                    {timeSlots.map((slot) => {
+                      const activitiesInSlot = getActivitiesForDateAndSlot(date, slot);
+                      return (
+                        <Droppable 
+                          droppableId={`${format(date, 'yyyy-MM-dd')}_${slot}`} 
+                          key={`${date.toISOString()}_${slot}`}
+                          isDropDisabled={false}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {activitiesInSlot
-                        .filter(activity => 
-                          activity && 
-                          typeof activity === 'object' && 
-                          'id' in activity && 
-                          'exerciseTitle' in activity
-                        )
-                        .map((activity) => (
-                          <ActivityCard
-                            key={activity.id}
-                            activity={activity}
-                            onActivityClick={handleActivityClick}
-                          />
-                        ))}
-                    </div>
+                          {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`relative border-b border-gray-800 
+                                ${snapshot.isDraggingOver ? 'bg-blue-500/10' : ''}`}
+                            >
+                              <div className="sticky top-0 z-10 flex items-center justify-between p-2 bg-[#111827]/95 backdrop-blur-sm">
+                                <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{slot}</h2>
+                                <button
+                                  onClick={(e) => handleAddActivity(date, slot, e)}
+                                  className="w-5 h-5 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
+                                  title={`Add activity for ${format(date, 'MMM d')} - ${slot}`}
+                                >
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="p-2 space-y-1">
+                                {activitiesInSlot
+                                  .filter(activity => 
+                                    activity && 
+                                    typeof activity === 'object' && 
+                                    'id' in activity && 
+                                    'exerciseTitle' in activity
+                                  )
+                                  .map((activity) => (
+                                    <ActivityCard
+                                      key={activity.id}
+                                      activity={activity}
+                                      onActivityClick={handleActivityClick}
+                                    />
+                                  ))}
+                                {provided.placeholder}
+                              </div>
+                            </div>
+                          )}
+                        </Droppable>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 space-y-6">
+                {timeSlots.map((slot) => {
+                  const activitiesInSlot = getActivitiesForDateAndSlot(selectedDate, slot);
+                  return (
+                    <Droppable 
+                      droppableId={`${format(selectedDate, 'yyyy-MM-dd')}_${slot}`}
+                      key={`${selectedDate.toISOString()}_${slot}`}
+                      isDropDisabled={false}
+                    >
+                      {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-blue-500/10 rounded-lg p-4' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{slot}</h2>
+                            <button
+                              onClick={(e) => handleAddActivity(selectedDate, slot, e)}
+                              className="w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors"
+                              title={`Add activity for ${format(selectedDate, 'MMM d')} - ${slot}`}
+                            >
+                              <svg
+                                className="w-4 h-4 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {activitiesInSlot
+                              .filter(activity => 
+                                activity && 
+                                typeof activity === 'object' && 
+                                'id' in activity && 
+                                'exerciseTitle' in activity
+                              )
+                              .map((activity) => (
+                                <ActivityCard
+                                  key={activity.id}
+                                  activity={activity}
+                                  onActivityClick={handleActivityClick}
+                                />
+                              ))}
+                            {provided.placeholder}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  );
+                })}
+              </div>
+            )}
+          </DragDropContext>
         </div>
       </div>
 

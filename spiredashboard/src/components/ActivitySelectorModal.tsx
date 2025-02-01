@@ -20,10 +20,45 @@ interface ActivitySelectorModalProps {
 
 interface Activity {
   id: string;
-  title: string;
+  title?: string;
+  name?: string;
   type: string;
   description?: string;
+  videoId?: string;
+  duration?: string;
+  videoUrl?: string;
+  sessionType?: string;
+  intensity?: string;
+  priority?: string;
   [key: string]: any;
+}
+
+interface AllActivities {
+  exercises: any[];
+  breathProtocols: any[];
+  breathTests: any[];
+  guidedSessions: any[];
+  habits: any[];
+}
+
+interface ActivityItem {
+  id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  type?: string;
+  collectionType?: string;
+  [key: string]: any;
+}
+
+interface BreathProtocolMetrics {
+  inhaleTime: number;
+  inhaleHoldTime: number;
+  exhaleTime: number;
+  exhaleHoldTime: number;
+  rounds: number;
+  restAfter: number;
+  totalTime: number;
 }
 
 export default function ActivitySelectorModal({
@@ -37,12 +72,38 @@ export default function ActivitySelectorModal({
 }: ActivitySelectorModalProps) {
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [allActivities, setAllActivities] = useState<AllActivities>({
+    exercises: [],
+    breathProtocols: [],
+    breathTests: [],
+    guidedSessions: [],
+    habits: []
+  });
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(false);
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
+  const [coachNotes, setCoachNotes] = useState('');
+  const [exerciseMetrics, setExerciseMetrics] = useState({
+    sets: [{
+      reps: '',
+      weight: '',
+      rest: '00:00'
+    }],
+    eachSide: false
+  });
+  const [protocolMetrics, setProtocolMetrics] = useState<BreathProtocolMetrics>({
+    inhaleTime: 4,
+    inhaleHoldTime: 0,
+    exhaleTime: 4,
+    exhaleHoldTime: 0,
+    rounds: 3,
+    restAfter: 0,
+    totalTime: 24 // (4+0+4+0) * 3
+  });
 
   const activityTypes = [
     { id: 'exercise', name: 'Exercise', icon: '💪', collection: 'exercises' },
@@ -101,6 +162,72 @@ export default function ActivitySelectorModal({
     }
   }, [isOpen, position]);
 
+  // Fetch all activities on mount
+  useEffect(() => {
+    const fetchAllActivities = async () => {
+      try {
+        setLoading(true);
+        const collections = ['exercises', 'breathProtocols', 'breathTests', 'guidedSessions', 'habitstasks'];
+        const results: any = {};
+
+        await Promise.all(collections.map(async (collectionName) => {
+          const collRef = collection(db, collectionName);
+          const snapshot = await getDocs(query(collRef));
+          results[collectionName] = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            collectionType: collectionName
+          }));
+        }));
+
+        setAllActivities({
+          exercises: results.exercises || [],
+          breathProtocols: results.breathProtocols || [],
+          breathTests: results.breathTests || [],
+          guidedSessions: results.guidedSessions || [],
+          habits: (results.habitstasks || []).filter((item: any) => item.type === 'habit')
+        });
+      } catch (error) {
+        console.error('Error fetching all activities:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchAllActivities();
+    }
+  }, [isOpen]);
+
+  const getFilteredActivities = (): Activity[] => {
+    if (!searchQuery.trim()) {
+      return step === 1 ? [] : activities;
+    }
+
+    const query = searchQuery.toLowerCase();
+
+    if (step === 1) {
+      // Search across all activities
+      return Object.entries(allActivities).flatMap(([type, items]) => 
+        items
+          .filter((item: ActivityItem) => 
+            (item.title || item.name || '').toLowerCase().includes(query) ||
+            (item.description || '').toLowerCase().includes(query)
+          )
+          .map((item: ActivityItem) => ({
+            ...item,
+            activityType: type
+          }))
+      );
+    } else {
+      // Search within selected category
+      return activities.filter(activity =>
+        (activity.title || activity.name || '').toLowerCase().includes(query) ||
+        (activity.description || '').toLowerCase().includes(query)
+      );
+    }
+  };
+
   const handleSelectType = async (typeId: string) => {
     setSelectedType(typeId);
     setLoading(true);
@@ -147,6 +274,11 @@ export default function ActivitySelectorModal({
     }
   };
 
+  const handleSelectActivity = (activity: Activity) => {
+    setSelectedActivity(activity);
+    // Don't schedule immediately - wait for configuration
+  };
+
   const handleScheduleActivity = async () => {
     if (!selectedType) return;
 
@@ -166,17 +298,124 @@ export default function ActivitySelectorModal({
           timeOfDay: timeOfDay.toLowerCase()
         });
       } else if (selectedActivity) {
+        let scheduleData;
+        
+        switch (selectedType) {
+          case 'exercise':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title || selectedActivity.name,
+              type: 'exercise',
+              description: selectedActivity.description || '',
+              videoId: selectedActivity.videoId,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false,
+                sets: exerciseMetrics.sets,
+                eachSide: exerciseMetrics.eachSide,
+                notes: ''
+              },
+              coachNotes: coachNotes
+            };
+            break;
+
+          case 'breathProtocol':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title || selectedActivity.name,
+              type: 'breathProtocol',
+              description: selectedActivity.description || '',
+              protocol: {
+                pattern: {
+                  inhale: protocolMetrics.inhaleTime,
+                  inHold: protocolMetrics.inhaleHoldTime,
+                  exhale: protocolMetrics.exhaleTime,
+                  exHold: protocolMetrics.exhaleHoldTime
+                },
+                rounds: protocolMetrics.rounds,
+                duration: protocolMetrics.totalTime.toString(),
+                restAfter: protocolMetrics.restAfter
+              },
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false
+              },
+              coachNotes: coachNotes
+            };
+            break;
+
+          case 'breathTest':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title,
+              type: 'breathTest',
+              description: selectedActivity.description,
+              testId: selectedActivity.id,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false
+              },
+              coachNotes: coachNotes
+            };
+            break;
+
+          case 'guidedSession':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title,
+              type: 'guidedSession',
+              description: selectedActivity.description,
+              sessionId: selectedActivity.id,
+              duration: selectedActivity.duration,
+              videoUrl: selectedActivity.videoUrl,
+              sessionType: selectedActivity.type,
+              intensity: selectedActivity.intensity,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false
+              },
+              coachNotes: coachNotes
+            };
+            break;
+
+          case 'habit':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title,
+              type: 'habit',
+              description: selectedActivity.description,
+              habitId: selectedActivity.id,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false,
+                streak: 0
+              },
+              coachNotes: coachNotes
+            };
+            break;
+
+          case 'task':
+            scheduleData = {
+              exerciseTitle: selectedActivity.title,
+              type: 'task',
+              description: selectedActivity.description,
+              taskId: selectedActivity.id,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false,
+                priority: selectedActivity.priority || 'medium'
+              },
+              coachNotes: coachNotes
+            };
+            break;
+        }
+
         await scheduleExercise(
           selectedClientId,
           selectedActivity.id,
           scheduledDateTime,
-          {
-            timeOfDay: timeOfDay.toLowerCase(),
-            metrics: {
-              completed: false,
-              timeOfDay: timeOfDay.toLowerCase()
-            }
-          }
+          scheduleData
         );
       }
       
@@ -190,6 +429,24 @@ export default function ActivitySelectorModal({
       setSelectedActivity(null);
       setNoteTitle('');
       setNoteContent('');
+      setCoachNotes('');
+      setExerciseMetrics({
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false
+      });
+      setProtocolMetrics({
+        inhaleTime: 4,
+        inhaleHoldTime: 0,
+        exhaleTime: 4,
+        exhaleHoldTime: 0,
+        rounds: 3,
+        restAfter: 0,
+        totalTime: 24 // (4+0+4+0) * 3
+      });
     } catch (error) {
       console.error('Error scheduling activity:', error);
     } finally {
@@ -205,6 +462,24 @@ export default function ActivitySelectorModal({
       setSelectedActivity(null);
       setNoteTitle('');
       setNoteContent('');
+      setCoachNotes('');
+      setExerciseMetrics({
+        sets: [{
+          reps: '',
+          weight: '',
+          rest: '00:00'
+        }],
+        eachSide: false
+      });
+      setProtocolMetrics({
+        inhaleTime: 4,
+        inhaleHoldTime: 0,
+        exhaleTime: 4,
+        exhaleHoldTime: 0,
+        rounds: 3,
+        restAfter: 0,
+        totalTime: 24 // (4+0+4+0) * 3
+      });
     }
   }, [isOpen]);
 
@@ -226,73 +501,465 @@ export default function ActivitySelectorModal({
     };
   }, [isOpen, onClose]);
 
+  // Add helper function to calculate total time
+  const calculateTotalTime = (metrics: Partial<BreathProtocolMetrics>) => {
+    const roundTime = (metrics.inhaleTime || 0) + 
+                     (metrics.inhaleHoldTime || 0) + 
+                     (metrics.exhaleTime || 0) + 
+                     (metrics.exhaleHoldTime || 0);
+    return roundTime * (metrics.rounds || 1);
+  };
+
+  // Update the renderConfirmationStep to include breath protocol UI
+  const renderConfirmationStep = () => {
+    if (!selectedActivity) return null;
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700/50">
+          <h3 className="text-lg font-semibold text-white">
+            Configure {selectedActivity.title}
+          </h3>
+          <button
+            onClick={() => setSelectedActivity(null)}
+            className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-1"
+          >
+            ← Back
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {selectedType === 'exercise' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Sets
+                </label>
+                {exerciseMetrics.sets.map((set, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Reps"
+                      value={set.reps}
+                      onChange={(e) => {
+                        const newSets = [...exerciseMetrics.sets];
+                        newSets[index].reps = e.target.value;
+                        setExerciseMetrics({ ...exerciseMetrics, sets: newSets });
+                      }}
+                      className="flex-1 px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Weight"
+                      value={set.weight}
+                      onChange={(e) => {
+                        const newSets = [...exerciseMetrics.sets];
+                        newSets[index].weight = e.target.value;
+                        setExerciseMetrics({ ...exerciseMetrics, sets: newSets });
+                      }}
+                      className="flex-1 px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => setExerciseMetrics({
+                    ...exerciseMetrics,
+                    sets: [...exerciseMetrics.sets, { reps: '', weight: '', rest: '00:00' }]
+                  })}
+                  className="text-sm text-blue-500 hover:text-blue-400"
+                >
+                  + Add Set
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="eachSide"
+                  checked={exerciseMetrics.eachSide}
+                  onChange={(e) => setExerciseMetrics({ ...exerciseMetrics, eachSide: e.target.checked })}
+                  className="rounded border-gray-700/50 bg-[#161B22] text-blue-500 focus:ring-blue-500"
+                />
+                <label htmlFor="eachSide" className="text-sm text-gray-300">
+                  Each Side
+                </label>
+              </div>
+            </div>
+          )}
+
+          {selectedType === 'breathProtocol' && (
+            <div className="space-y-6">
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="text-sm text-gray-300 mb-4">
+                  Total Time: {Math.floor(protocolMetrics.totalTime / 60)}m {protocolMetrics.totalTime % 60}s
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Inhale Time (s)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            inhaleTime: Math.max(1, protocolMetrics.inhaleTime - 1)
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.inhaleTime}</span>
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            inhaleTime: protocolMetrics.inhaleTime + 1
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Inhale Hold (s)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            inhaleHoldTime: Math.max(0, protocolMetrics.inhaleHoldTime - 1)
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.inhaleHoldTime}</span>
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            inhaleHoldTime: protocolMetrics.inhaleHoldTime + 1
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Exhale Time (s)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            exhaleTime: Math.max(1, protocolMetrics.exhaleTime - 1)
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.exhaleTime}</span>
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            exhaleTime: protocolMetrics.exhaleTime + 1
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Exhale Hold (s)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            exhaleHoldTime: Math.max(0, protocolMetrics.exhaleHoldTime - 1)
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.exhaleHoldTime}</span>
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            exhaleHoldTime: protocolMetrics.exhaleHoldTime + 1
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Rounds
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            rounds: Math.max(1, protocolMetrics.rounds - 1)
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.rounds}</span>
+                      <button
+                        onClick={() => {
+                          const newMetrics = {
+                            ...protocolMetrics,
+                            rounds: protocolMetrics.rounds + 1
+                          };
+                          newMetrics.totalTime = calculateTotalTime(newMetrics);
+                          setProtocolMetrics(newMetrics);
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                      Rest After (s)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setProtocolMetrics({
+                            ...protocolMetrics,
+                            restAfter: Math.max(0, protocolMetrics.restAfter - 30)
+                          });
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        -
+                      </button>
+                      <span className="w-12 text-center text-white">{protocolMetrics.restAfter}</span>
+                      <button
+                        onClick={() => {
+                          setProtocolMetrics({
+                            ...protocolMetrics,
+                            restAfter: protocolMetrics.restAfter + 30
+                          });
+                        }}
+                        className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Coach Notes - Available for all types */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              Coach Notes
+            </label>
+            <textarea
+              value={coachNotes}
+              onChange={(e) => setCoachNotes(e.target.value)}
+              placeholder="Add notes for the client..."
+              className="w-full px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-32"
+            />
+          </div>
+        </div>
+
+        <div className="flex-shrink-0 p-4 border-t border-gray-700/50">
+          <button
+            onClick={handleScheduleActivity}
+            disabled={loading}
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+          >
+            {loading ? 'Scheduling...' : 'Schedule Activity'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
           id="activity-selector-modal"
           initial={{ 
-            scale: 0.2,
-            opacity: 0,
-            x: position.x,
-            y: position.y
+            scale: 0.95,
+            opacity: 0
           }}
           animate={{ 
             scale: 1,
-            opacity: 1,
-            x: modalPosition.x,
-            y: modalPosition.y
+            opacity: 1
           }}
           exit={{ 
-            scale: 0.2,
-            opacity: 0,
-            x: position.x,
-            y: position.y
+            scale: 0.95,
+            opacity: 0
           }}
-          transition={{ type: "spring", duration: 0.5 }}
-          className="fixed z-50 bg-[#0D1117] rounded-xl shadow-2xl border border-gray-700/50 w-[800px] overflow-hidden"
+          transition={{ type: "spring", duration: 0.3 }}
+          className={`fixed z-50 bg-[#0D1117] rounded-xl shadow-2xl border border-gray-700/50 overflow-hidden
+            ${selectedType === 'note' && step === 2 ? 'w-[800px]' : 'w-[400px]'}`}
           style={{
-            maxHeight: 'calc(100vh - 40px)', // Leave some padding from viewport edges
-            maxWidth: 'calc(100vw - 40px)'   // Leave some padding from viewport edges
+            maxHeight: selectedType === 'note' && step === 2 ? 'calc(100vh - 40px)' : '90vh',
+            minHeight: '300px',
+            maxWidth: 'calc(100vw - 40px)',
+            left: modalPosition.x,
+            top: modalPosition.y
           }}
         >
           <div className="flex flex-col h-full">
+            {/* Search Bar */}
+            <div className="flex-shrink-0 p-4 border-b border-gray-700/50">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={step === 1 ? "Search all activities..." : `Search ${selectedType}s...`}
+                  className="w-full px-4 py-2 pl-10 bg-gray-800/50 text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none placeholder-gray-500"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+
             {step === 1 ? (
-              <div className="p-5">
-                <h3 className="text-lg font-semibold text-white mb-4">Select Activity Type</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {activityTypes.map((type) => (
-                    <button
-                      key={type.id}
-                      onClick={() => handleSelectType(type.id)}
-                      className="flex flex-col items-center justify-center p-4 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
-                      disabled={loading}
-                    >
-                      <span className="text-2xl mb-2">{type.icon}</span>
-                      <span className="text-sm font-medium text-white">{type.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex-1 overflow-auto">
+                {searchQuery.trim() ? (
+                  // Show search results across all activities
+                  <div className="p-4 space-y-2">
+                    {getFilteredActivities().map((activity) => (
+                      <button
+                        key={activity.id}
+                        onClick={() => {
+                          const type = activity.activityType.replace(/s$/, '');
+                          setSelectedType(type);
+                          setActivities([activity]);
+                          setSelectedActivity(activity);
+                          setStep(2);
+                        }}
+                        className="w-full text-left p-3 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                      >
+                        <div className="font-medium text-white">{activity.title || activity.name}</div>
+                        {activity.description && (
+                          <div className="text-sm text-gray-300 mt-1">{activity.description}</div>
+                        )}
+                        <div className="text-xs text-gray-400 mt-1 capitalize">
+                          {activity.activityType.replace(/([A-Z])/g, ' $1').trim()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  // Show activity type grid
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-white mb-3">Select Activity Type</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {activityTypes.map((type) => (
+                        <button
+                          key={type.id}
+                          onClick={() => handleSelectType(type.id)}
+                          className="flex flex-col items-center justify-center p-3 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                          disabled={loading}
+                        >
+                          <span className="text-xl mb-1">{type.icon}</span>
+                          <span className="text-sm font-medium text-white">{type.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between p-5 border-b border-gray-700/50">
+                <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700/50">
                   <h3 className="text-lg font-semibold text-white">
-                    {selectedType === 'note' ? 'Create Note' : `Select ${selectedType}`}
+                    {selectedActivity ? 'Configure Activity' : selectedType === 'note' ? 'Create Note' : `Select ${selectedType}`}
                   </h3>
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => {
+                      if (selectedActivity) {
+                        setSelectedActivity(null);
+                      } else {
+                        setStep(1);
+                        setSearchQuery('');
+                      }
+                    }}
                     className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-1"
                   >
                     ← Back
                   </button>
                 </div>
+
                 {loading ? (
                   <div className="flex-1 flex justify-center items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                   </div>
                 ) : selectedType === 'note' ? (
-                  <div className="flex flex-col flex-1 p-5">
+                  <div className="flex flex-col flex-1 p-4">
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-300 mb-1.5">
                         Title
@@ -345,9 +1012,312 @@ export default function ActivitySelectorModal({
                       </button>
                     </div>
                   </div>
+                ) : selectedActivity ? (
+                  <div className="flex flex-col flex-1">
+                    <div className="flex-1 overflow-y-auto p-4">
+                      {selectedType === 'exercise' && (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                              Sets
+                            </label>
+                            {exerciseMetrics.sets.map((set, index) => (
+                              <div key={index} className="flex gap-2 mb-2">
+                                <input
+                                  type="text"
+                                  placeholder="Reps"
+                                  value={set.reps}
+                                  onChange={(e) => {
+                                    const newSets = [...exerciseMetrics.sets];
+                                    newSets[index].reps = e.target.value;
+                                    setExerciseMetrics({ ...exerciseMetrics, sets: newSets });
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Weight"
+                                  value={set.weight}
+                                  onChange={(e) => {
+                                    const newSets = [...exerciseMetrics.sets];
+                                    newSets[index].weight = e.target.value;
+                                    setExerciseMetrics({ ...exerciseMetrics, sets: newSets });
+                                  }}
+                                  className="flex-1 px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => setExerciseMetrics({
+                                ...exerciseMetrics,
+                                sets: [...exerciseMetrics.sets, { reps: '', weight: '', rest: '00:00' }]
+                              })}
+                              className="text-sm text-blue-500 hover:text-blue-400"
+                            >
+                              + Add Set
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="eachSide"
+                              checked={exerciseMetrics.eachSide}
+                              onChange={(e) => setExerciseMetrics({ ...exerciseMetrics, eachSide: e.target.checked })}
+                              className="rounded border-gray-700/50 bg-[#161B22] text-blue-500 focus:ring-blue-500"
+                            />
+                            <label htmlFor="eachSide" className="text-sm text-gray-300">
+                              Each Side
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedType === 'breathProtocol' && (
+                        <div className="space-y-6">
+                          <div className="bg-gray-800/50 rounded-lg p-4">
+                            <div className="text-sm text-gray-300 mb-4">
+                              Total Time: {Math.floor(protocolMetrics.totalTime / 60)}m {protocolMetrics.totalTime % 60}s
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Inhale Time (s)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        inhaleTime: Math.max(1, protocolMetrics.inhaleTime - 1)
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.inhaleTime}</span>
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        inhaleTime: protocolMetrics.inhaleTime + 1
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Inhale Hold (s)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        inhaleHoldTime: Math.max(0, protocolMetrics.inhaleHoldTime - 1)
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.inhaleHoldTime}</span>
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        inhaleHoldTime: protocolMetrics.inhaleHoldTime + 1
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Exhale Time (s)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        exhaleTime: Math.max(1, protocolMetrics.exhaleTime - 1)
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.exhaleTime}</span>
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        exhaleTime: protocolMetrics.exhaleTime + 1
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Exhale Hold (s)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        exhaleHoldTime: Math.max(0, protocolMetrics.exhaleHoldTime - 1)
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.exhaleHoldTime}</span>
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        exhaleHoldTime: protocolMetrics.exhaleHoldTime + 1
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Rounds
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        rounds: Math.max(1, protocolMetrics.rounds - 1)
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.rounds}</span>
+                                  <button
+                                    onClick={() => {
+                                      const newMetrics = {
+                                        ...protocolMetrics,
+                                        rounds: protocolMetrics.rounds + 1
+                                      };
+                                      newMetrics.totalTime = calculateTotalTime(newMetrics);
+                                      setProtocolMetrics(newMetrics);
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  Rest After (s)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setProtocolMetrics({
+                                        ...protocolMetrics,
+                                        restAfter: Math.max(0, protocolMetrics.restAfter - 30)
+                                      });
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-12 text-center text-white">{protocolMetrics.restAfter}</span>
+                                  <button
+                                    onClick={() => {
+                                      setProtocolMetrics({
+                                        ...protocolMetrics,
+                                        restAfter: protocolMetrics.restAfter + 30
+                                      });
+                                    }}
+                                    className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Coach Notes - Available for all types */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                          Coach Notes
+                        </label>
+                        <textarea
+                          value={coachNotes}
+                          onChange={(e) => setCoachNotes(e.target.value)}
+                          placeholder="Add notes for the client..."
+                          className="w-full px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-32"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 p-4 border-t border-gray-700/50">
+                      <button
+                        onClick={handleScheduleActivity}
+                        disabled={loading}
+                        className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                      >
+                        {loading ? 'Scheduling...' : 'Schedule Activity'}
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {activities.map((activity) => (
+                  // Activity selection list
+                  <div className="overflow-y-auto max-h-[400px]">
+                    {getFilteredActivities().map((activity) => (
                       <button
                         key={activity.id}
                         onClick={() => setSelectedActivity(activity)}
@@ -365,17 +1335,6 @@ export default function ActivitySelectorModal({
                         )}
                       </button>
                     ))}
-                  </div>
-                )}
-                {selectedActivity && (
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={handleScheduleActivity}
-                      disabled={loading}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-                    >
-                      {loading ? 'Scheduling...' : 'Schedule'}
-                    </button>
                   </div>
                 )}
               </div>
