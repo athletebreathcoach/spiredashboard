@@ -2,7 +2,9 @@ import {
   collection, 
   getDocs,
   getDoc,
-  doc
+  doc,
+  addDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -75,6 +77,53 @@ export const getGuidedSessions = async (): Promise<GuidedSession[]> => {
     return enrichedSessions;
   } catch (error) {
     console.error('Error fetching guided sessions:', error);
+    throw error;
+  }
+};
+
+// Schedule a guided session
+export const scheduleGuidedSession = async (
+  userId: string,
+  sessionId: string,
+  scheduledDateTime: Date,
+  timeOfDay: string = 'anytime'
+): Promise<void> => {
+  try {
+    const sessionRef = doc(db, 'guidedSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+    
+    if (!sessionDoc.exists()) {
+      throw new Error('Guided session not found');
+    }
+
+    const sessionData = sessionDoc.data();
+    
+    const scheduledExercisesRef = collection(db, 'scheduledExercises');
+    const scheduledSession = {
+      userId,
+      type: 'guidedSession',
+      sessionId,
+      exerciseTitle: sessionData.title,
+      title: sessionData.title,
+      description: sessionData.description,
+      duration: sessionData.duration,
+      videoUrl: sessionData.videoUrl,
+      intensity: sessionData.intensity,
+      sessionType: sessionData.type,
+      scheduledDateTime,
+      status: 'scheduled',
+      metrics: {
+        timeOfDay: timeOfDay.toLowerCase(),
+        completed: false,
+        logged: false
+      },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    await addDoc(scheduledExercisesRef, scheduledSession);
+  } catch (error) {
+    console.error('Error scheduling guided session:', error);
     throw error;
   }
 }; 

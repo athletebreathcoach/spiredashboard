@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/config/firebase';
 import { collection, query, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { scheduleExercise } from '@/services/scheduledExercises';
+import { scheduleExercise, scheduleNote } from '@/services/scheduledExercises';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 
 interface ActivitySelectorModalProps {
   isOpen: boolean;
@@ -37,6 +41,8 @@ export default function ActivitySelectorModal({
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(false);
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
 
   const activityTypes = [
     { id: 'exercise', name: 'Exercise', icon: '💪', collection: 'exercises' },
@@ -44,7 +50,8 @@ export default function ActivitySelectorModal({
     { id: 'breathTest', name: 'Breath Test', icon: '🌬️', collection: 'breathTests' },
     { id: 'guidedSession', name: 'Guided Session', icon: '🎯', collection: 'guidedSessions' },
     { id: 'habit', name: 'Habit', icon: '🔄', collection: 'habitstasks' },
-    { id: 'task', name: 'Task', icon: '✓', collection: 'habitstasks' }
+    { id: 'task', name: 'Task', icon: '✓', collection: 'habitstasks' },
+    { id: 'note', name: 'Note', icon: '📝', collection: null }
   ];
 
   // Calculate modal position based on viewport boundaries
@@ -99,8 +106,16 @@ export default function ActivitySelectorModal({
     setLoading(true);
     
     try {
+      if (typeId === 'note') {
+        // For notes, we don't need to fetch anything
+        setActivities([]);
+        setStep(2);
+        setLoading(false);
+        return;
+      }
+
       const selectedTypeInfo = activityTypes.find(t => t.id === typeId);
-      if (!selectedTypeInfo) return;
+      if (!selectedTypeInfo || !selectedTypeInfo.collection) return;
 
       const activitiesRef = collection(db, selectedTypeInfo.collection);
       const q = query(activitiesRef);
@@ -133,25 +148,37 @@ export default function ActivitySelectorModal({
   };
 
   const handleScheduleActivity = async () => {
-    if (!selectedActivity) return;
+    if (!selectedType) return;
 
     try {
       setLoading(true);
       const scheduledDateTime = new Date(date);
-      
-      // Use our new service to schedule the exercise
-      await scheduleExercise(
-        selectedClientId,
-        selectedActivity.id,
-        scheduledDateTime,
-        {
-          timeOfDay: timeOfDay.toLowerCase(),
-          metrics: {
-            completed: false,
-            timeOfDay: timeOfDay.toLowerCase()
-          }
+
+      if (selectedType === 'note') {
+        if (!noteTitle.trim()) {
+          alert('Please enter a note title');
+          return;
         }
-      );
+
+        await scheduleNote(selectedClientId, scheduledDateTime, {
+          title: noteTitle.trim(),
+          content: noteContent.trim(),
+          timeOfDay: timeOfDay.toLowerCase()
+        });
+      } else if (selectedActivity) {
+        await scheduleExercise(
+          selectedClientId,
+          selectedActivity.id,
+          scheduledDateTime,
+          {
+            timeOfDay: timeOfDay.toLowerCase(),
+            metrics: {
+              completed: false,
+              timeOfDay: timeOfDay.toLowerCase()
+            }
+          }
+        );
+      }
       
       if (onActivityScheduled) {
         onActivityScheduled();
@@ -161,6 +188,8 @@ export default function ActivitySelectorModal({
       setStep(1);
       setSelectedType(null);
       setSelectedActivity(null);
+      setNoteTitle('');
+      setNoteContent('');
     } catch (error) {
       console.error('Error scheduling activity:', error);
     } finally {
@@ -174,6 +203,8 @@ export default function ActivitySelectorModal({
       setStep(1);
       setSelectedType(null);
       setSelectedActivity(null);
+      setNoteTitle('');
+      setNoteContent('');
     }
   }, [isOpen]);
 
@@ -219,11 +250,15 @@ export default function ActivitySelectorModal({
             y: position.y
           }}
           transition={{ type: "spring", duration: 0.5 }}
-          className="fixed z-50 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-[300px]"
+          className="fixed z-50 bg-[#0D1117] rounded-xl shadow-2xl border border-gray-700/50 w-[800px] overflow-hidden"
+          style={{
+            maxHeight: 'calc(100vh - 40px)', // Leave some padding from viewport edges
+            maxWidth: 'calc(100vw - 40px)'   // Leave some padding from viewport edges
+          }}
         >
-          <div className="p-4">
+          <div className="flex flex-col h-full">
             {step === 1 ? (
-              <>
+              <div className="p-5">
                 <h3 className="text-lg font-semibold text-white mb-4">Select Activity Type</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {activityTypes.map((type) => (
@@ -238,21 +273,77 @@ export default function ActivitySelectorModal({
                     </button>
                   ))}
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Select {selectedType}</h3>
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between p-5 border-b border-gray-700/50">
+                  <h3 className="text-lg font-semibold text-white">
+                    {selectedType === 'note' ? 'Create Note' : `Select ${selectedType}`}
+                  </h3>
                   <button
                     onClick={() => setStep(1)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-1"
                   >
                     ← Back
                   </button>
                 </div>
                 {loading ? (
-                  <div className="flex justify-center py-8">
+                  <div className="flex-1 flex justify-center items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                ) : selectedType === 'note' ? (
+                  <div className="flex flex-col flex-1 p-5">
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        value={noteTitle}
+                        onChange={(e) => setNoteTitle(e.target.value)}
+                        placeholder="Enter note title"
+                        className="w-full px-3 py-2.5 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none placeholder-gray-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
+                      {/* Editor */}
+                      <div className="flex flex-col min-h-0">
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                          Content
+                        </label>
+                        <textarea
+                          value={noteContent}
+                          onChange={(e) => setNoteContent(e.target.value)}
+                          placeholder="Enter note content (Markdown supported)"
+                          className="flex-1 w-full px-3 py-2.5 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none resize-none font-mono text-sm placeholder-gray-500"
+                        />
+                      </div>
+                      {/* Preview */}
+                      <div className="flex flex-col min-h-0">
+                        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                          Preview
+                        </label>
+                        <div className="flex-1 px-3 py-2.5 bg-[#161B22] text-white rounded-lg border border-gray-700/50 overflow-y-auto">
+                          <div className="prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                            >
+                              {noteContent || '_No content yet_'}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-4">
+                      <button
+                        onClick={handleScheduleActivity}
+                        disabled={loading || !noteTitle.trim()}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+                      >
+                        {loading ? 'Scheduling...' : 'Schedule Note'}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -287,7 +378,7 @@ export default function ActivitySelectorModal({
                     </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </motion.div>

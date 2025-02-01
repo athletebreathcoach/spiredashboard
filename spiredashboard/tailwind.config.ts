@@ -15,20 +15,36 @@ export default {
         secondary: "var(--secondary)",
         accent: "var(--accent)",
         dark: {
-          DEFAULT: "#1C1C1E",
-          50: "#2C2C2E",
-          100: "#3A3A3C",
-          200: "#48484A",
-          300: "#636366",
-          400: "#8E8E93",
-          500: "#AEAEB2",
-          600: "#C7C7CC",
-          700: "#D1D1D6",
-          800: "#E5E5EA",
-          900: "#F2F2F7",
+          DEFAULT: "#0A0A0A",
+          50: "#1A1A1A",
+          100: "#141414",
+          200: "#0F0F0F",
+          bg: "#050505"
+        },
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            code: {
+              backgroundColor: 'rgb(var(--tw-prose-pre-bg))',
+              padding: '0.25rem',
+              borderRadius: '0.25rem',
+              fontWeight: '400',
+            },
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
         },
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
+  darkMode: 'class',
 } satisfies Config;

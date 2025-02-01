@@ -6,13 +6,14 @@ import { useAuth } from '@/context/AuthContext';
 import ClientSelector from '@/components/ClientSelector';
 import ActivitySelectorModal from '@/components/ActivitySelectorModal';
 import { db } from '@/config/firebase';
-import { collection, query, where, getDocs, Timestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
 interface Client {
   id: string;
   firstName?: string;
   lastName?: string;
   email?: string;
+  isGroup?: boolean;
 }
 
 interface ActivityType {
@@ -180,33 +181,63 @@ export default function TrainingPage() {
         const start = startOfWeek(selectedDate);
         const end = endOfWeek(selectedDate);
 
-        const exercisesRef = collection(db, 'scheduledExercises');
-        const q = query(
-          exercisesRef,
-          where('userId', '==', selectedClient.id),
-          where('scheduledDateTime', '>=', start),
-          where('scheduledDateTime', '<=', end)
-        );
+        if (selectedClient.isGroup) {
+          // If a group is selected, only get activities scheduled for the group
+          const exercisesRef = collection(db, 'scheduledExercises');
+          const q = query(
+            exercisesRef,
+            where('groupId', '==', selectedClient.id),
+            where('scheduledDateTime', '>=', start),
+            where('scheduledDateTime', '<=', end)
+          );
 
-        const snapshot = await getDocs(q);
-        const fetchedActivities = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            exerciseTitle: data.exerciseTitle || 'Untitled',
-            type: data.type || data.exerciseType || 'exercise',
-            exerciseType: data.exerciseType,
-            scheduledDateTime: data.scheduledDateTime,
-            status: data.status || 'scheduled',
-            metrics: {
-              timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
-              ...(data.metrics || {})
-            }
-          } as ScheduledActivity;
-        });
+          const snapshot = await getDocs(q);
+          const groupActivities = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              exerciseTitle: data.exerciseTitle || 'Untitled',
+              type: data.type || data.exerciseType || 'exercise',
+              exerciseType: data.exerciseType,
+              scheduledDateTime: data.scheduledDateTime,
+              status: data.status || 'scheduled',
+              metrics: {
+                timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
+                ...(data.metrics || {})
+              }
+            } as ScheduledActivity;
+          });
 
-        console.log('Fetched activities:', fetchedActivities);
-        setActivities(fetchedActivities);
+          setActivities(groupActivities);
+        } else {
+          // If an individual client is selected, get their personal activities
+          const exercisesRef = collection(db, 'scheduledExercises');
+          const q = query(
+            exercisesRef,
+            where('userId', '==', selectedClient.id),
+            where('scheduledDateTime', '>=', start),
+            where('scheduledDateTime', '<=', end)
+          );
+
+          const snapshot = await getDocs(q);
+          const clientActivities = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              exerciseTitle: data.exerciseTitle || 'Untitled',
+              type: data.type || data.exerciseType || 'exercise',
+              exerciseType: data.exerciseType,
+              scheduledDateTime: data.scheduledDateTime,
+              status: data.status || 'scheduled',
+              metrics: {
+                timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
+                ...(data.metrics || {})
+              }
+            } as ScheduledActivity;
+          });
+
+          setActivities(clientActivities);
+        }
       } catch (error) {
         console.error('Error fetching activities:', error);
       }
@@ -266,32 +297,63 @@ export default function TrainingPage() {
         const start = startOfWeek(selectedDate);
         const end = endOfWeek(selectedDate);
 
-        const exercisesRef = collection(db, 'scheduledExercises');
-        const q = query(
-          exercisesRef,
-          where('userId', '==', selectedClient.id),
-          where('scheduledDateTime', '>=', start),
-          where('scheduledDateTime', '<=', end)
-        );
+        if (selectedClient.isGroup) {
+          // If a group is selected, only get activities scheduled for the group
+          const exercisesRef = collection(db, 'scheduledExercises');
+          const q = query(
+            exercisesRef,
+            where('groupId', '==', selectedClient.id),
+            where('scheduledDateTime', '>=', start),
+            where('scheduledDateTime', '<=', end)
+          );
 
-        const snapshot = await getDocs(q);
-        const fetchedActivities = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            exerciseTitle: data.exerciseTitle || 'Untitled',
-            type: data.type || data.exerciseType || 'exercise',
-            exerciseType: data.exerciseType,
-            scheduledDateTime: data.scheduledDateTime,
-            status: data.status || 'scheduled',
-            metrics: {
-              timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
-              ...(data.metrics || {})
-            }
-          } as ScheduledActivity;
-        });
+          const snapshot = await getDocs(q);
+          const groupActivities = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              exerciseTitle: data.exerciseTitle || 'Untitled',
+              type: data.type || data.exerciseType || 'exercise',
+              exerciseType: data.exerciseType,
+              scheduledDateTime: data.scheduledDateTime,
+              status: data.status || 'scheduled',
+              metrics: {
+                timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
+                ...(data.metrics || {})
+              }
+            } as ScheduledActivity;
+          });
 
-        setActivities(fetchedActivities);
+          setActivities(groupActivities);
+        } else {
+          // If an individual client is selected, get their personal activities
+          const exercisesRef = collection(db, 'scheduledExercises');
+          const q = query(
+            exercisesRef,
+            where('userId', '==', selectedClient.id),
+            where('scheduledDateTime', '>=', start),
+            where('scheduledDateTime', '<=', end)
+          );
+
+          const snapshot = await getDocs(q);
+          const clientActivities = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              exerciseTitle: data.exerciseTitle || 'Untitled',
+              type: data.type || data.exerciseType || 'exercise',
+              exerciseType: data.exerciseType,
+              scheduledDateTime: data.scheduledDateTime,
+              status: data.status || 'scheduled',
+              metrics: {
+                timeOfDay: (data.metrics?.timeOfDay || 'anytime').toLowerCase(),
+                ...(data.metrics || {})
+              }
+            } as ScheduledActivity;
+          });
+
+          setActivities(clientActivities);
+        }
       } catch (error) {
         console.error('Error fetching activities:', error);
       }

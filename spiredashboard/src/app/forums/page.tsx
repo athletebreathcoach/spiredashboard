@@ -37,6 +37,8 @@ interface ForumPost {
   userEmail: string;
   authorName: string;
   authorId: string;
+  forumId: string;
+  forumName: string;
   channel: string;
   timestamp: Date;
   likes: string[];
@@ -71,15 +73,33 @@ export default function Forums() {
   const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [forums, setForums] = useState<{id: string, name: string}[]>([]);
+  const [selectedForum, setSelectedForum] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     checkIfCoach();
+    loadForums();
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedForum) {
+      console.log('Selected forum changed to:', selectedForum);
+      loadInitialPosts();
+    }
+  }, [selectedForum, selectedChannel]);
+
+  useEffect(() => {
+    if (!user || !selectedForum) return;
     loadInitialPosts();
 
     // Set up real-time listener for new posts
-    const postsRef = collection(db, 'forum_posts');
-    const q = query(postsRef, orderBy('timestamp', 'desc'), limit(1));
+    const postsRef = collection(db, 'forums', selectedForum, 'posts');
+    let q = query(
+      postsRef,
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
@@ -94,6 +114,8 @@ export default function Forums() {
           userEmail: newPostData.userEmail,
           authorName: newPostData.authorName,
           authorId: newPostData.authorId,
+          forumId: selectedForum,
+          forumName: forums.find(f => f.id === selectedForum)?.name || '',
           channel: newPostData.channel,
           timestamp: newPostData.timestamp?.toDate() || new Date(),
           likes: newPostData.likes || [],
@@ -111,7 +133,7 @@ export default function Forums() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, selectedForum]);
 
   const checkIfCoach = async () => {
     if (!user) return;
@@ -123,14 +145,46 @@ export default function Forums() {
     }
   };
 
+  const loadForums = async () => {
+    try {
+      const forumsRef = collection(db, 'forums');
+      const snapshot = await getDocs(forumsRef);
+      const fetchedForums = snapshot.docs
+        .filter(doc => {
+          const name = doc.data().name;
+          return name === '8 Week Breath Training' || name === 'Athlete Forum';
+        })
+        .map(doc => ({
+          id: doc.id,
+          name: doc.data().name
+        }));
+
+      setForums(fetchedForums);
+      
+      // Select the first forum by default if none is selected
+      if (fetchedForums.length > 0 && !selectedForum) {
+        setSelectedForum(fetchedForums[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading forums:', error);
+      setError('Failed to load forums');
+    }
+  };
+
   const loadInitialPosts = async () => {
+    if (!selectedForum) return;
     setLoading(true);
     try {
-      const postsRef = collection(db, 'forum_posts');
+      console.log('Loading posts for forum:', selectedForum);
+      const postsRef = collection(db, 'forums', selectedForum, 'posts');
       let q;
       
       if (selectedChannel === 'All') {
-        q = query(postsRef, orderBy('timestamp', 'desc'), limit(POSTS_PER_PAGE));
+        q = query(
+          postsRef,
+          orderBy('timestamp', 'desc'),
+          limit(POSTS_PER_PAGE)
+        );
       } else {
         q = query(
           postsRef,
@@ -141,12 +195,14 @@ export default function Forums() {
       }
       
       const snapshot = await getDocs(q);
+      console.log('Query snapshot empty?', snapshot.empty);
+      console.log('Number of posts found:', snapshot.docs.length);
       
       if (!snapshot.empty) {
         const fetchedPosts = await Promise.all(snapshot.docs.map(async doc => {
           const data = doc.data();
-          // Load comments for each post
-          const commentsRef = collection(db, 'forum_posts', doc.id, 'comments');
+          console.log('Post data:', data);
+          const commentsRef = collection(db, 'forums', selectedForum, 'posts', doc.id, 'comments');
           const commentsSnapshot = await getDocs(query(commentsRef, orderBy('timestamp', 'desc')));
           const comments: ForumComment[] = commentsSnapshot.docs.map(commentDoc => {
             const commentData = commentDoc.data();
@@ -161,7 +217,7 @@ export default function Forums() {
             };
           });
           
-          const post: ForumPost = {
+          return {
             id: doc.id,
             text: data.text,
             image: data.image,
@@ -170,22 +226,25 @@ export default function Forums() {
             userEmail: data.userEmail,
             authorName: data.authorName,
             authorId: data.authorId,
+            forumId: selectedForum,
+            forumName: forums.find(f => f.id === selectedForum)?.name || '',
             channel: data.channel,
             timestamp: data.timestamp?.toDate() || new Date(),
             likes: data.likes || [],
             isPinned: data.isPinned,
             comments
           };
-          
-          return post;
         }));
+        console.log('Processed posts:', fetchedPosts);
         setPosts(fetchedPosts);
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(true);
       } else {
+        console.log('No posts found for this forum');
         setPosts([]);
         setLastVisible(null);
+        setHasMore(false);
       }
-      setHasMore(true);
     } catch (error) {
       console.error('Error loading posts:', error);
       setError('Failed to load posts');
@@ -195,10 +254,10 @@ export default function Forums() {
   };
 
   const loadMorePosts = async () => {
-    if (!hasMore || !lastVisible) return;
+    if (!hasMore || !lastVisible || !selectedForum) return;
     
     try {
-      const postsRef = collection(db, 'forum_posts');
+      const postsRef = collection(db, 'forums', selectedForum, 'posts');
       let q;
       
       if (selectedChannel === 'All') {
@@ -223,8 +282,7 @@ export default function Forums() {
       if (!snapshot.empty) {
         const morePosts = await Promise.all(snapshot.docs.map(async doc => {
           const data = doc.data();
-          // Load comments for each post
-          const commentsRef = collection(db, 'forum_posts', doc.id, 'comments');
+          const commentsRef = collection(db, 'forums', selectedForum, 'posts', doc.id, 'comments');
           const commentsSnapshot = await getDocs(query(commentsRef, orderBy('timestamp', 'desc')));
           const comments: ForumComment[] = commentsSnapshot.docs.map(commentDoc => {
             const commentData = commentDoc.data();
@@ -239,7 +297,7 @@ export default function Forums() {
             };
           });
           
-          const post: ForumPost = {
+          return {
             id: doc.id,
             text: data.text,
             image: data.image,
@@ -248,14 +306,14 @@ export default function Forums() {
             userEmail: data.userEmail,
             authorName: data.authorName,
             authorId: data.authorId,
+            forumId: selectedForum,
+            forumName: forums.find(f => f.id === selectedForum)?.name || '',
             channel: data.channel,
             timestamp: data.timestamp?.toDate() || new Date(),
             likes: data.likes || [],
             isPinned: data.isPinned,
             comments
           };
-          
-          return post;
         }));
         setPosts(prevPosts => [...prevPosts, ...morePosts]);
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
@@ -268,13 +326,14 @@ export default function Forums() {
   };
 
   const createPost = async () => {
-    if (!user || !newPost.trim() || submitting) return;
+    if (!user || !newPost.trim() || submitting || !selectedForum) return;
 
     try {
       setSubmitting(true);
       const postChannel = selectedChannel === 'All' ? 'Training' : selectedChannel;
+      const selectedForumData = forums.find(f => f.id === selectedForum);
       
-      await addDoc(collection(db, 'forum_posts'), {
+      const postData = {
         text: newPost.trim(),
         isCoachPost: isCoach,
         userId: user.uid,
@@ -284,7 +343,10 @@ export default function Forums() {
         channel: postChannel,
         timestamp: serverTimestamp(),
         likes: []
-      });
+      };
+      
+      console.log('Creating new post with data:', postData);
+      await addDoc(collection(db, 'forums', selectedForum, 'posts'), postData);
 
       setNewPost('');
       await loadInitialPosts();
@@ -296,10 +358,10 @@ export default function Forums() {
   };
 
   const toggleLike = async (postId: string) => {
-    if (!user) return;
+    if (!user || !selectedForum) return;
     
     try {
-      const postRef = doc(db, 'forum_posts', postId);
+      const postRef = doc(db, 'forums', selectedForum, 'posts', postId);
       const postDoc = await getDoc(postRef);
       const currentLikes = postDoc.data()?.likes || [];
       
@@ -320,8 +382,9 @@ export default function Forums() {
   };
 
   const deletePost = async (postId: string) => {
+    if (!selectedForum) return;
     try {
-      await deleteDoc(doc(db, 'forum_posts', postId));
+      await deleteDoc(doc(db, 'forums', selectedForum, 'posts', postId));
       await loadInitialPosts();
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -336,11 +399,11 @@ export default function Forums() {
   };
 
   const addComment = async (postId: string) => {
-    if (!user || !newComment.trim() || submittingComment) return;
+    if (!user || !newComment.trim() || submittingComment || !selectedForum) return;
 
     try {
       setSubmittingComment(true);
-      const commentsRef = collection(db, 'forum_posts', postId, 'comments');
+      const commentsRef = collection(db, 'forums', selectedForum, 'posts', postId, 'comments');
       
       await addDoc(commentsRef, {
         text: newComment.trim(),
@@ -360,10 +423,10 @@ export default function Forums() {
   };
 
   const togglePin = async (postId: string) => {
-    if (!isCoach) return;
+    if (!isCoach || !selectedForum) return;
     
     try {
-      const postRef = doc(db, 'forum_posts', postId);
+      const postRef = doc(db, 'forums', selectedForum, 'posts', postId);
       const postDoc = await getDoc(postRef);
       const isPinned = postDoc.data()?.isPinned || false;
       
@@ -394,218 +457,298 @@ export default function Forums() {
   }
 
   return (
-    <div className="h-full">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-white uppercase tracking-wider mb-4">
-          Forums
-        </h1>
-        <p className="text-lg text-gray-300">
-          Join the conversation with coaches and clients
-        </p>
+    <div className="h-full flex flex-col">
+      {/* Top Navigation */}
+      <div className="flex items-center justify-between mb-6 bg-gray-800/50 p-4 rounded-lg">
+        <div className="flex items-center space-x-4">
+          <UserCircleIcon className="w-10 h-10 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Let's share what going on your mind..."
+            value={newPost}
+            onChange={(e) => setNewPost(e.target.value)}
+            className="bg-transparent text-white placeholder-gray-400 focus:outline-none"
+          />
+        </div>
+        <button
+          onClick={createPost}
+          disabled={!newPost.trim() || submitting || !selectedForum}
+          className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Create Post
+        </button>
       </div>
 
-      {/* Channel Selector */}
-      <div className="flex space-x-4 mb-8">
-        {channels.map((channel) => (
-          <button
-            key={channel}
-            onClick={() => setSelectedChannel(channel)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              selectedChannel === channel
-                ? 'bg-yellow-500 text-gray-900'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            {channel}
-          </button>
-        ))}
-      </div>
-
-      {/* New Post Input */}
-      <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-8">
-        <div className="flex items-start space-x-4">
-          <div className="flex-shrink-0">
-            <UserCircleIcon className="w-10 h-10 text-gray-400" />
+      {/* Main Content Area */}
+      <div className="flex flex-1 space-x-6">
+        {/* Left Sidebar */}
+        <div className="w-64 space-y-6">
+          {/* Forum Selector */}
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <h2 className="text-white font-medium mb-4">Forums</h2>
+            <div className="space-y-2">
+              {forums.map((forum) => (
+                <button
+                  key={forum.id}
+                  onClick={() => setSelectedForum(forum.id)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedForum === forum.id
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'text-gray-400 hover:bg-gray-700/50'
+                  }`}
+                >
+                  {forum.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex-1">
-            <textarea
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              placeholder="Write something..."
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500 min-h-[100px]"
-            />
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={createPost}
-                disabled={!newPost.trim() || submitting}
-                className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Post
-              </button>
+
+          {/* Categories */}
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <h2 className="text-white font-medium mb-4">Newest and Recent</h2>
+            <div className="text-sm text-gray-400">
+              See what's new in forums
+            </div>
+          </div>
+
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <h2 className="text-white font-medium mb-4">Popular of the day</h2>
+            <div className="text-sm text-gray-400">
+              Stay updated on trending topics
+            </div>
+          </div>
+
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <h2 className="text-white font-medium mb-4">Following</h2>
+            <div className="text-sm text-gray-400">
+              Explore from your favorite people
+            </div>
+          </div>
+
+          {/* Channel Selector */}
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <h2 className="text-white font-medium mb-4">Channels</h2>
+            <div className="space-y-2">
+              {channels.map((channel) => (
+                <button
+                  key={channel}
+                  onClick={() => setSelectedChannel(channel)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedChannel === channel
+                      ? 'bg-yellow-500 text-gray-900'
+                      : 'text-gray-400 hover:bg-gray-700/50'
+                  }`}
+                >
+                  {channel}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Posts List */}
-      <div className="space-y-6">
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            className={`bg-gray-800/50 border border-gray-700 rounded-lg p-4 ${
-              post.isPinned ? 'border-yellow-500/50' : ''
-            }`}
-          >
-            {/* Post Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <UserCircleIcon className="w-10 h-10 text-gray-400" />
-                <div>
-                  <p className="font-medium text-white">
-                    {post.authorName}
-                    {post.isCoachPost && (
-                      <span className="ml-2 text-sm text-yellow-500">(Coach)</span>
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    {post.timestamp.toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                {isCoach && (
-                  <button
-                    onClick={() => togglePin(post.id)}
-                    className={`p-1 rounded hover:bg-gray-700 transition-colors ${
-                      post.isPinned ? 'text-yellow-500' : 'text-gray-400'
-                    }`}
-                  >
-                    <StarIcon className="w-5 h-5" />
-                  </button>
-                )}
-                {(isCoach || post.authorId === user?.uid) && (
-                  <button
-                    onClick={() => deletePost(post.id)}
-                    className="p-1 rounded text-red-500 hover:bg-gray-700 transition-colors"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Post Content */}
-            {post.text && (
-              <p className="text-white mb-4 whitespace-pre-wrap">{post.text}</p>
-            )}
-            {post.image && (
-              <div className="mb-4 relative aspect-video">
-                {post.image.includes('.gif') ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={post.image}
-                    alt="Post gif"
-                    className="rounded-lg w-full h-full object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <Image
-                    src={post.image}
-                    alt="Post image"
-                    fill
-                    className="rounded-lg object-contain"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Post Actions */}
-            <div className="flex items-center space-x-4 text-gray-400">
-              <button
-                onClick={() => toggleLike(post.id)}
-                className={`flex items-center space-x-1 hover:text-white transition-colors ${
-                  post.likes?.includes(user?.uid || '') ? 'text-yellow-500' : ''
-                }`}
-              >
-                <span>{post.likes?.length || 0} likes</span>
-              </button>
-              <button
-                onClick={() => toggleComments(post.id)}
-                className="flex items-center space-x-1 hover:text-white transition-colors"
-              >
-                <ChatBubbleLeftIcon className="w-5 h-5" />
-                <span>{post.comments?.length || 0} comments</span>
-              </button>
-            </div>
-
-            {/* Comments Section */}
-            {showComments[post.id] && (
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                {/* Comment Input */}
-                <div className="flex items-start space-x-3 mb-4">
-                  <UserCircleIcon className="w-8 h-8 text-gray-400" />
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
-                    />
-                  </div>
-                  <button
-                    onClick={() => addComment(post.id)}
-                    disabled={!newComment.trim() || submittingComment}
-                    className="bg-yellow-500 text-gray-900 p-2 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <PaperAirplaneIcon className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Comments List */}
-                <div className="space-y-4">
-                  {post.comments?.map((comment) => (
-                    <div key={comment.id} className="flex items-start space-x-3">
-                      <UserCircleIcon className="w-8 h-8 text-gray-400" />
-                      <div className="flex-1">
-                        <div className="bg-gray-900/50 rounded-lg p-3">
-                          <p className="font-medium text-white text-sm">
-                            {comment.authorName}
-                          </p>
-                          <p className="text-white">{comment.text}</p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {comment.timestamp.toLocaleDateString()}
-                        </p>
-                      </div>
+        {/* Main Content */}
+        <div className="flex-1 space-y-4">
+          {posts.map((post) => (
+            <div
+              key={post.id}
+              className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50"
+            >
+              {/* Post Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <UserCircleIcon className="w-10 h-10 text-gray-400" />
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <p className="font-medium text-white">
+                        {post.authorName}
+                      </p>
+                      {post.isCoachPost && (
+                        <span className="text-sm text-yellow-500">(Coach)</span>
+                      )}
+                      <span className="text-sm text-gray-400">•</span>
+                      <span className="text-sm text-gray-400">
+                        {post.timestamp.toLocaleDateString()}
+                      </span>
                     </div>
-                  ))}
+                    <p className="text-sm text-gray-400">{post.forumName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {isCoach && (
+                    <button
+                      onClick={() => togglePin(post.id)}
+                      className={`p-1 rounded hover:bg-gray-700 transition-colors ${
+                        post.isPinned ? 'text-yellow-500' : 'text-gray-400'
+                      }`}
+                    >
+                      <StarIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                  {(isCoach || post.authorId === user?.uid) && (
+                    <button
+                      onClick={() => deletePost(post.id)}
+                      className="p-1 rounded text-red-500 hover:bg-gray-700 transition-colors"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
 
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="mt-8 text-center">
-          <button
-            onClick={loadMorePosts}
-            className="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            Load More
-          </button>
+              {/* Post Content */}
+              {post.text && (
+                <p className="text-white mb-4 whitespace-pre-wrap">{post.text}</p>
+              )}
+              {post.image && (
+                <div className="mb-4">
+                  {post.image.toLowerCase().endsWith('.gif') ? (
+                    <div className="relative w-full max-h-[500px] overflow-hidden rounded-lg">
+                      <img
+                        src={post.image}
+                        alt="Post gif"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative aspect-video">
+                      <Image
+                        src={post.image}
+                        alt="Post image"
+                        fill
+                        className="rounded-lg object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Post Stats */}
+              <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
+                <div className="flex items-center space-x-4">
+                  <span>{post.likes?.length || 0} likes</span>
+                  <span>{post.comments?.length || 0} comments</span>
+                </div>
+              </div>
+
+              {/* Post Actions */}
+              <div className="flex items-center space-x-4 pt-3 border-t border-gray-700">
+                <button
+                  onClick={() => toggleLike(post.id)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-700/50 transition-colors ${
+                    post.likes?.includes(user?.uid || '') ? 'text-yellow-500' : 'text-gray-400'
+                  }`}
+                >
+                  <span>Like</span>
+                </button>
+                <button
+                  onClick={() => toggleComments(post.id)}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700/50 transition-colors"
+                >
+                  <ChatBubbleLeftIcon className="w-5 h-5" />
+                  <span>Comment</span>
+                </button>
+              </div>
+
+              {/* Comments Section */}
+              {showComments[post.id] && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  {/* Comment Input */}
+                  <div className="flex items-start space-x-3 mb-4">
+                    <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Write a comment..."
+                        className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                      />
+                    </div>
+                    <button
+                      onClick={() => addComment(post.id)}
+                      disabled={!newComment.trim() || submittingComment}
+                      className="bg-yellow-500 text-gray-900 p-2 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <PaperAirplaneIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Comments List */}
+                  <div className="space-y-4">
+                    {post.comments?.map((comment) => (
+                      <div key={comment.id} className="flex items-start space-x-3">
+                        <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                        <div className="flex-1">
+                          <div className="bg-gray-900/50 rounded-lg p-3">
+                            <p className="font-medium text-white text-sm">
+                              {comment.authorName}
+                            </p>
+                            <p className="text-white">{comment.text}</p>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {comment.timestamp.toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={loadMorePosts}
+                className="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Load More
+              </button>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right Sidebar - Meetups */}
+        <div className="w-72">
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-medium">Meetups</h2>
+              <button className="text-gray-400 hover:text-white">
+                View all →
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-gray-900/50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-gray-400">FEB 7</div>
+                  <div className="text-xs text-gray-500">First time</div>
+                </div>
+                <h3 className="text-white font-medium mb-1">UIHUT - Crunchbase Company Profile</h3>
+                <p className="text-sm text-gray-400">UIHUT • Austin, Texas, USA</p>
+              </div>
+              <div className="bg-gray-900/50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-gray-400">FEB 3</div>
+                  <div className="text-xs text-gray-500">Part time</div>
+                </div>
+                <h3 className="text-white font-medium mb-1">Design Meetups USA | Dribbble</h3>
+                <p className="text-sm text-gray-400">Dribbble • Austin, Texas, USA</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 } 

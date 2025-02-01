@@ -6,6 +6,7 @@ import { collection, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import Link from 'next/link';
 import { UserCircleIcon } from '@heroicons/react/24/solid';
+import Groups from '@/components/Groups';
 
 interface Client {
   id: string;
@@ -14,11 +15,14 @@ interface Client {
   email?: string;
 }
 
+type Tab = 'clients' | 'groups';
+
 export default function Clients() {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('clients');
 
   useEffect(() => {
     const loadClients = async () => {
@@ -69,33 +73,28 @@ export default function Clients() {
     loadClients();
   }, [user]);
 
-  if (loading) {
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-red-500">{error}</div>
+        </div>
+      );
+    }
+
+    if (activeTab === 'groups') {
+      return <Groups />;
+    }
+
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-white">Loading clients...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-white uppercase tracking-wider mb-4">
-          Clients
-        </h1>
-        <p className="text-lg text-gray-300">
-          Select a client to start chatting
-        </p>
-      </div>
-
       <div className="space-y-4">
         {clients.map((client) => (
           <Link
@@ -127,6 +126,45 @@ export default function Clients() {
           </div>
         )}
       </div>
+    );
+  };
+
+  return (
+    <div className="h-full">
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-white uppercase tracking-wider mb-4">
+          {activeTab === 'clients' ? 'Clients' : 'Groups'}
+        </h1>
+        <div className="flex space-x-4 mb-6">
+          <button
+            onClick={() => setActiveTab('clients')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === 'clients'
+                ? 'bg-yellow-500 text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Clients
+          </button>
+          <button
+            onClick={() => setActiveTab('groups')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === 'groups'
+                ? 'bg-yellow-500 text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Groups
+          </button>
+        </div>
+        <p className="text-lg text-gray-300">
+          {activeTab === 'clients' 
+            ? 'Select a client to start chatting'
+            : 'Manage your training groups'}
+        </p>
+      </div>
+
+      {renderContent()}
     </div>
   );
 } 
