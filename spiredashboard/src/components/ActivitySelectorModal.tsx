@@ -30,6 +30,8 @@ interface Activity {
   sessionType?: string;
   intensity?: string;
   priority?: string;
+  collectionType?: string;
+  activityType?: string;
   [key: string]: any;
 }
 
@@ -214,14 +216,16 @@ export default function ActivitySelectorModal({
             (item.title || item.name || '').toLowerCase().includes(query) ||
             (item.description || '').toLowerCase().includes(query)
           )
-          .map((item: ActivityItem) => ({
+          .map((item: ActivityItem): Activity => ({
             ...item,
+            id: item.id,
+            type: item.type || '',
             activityType: type
           }))
       );
     } else {
       // Search within selected category
-      return activities.filter(activity =>
+      return activities.filter((activity: Activity) =>
         (activity.title || activity.name || '').toLowerCase().includes(query) ||
         (activity.description || '').toLowerCase().includes(query)
       );
@@ -280,7 +284,7 @@ export default function ActivitySelectorModal({
   };
 
   const handleScheduleActivity = async () => {
-    if (!selectedType) return;
+    if (!selectedType || !selectedActivity) return;
 
     try {
       setLoading(true);
@@ -297,7 +301,7 @@ export default function ActivitySelectorModal({
           content: noteContent.trim(),
           timeOfDay: timeOfDay.toLowerCase()
         });
-      } else if (selectedActivity) {
+      } else {
         let scheduleData;
         
         switch (selectedType) {
@@ -307,10 +311,10 @@ export default function ActivitySelectorModal({
               type: 'exercise',
               description: selectedActivity.description || '',
               videoId: selectedActivity.videoId,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
+            timeOfDay: timeOfDay.toLowerCase(),
+            metrics: {
                 timeOfDay: timeOfDay.toLowerCase(),
-                completed: false,
+              completed: false,
                 sets: exerciseMetrics.sets,
                 eachSide: exerciseMetrics.eachSide,
                 notes: ''
@@ -324,6 +328,8 @@ export default function ActivitySelectorModal({
               exerciseTitle: selectedActivity.title || selectedActivity.name,
               type: 'breathProtocol',
               description: selectedActivity.description || '',
+              collectionId: 'breathProtocols',
+              protocolId: selectedActivity.id,
               protocol: {
                 pattern: {
                   inhale: protocolMetrics.inhaleTime,
@@ -411,9 +417,16 @@ export default function ActivitySelectorModal({
             break;
         }
 
+        console.log('Scheduling activity:', {
+          clientId: selectedClientId,
+          activityId: selectedActivity.id,
+          date: scheduledDateTime,
+          data: scheduleData
+        });
+
         await scheduleExercise(
           selectedClientId,
-          selectedActivity.id,
+          `breathProtocols/${selectedActivity.id}`,
           scheduledDateTime,
           scheduleData
         );
@@ -449,6 +462,7 @@ export default function ActivitySelectorModal({
       });
     } catch (error) {
       console.error('Error scheduling activity:', error);
+      alert('Failed to schedule activity. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -836,18 +850,9 @@ export default function ActivitySelectorModal({
       {isOpen && (
         <motion.div
           id="activity-selector-modal"
-          initial={{ 
-            scale: 0.95,
-            opacity: 0
-          }}
-          animate={{ 
-            scale: 1,
-            opacity: 1
-          }}
-          exit={{ 
-            scale: 0.95,
-            opacity: 0
-          }}
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
           transition={{ type: "spring", duration: 0.3 }}
           className={`fixed z-50 bg-[#0D1117] rounded-xl shadow-2xl border border-gray-700/50 overflow-hidden
             ${selectedType === 'note' && step === 2 ? 'w-[800px]' : 'w-[400px]'}`}
@@ -891,11 +896,11 @@ export default function ActivitySelectorModal({
                 {searchQuery.trim() ? (
                   // Show search results across all activities
                   <div className="p-4 space-y-2">
-                    {getFilteredActivities().map((activity) => (
+                    {getFilteredActivities().map((activity: Activity) => (
                       <button
                         key={activity.id}
                         onClick={() => {
-                          const type = activity.activityType.replace(/s$/, '');
+                          const type = (activity.activityType || '').replace(/s$/, '');
                           setSelectedType(type);
                           setActivities([activity]);
                           setSelectedActivity(activity);
@@ -908,7 +913,7 @@ export default function ActivitySelectorModal({
                           <div className="text-sm text-gray-300 mt-1">{activity.description}</div>
                         )}
                         <div className="text-xs text-gray-400 mt-1 capitalize">
-                          {activity.activityType.replace(/([A-Z])/g, ' $1').trim()}
+                          {(activity.activityType || '').replace(/([A-Z])/g, ' $1').trim()}
                         </div>
                       </button>
                     ))}
@@ -1317,7 +1322,7 @@ export default function ActivitySelectorModal({
                 ) : (
                   // Activity selection list
                   <div className="overflow-y-auto max-h-[400px]">
-                    {getFilteredActivities().map((activity) => (
+                    {getFilteredActivities().map((activity: Activity) => (
                       <button
                         key={activity.id}
                         onClick={() => setSelectedActivity(activity)}
