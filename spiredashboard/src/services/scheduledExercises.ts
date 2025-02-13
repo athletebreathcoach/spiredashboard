@@ -40,6 +40,12 @@ export interface ScheduledExercise {
   createdAt?: Date;
   updatedAt?: Date;
   createdBy: string;
+  content?: string;
+  documentId?: string;
+  linkPreviews?: Array<{
+    title: string;
+    url: string;
+  }>;
 }
 
 // Schedule a new exercise
@@ -50,11 +56,72 @@ export const scheduleExercise = async (
   options: {
     timeOfDay?: string;
     metrics?: any;
+    type?: string;
     [key: string]: any;
   } = {}
 ): Promise<ScheduledExercise> => {
   try {
-    // Get the exercise details first
+    // Handle education type differently
+    if (options.type === 'education') {
+      const educationRef = doc(db, 'education', 'content', 'documents', exerciseId);
+      const educationDoc = await getDoc(educationRef);
+      
+      if (!educationDoc.exists()) {
+        throw new Error('Education document not found');
+      }
+
+      const education = educationDoc.data();
+      const scheduledExerciseRef = collection(db, 'scheduledExercises');
+      
+      // Ensure we have a valid title
+      const title = options.exerciseTitle || education?.title || 'Untitled';
+      
+      // First spread options, then override specific fields to ensure they're not overwritten
+      const scheduledEducation: ScheduledExercise = {
+        ...options,
+        exerciseId,
+        userId,
+        exerciseTitle: title,
+        title: title, // Add title field as well for compatibility
+        exerciseType: 'education',
+        type: 'education', // Add type field for compatibility
+        scheduledDateTime,
+        status: 'scheduled',
+        metrics: {
+          timeOfDay: (options.timeOfDay || 'anytime').toLowerCase(),
+          completed: false,
+          logged: false,
+          content: education.content || '',
+          documentId: exerciseId,
+          linkPreviews: education.linkPreviews || [],
+          title: title, // Add title to metrics as well
+          ...(options.metrics || {})
+        },
+        clientComments: '',
+        coachNotes: options.coachNotes || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: userId,
+        // These fields are also included at the top level for backward compatibility
+        content: education.content || '',
+        documentId: exerciseId,
+        linkPreviews: education.linkPreviews || []
+      };
+
+      const docRef = await addDoc(scheduledExerciseRef, {
+        ...scheduledEducation,
+        scheduledDateTime: Timestamp.fromDate(scheduledDateTime),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      return {
+        id: docRef.id,
+        ...scheduledEducation
+      };
+    }
+
+    // Original exercise scheduling logic
     const exerciseRef = doc(db, 'exercises', exerciseId);
     const exerciseDoc = await getDoc(exerciseRef);
     

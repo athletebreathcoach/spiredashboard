@@ -32,6 +32,12 @@ interface Activity {
   priority?: string;
   collectionType?: string;
   activityType?: string;
+  content?: string;
+  linkPreviews?: {
+    url: string;
+    type: 'youtube' | 'image' | 'link';
+    videoId?: string;
+  }[];
   [key: string]: any;
 }
 
@@ -41,6 +47,7 @@ interface AllActivities {
   breathTests: any[];
   guidedSessions: any[];
   habits: any[];
+  education: any[];
 }
 
 interface ActivityItem {
@@ -50,6 +57,12 @@ interface ActivityItem {
   description?: string;
   type?: string;
   collectionType?: string;
+  content?: string;
+  linkPreviews?: {
+    url: string;
+    type: 'youtube' | 'image' | 'link';
+    videoId?: string;
+  }[];
   [key: string]: any;
 }
 
@@ -80,7 +93,8 @@ export default function ActivitySelectorModal({
     breathProtocols: [],
     breathTests: [],
     guidedSessions: [],
-    habits: []
+    habits: [],
+    education: []
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
@@ -114,6 +128,7 @@ export default function ActivitySelectorModal({
     { id: 'guidedSession', name: 'Guided Session', icon: '🎯', collection: 'guidedSessions' },
     { id: 'habit', name: 'Habit', icon: '🔄', collection: 'habitstasks' },
     { id: 'task', name: 'Task', icon: '✓', collection: 'habitstasks' },
+    { id: 'education', name: 'Education', icon: '📚', collection: 'education/content/documents' },
     { id: 'note', name: 'Note', icon: '📝', collection: null }
   ];
 
@@ -169,7 +184,7 @@ export default function ActivitySelectorModal({
     const fetchAllActivities = async () => {
       try {
         setLoading(true);
-        const collections = ['exercises', 'breathProtocols', 'breathTests', 'guidedSessions', 'habitstasks'];
+        const collections = ['exercises', 'breathProtocols', 'breathTests', 'guidedSessions', 'habitstasks', 'education/content/documents'];
         const results: any = {};
 
         await Promise.all(collections.map(async (collectionName) => {
@@ -187,7 +202,8 @@ export default function ActivitySelectorModal({
           breathProtocols: results.breathProtocols || [],
           breathTests: results.breathTests || [],
           guidedSessions: results.guidedSessions || [],
-          habits: (results.habitstasks || []).filter((item: any) => item.type === 'habit')
+          habits: (results.habitstasks || []).filter((item: any) => item.type === 'habit'),
+          education: results['education/content/documents'] || []
         });
       } catch (error) {
         console.error('Error fetching all activities:', error);
@@ -216,12 +232,12 @@ export default function ActivitySelectorModal({
             (item.title || item.name || '').toLowerCase().includes(query) ||
             (item.description || '').toLowerCase().includes(query)
           )
-          .map((item: ActivityItem): Activity => ({
+          .map((item: ActivityItem) => ({
             ...item,
-            id: item.id,
-            type: item.type || '',
+            id: item.id || '',
+            type: item.type || type.replace(/s$/, ''),
             activityType: type
-          }))
+          } as Activity))
       );
     } else {
       // Search within selected category
@@ -284,7 +300,7 @@ export default function ActivitySelectorModal({
   };
 
   const handleScheduleActivity = async () => {
-    if (!selectedType || !selectedActivity) return;
+    if (!selectedType || !selectedActivity || !selectedActivity.id) return;
 
     try {
       setLoading(true);
@@ -303,29 +319,33 @@ export default function ActivitySelectorModal({
         });
       } else {
         let scheduleData;
+        let collectionPath = '';
+        
+        const activityTitle = selectedActivity.title || selectedActivity.name || 'Untitled';
         
         switch (selectedType) {
           case 'exercise':
             scheduleData = {
-              exerciseTitle: selectedActivity.title || selectedActivity.name,
+              exerciseTitle: activityTitle,
               type: 'exercise',
               description: selectedActivity.description || '',
               videoId: selectedActivity.videoId,
-            timeOfDay: timeOfDay.toLowerCase(),
-            metrics: {
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
                 timeOfDay: timeOfDay.toLowerCase(),
-              completed: false,
+                completed: false,
                 sets: exerciseMetrics.sets,
                 eachSide: exerciseMetrics.eachSide,
                 notes: ''
               },
               coachNotes: coachNotes
             };
+            collectionPath = `exercises/${selectedActivity.id}`;
             break;
 
           case 'breathProtocol':
             scheduleData = {
-              exerciseTitle: selectedActivity.title || selectedActivity.name,
+              exerciseTitle: activityTitle,
               type: 'breathProtocol',
               description: selectedActivity.description || '',
               collectionId: 'breathProtocols',
@@ -348,11 +368,12 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
+            collectionPath = `breathProtocols/${selectedActivity.id}`;
             break;
 
           case 'breathTest':
             scheduleData = {
-              exerciseTitle: selectedActivity.title,
+              exerciseTitle: activityTitle,
               type: 'breathTest',
               description: selectedActivity.description,
               testId: selectedActivity.id,
@@ -363,11 +384,12 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
+            collectionPath = `breathTests/${selectedActivity.id}`;
             break;
 
           case 'guidedSession':
             scheduleData = {
-              exerciseTitle: selectedActivity.title,
+              exerciseTitle: activityTitle,
               type: 'guidedSession',
               description: selectedActivity.description,
               sessionId: selectedActivity.id,
@@ -382,11 +404,12 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
+            collectionPath = `guidedSessions/${selectedActivity.id}`;
             break;
 
           case 'habit':
             scheduleData = {
-              exerciseTitle: selectedActivity.title,
+              exerciseTitle: activityTitle,
               type: 'habit',
               description: selectedActivity.description,
               habitId: selectedActivity.id,
@@ -398,11 +421,12 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
+            collectionPath = `habitstasks/${selectedActivity.id}`;
             break;
 
           case 'task':
             scheduleData = {
-              exerciseTitle: selectedActivity.title,
+              exerciseTitle: activityTitle,
               type: 'task',
               description: selectedActivity.description,
               taskId: selectedActivity.id,
@@ -414,7 +438,30 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
+            collectionPath = `habitstasks/${selectedActivity.id}`;
             break;
+
+          case 'education':
+            scheduleData = {
+              exerciseTitle: activityTitle,
+              type: 'education',
+              description: selectedActivity.description,
+              content: selectedActivity.content,
+              documentId: selectedActivity.id,
+              linkPreviews: selectedActivity.linkPreviews,
+              timeOfDay: timeOfDay.toLowerCase(),
+              metrics: {
+                timeOfDay: timeOfDay.toLowerCase(),
+                completed: false
+              },
+              coachNotes: coachNotes
+            };
+            collectionPath = selectedActivity.id; // Just use the ID directly since we'll construct the full path in scheduleExercise
+            break;
+        }
+
+        if (!collectionPath) {
+          throw new Error('Invalid activity type');
         }
 
         console.log('Scheduling activity:', {
@@ -426,7 +473,7 @@ export default function ActivitySelectorModal({
 
         await scheduleExercise(
           selectedClientId,
-          `breathProtocols/${selectedActivity.id}`,
+          collectionPath,
           scheduledDateTime,
           scheduleData
         );
@@ -1292,6 +1339,23 @@ export default function ActivitySelectorModal({
                               </div>
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {selectedType === 'education' && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                            Content
+                          </label>
+                          <textarea
+                            value={selectedActivity.content}
+                            onChange={(e) => {
+                              const newActivity = { ...selectedActivity, content: e.target.value };
+                              setSelectedActivity(newActivity);
+                            }}
+                            placeholder="Enter education content"
+                            className="w-full px-3 py-2 bg-[#161B22] text-white rounded-lg border border-gray-700/50 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-32"
+                          />
                         </div>
                       )}
 
