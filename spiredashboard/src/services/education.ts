@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, addDoc, query, where, orderBy, serverTimestamp, updateDoc, deleteDoc, limit } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, query, orderBy, serverTimestamp, updateDoc, deleteDoc, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { EducationDocument, CreateEducationDocument } from '../types/education';
 

@@ -63,9 +63,10 @@ export default function NewEducationPage() {
 
       const document: CreateEducationDocument = {
         title: title.trim(),
-        description: description.trim() || undefined,
+        type: 'education',
         content: content.trim(),
-        linkPreviews
+        linkPreviews,
+        ...(description.trim() && { description: description.trim() })
       };
 
       await createEducationDocument(document);

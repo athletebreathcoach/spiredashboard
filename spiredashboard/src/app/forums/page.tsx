@@ -56,6 +56,11 @@ interface ForumComment {
   timestamp: Date;
 }
 
+interface Forum {
+  id: string;
+  name: string;
+}
+
 const POSTS_PER_PAGE = 10;
 
 export default function Forums() {
@@ -74,13 +79,22 @@ export default function Forums() {
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [forums, setForums] = useState<{id: string, name: string}[]>([]);
-  const [selectedForum, setSelectedForum] = useState<string | null>(null);
+  const [selectedForum, setSelectedForum] = useState<Forum | null>(null);
 
   useEffect(() => {
-    if (!user) return;
     checkIfCoach();
     loadForums();
-  }, [user]);
+  }, []);
+
+  useEffect(() => {
+    loadInitialPosts();
+  }, [selectedChannel]);
+
+  useEffect(() => {
+    if (forums.length > 0) {
+      loadInitialPosts();
+    }
+  }, [forums, selectedChannel]);
 
   useEffect(() => {
     if (selectedForum) {
@@ -94,7 +108,7 @@ export default function Forums() {
     loadInitialPosts();
 
     // Set up real-time listener for new posts
-    const postsRef = collection(db, 'forums', selectedForum, 'posts');
+    const postsRef = collection(db, 'forums', selectedForum.id, 'posts');
     let q = query(
       postsRef,
       orderBy('timestamp', 'desc'),
@@ -114,8 +128,8 @@ export default function Forums() {
           userEmail: newPostData.userEmail,
           authorName: newPostData.authorName,
           authorId: newPostData.authorId,
-          forumId: selectedForum,
-          forumName: forums.find(f => f.id === selectedForum)?.name || '',
+          forumId: selectedForum.id,
+          forumName: forums.find(f => f.id === selectedForum.id)?.name || '',
           channel: newPostData.channel,
           timestamp: newPostData.timestamp?.toDate() || new Date(),
           likes: newPostData.likes || [],
@@ -163,7 +177,7 @@ export default function Forums() {
       
       // Select the first forum by default if none is selected
       if (fetchedForums.length > 0 && !selectedForum) {
-        setSelectedForum(fetchedForums[0].id);
+        setSelectedForum(fetchedForums[0]);
       }
     } catch (error) {
       console.error('Error loading forums:', error);
@@ -175,8 +189,8 @@ export default function Forums() {
     if (!selectedForum) return;
     setLoading(true);
     try {
-      console.log('Loading posts for forum:', selectedForum);
-      const postsRef = collection(db, 'forums', selectedForum, 'posts');
+      console.log('Loading posts for forum:', selectedForum.id);
+      const postsRef = collection(db, 'forums', selectedForum.id, 'posts');
       let q;
       
       if (selectedChannel === 'All') {
@@ -202,7 +216,7 @@ export default function Forums() {
         const fetchedPosts = await Promise.all(snapshot.docs.map(async doc => {
           const data = doc.data();
           console.log('Post data:', data);
-          const commentsRef = collection(db, 'forums', selectedForum, 'posts', doc.id, 'comments');
+          const commentsRef = collection(db, 'forums', selectedForum.id, 'posts', doc.id, 'comments');
           const commentsSnapshot = await getDocs(query(commentsRef, orderBy('timestamp', 'desc')));
           const comments: ForumComment[] = commentsSnapshot.docs.map(commentDoc => {
             const commentData = commentDoc.data();
@@ -226,8 +240,8 @@ export default function Forums() {
             userEmail: data.userEmail,
             authorName: data.authorName,
             authorId: data.authorId,
-            forumId: selectedForum,
-            forumName: forums.find(f => f.id === selectedForum)?.name || '',
+            forumId: selectedForum.id,
+            forumName: forums.find(f => f.id === selectedForum.id)?.name || '',
             channel: data.channel,
             timestamp: data.timestamp?.toDate() || new Date(),
             likes: data.likes || [],
@@ -257,7 +271,7 @@ export default function Forums() {
     if (!hasMore || !lastVisible || !selectedForum) return;
     
     try {
-      const postsRef = collection(db, 'forums', selectedForum, 'posts');
+      const postsRef = collection(db, 'forums', selectedForum.id, 'posts');
       let q;
       
       if (selectedChannel === 'All') {
@@ -282,7 +296,7 @@ export default function Forums() {
       if (!snapshot.empty) {
         const morePosts = await Promise.all(snapshot.docs.map(async doc => {
           const data = doc.data();
-          const commentsRef = collection(db, 'forums', selectedForum, 'posts', doc.id, 'comments');
+          const commentsRef = collection(db, 'forums', selectedForum.id, 'posts', doc.id, 'comments');
           const commentsSnapshot = await getDocs(query(commentsRef, orderBy('timestamp', 'desc')));
           const comments: ForumComment[] = commentsSnapshot.docs.map(commentDoc => {
             const commentData = commentDoc.data();
@@ -306,8 +320,8 @@ export default function Forums() {
             userEmail: data.userEmail,
             authorName: data.authorName,
             authorId: data.authorId,
-            forumId: selectedForum,
-            forumName: forums.find(f => f.id === selectedForum)?.name || '',
+            forumId: selectedForum.id,
+            forumName: forums.find(f => f.id === selectedForum.id)?.name || '',
             channel: data.channel,
             timestamp: data.timestamp?.toDate() || new Date(),
             likes: data.likes || [],
@@ -331,7 +345,6 @@ export default function Forums() {
     try {
       setSubmitting(true);
       const postChannel = selectedChannel === 'All' ? 'Training' : selectedChannel;
-      const selectedForumData = forums.find(f => f.id === selectedForum);
       
       const postData = {
         text: newPost.trim(),
@@ -346,7 +359,7 @@ export default function Forums() {
       };
       
       console.log('Creating new post with data:', postData);
-      await addDoc(collection(db, 'forums', selectedForum, 'posts'), postData);
+      await addDoc(collection(db, 'forums', selectedForum.id, 'posts'), postData);
 
       setNewPost('');
       await loadInitialPosts();
@@ -361,7 +374,7 @@ export default function Forums() {
     if (!user || !selectedForum) return;
     
     try {
-      const postRef = doc(db, 'forums', selectedForum, 'posts', postId);
+      const postRef = doc(db, 'forums', selectedForum.id, 'posts', postId);
       const postDoc = await getDoc(postRef);
       const currentLikes = postDoc.data()?.likes || [];
       
@@ -384,7 +397,7 @@ export default function Forums() {
   const deletePost = async (postId: string) => {
     if (!selectedForum) return;
     try {
-      await deleteDoc(doc(db, 'forums', selectedForum, 'posts', postId));
+      await deleteDoc(doc(db, 'forums', selectedForum.id, 'posts', postId));
       await loadInitialPosts();
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -403,7 +416,7 @@ export default function Forums() {
 
     try {
       setSubmittingComment(true);
-      const commentsRef = collection(db, 'forums', selectedForum, 'posts', postId, 'comments');
+      const commentsRef = collection(db, 'forums', selectedForum.id, 'posts', postId, 'comments');
       
       await addDoc(commentsRef, {
         text: newComment.trim(),
@@ -426,7 +439,7 @@ export default function Forums() {
     if (!isCoach || !selectedForum) return;
     
     try {
-      const postRef = doc(db, 'forums', selectedForum, 'posts', postId);
+      const postRef = doc(db, 'forums', selectedForum.id, 'posts', postId);
       const postDoc = await getDoc(postRef);
       const isPinned = postDoc.data()?.isPinned || false;
       
@@ -490,9 +503,9 @@ export default function Forums() {
               {forums.map((forum) => (
                 <button
                   key={forum.id}
-                  onClick={() => setSelectedForum(forum.id)}
+                  onClick={() => setSelectedForum(forum)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedForum === forum.id
+                    selectedForum?.id === forum.id
                       ? 'bg-yellow-500 text-gray-900'
                       : 'text-gray-400 hover:bg-gray-700/50'
                   }`}

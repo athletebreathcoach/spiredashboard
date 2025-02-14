@@ -16,18 +16,6 @@ import {
 import { db } from '@/config/firebase';
 import { scheduleExercise } from './scheduledExercises';
 
-export interface Program {
-  id?: string;
-  title: string;
-  description: string;
-  type: 'preset' | 'group';
-  duration: number; // in weeks
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  weeks: ProgramWeek[];
-}
-
 export interface ProgramWeek {
   weekNumber: number;
   days: {
@@ -74,8 +62,20 @@ export interface ProgramActivity {
   };
 }
 
+export interface Program {
+  id?: string;
+  title: string;
+  description: string;
+  type: 'preset' | 'group';
+  duration: number; // in weeks
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  weeks: ProgramWeek[];
+}
+
 // Create a new program
-export const createProgram = async (program: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>): Promise<Program> => {
+export const createProgram = async (program: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
   try {
     const programsRef = collection(db, 'programs');
     const docRef = await addDoc(programsRef, {
@@ -84,12 +84,7 @@ export const createProgram = async (program: Omit<Program, 'id' | 'createdAt' | 
       updatedAt: serverTimestamp()
     });
 
-    return {
-      id: docRef.id,
-      ...program,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    return docRef.id;
   } catch (error) {
     console.error('Error creating program:', error);
     throw error;
@@ -237,6 +232,19 @@ export const updateProgramProgress = async (
     });
   } catch (error) {
     console.error('Error updating program progress:', error);
+    throw error;
+  }
+};
+
+export const updateProgram = async (id: string, updates: Partial<Omit<Program, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
+  try {
+    const programRef = doc(db, 'programs', id);
+    await updateDoc(programRef, {
+      ...updates,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating program:', error);
     throw error;
   }
 }; 

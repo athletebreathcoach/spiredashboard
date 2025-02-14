@@ -18,7 +18,7 @@ export interface ScheduledExercise {
   id?: string;
   exerciseId: string;
   userId: string;
-  exerciseTitle: string;
+  exerciseTitle?: string;
   exerciseType: string;
   videoId?: string;
   scheduledDateTime: Date;
@@ -26,6 +26,7 @@ export interface ScheduledExercise {
   metrics: {
     timeOfDay: string;
     completed?: boolean;
+    logged?: boolean;
     sets?: Array<{
       reps?: number;
       weight?: number;
@@ -33,12 +34,19 @@ export interface ScheduledExercise {
     }>;
     eachSide?: boolean;
     notes?: string;
+    content?: string;
+    documentId?: string;
+    linkPreviews?: Array<{
+      title: string;
+      url: string;
+    }>;
+    title?: string;
     [key: string]: any;
   };
   clientComments: string;
   coachNotes: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
   createdBy: string;
   content?: string;
   documentId?: string;
@@ -46,6 +54,8 @@ export interface ScheduledExercise {
     title: string;
     url: string;
   }>;
+  title?: string;
+  type?: string;
 }
 
 // Schedule a new exercise
@@ -610,7 +620,7 @@ export const scheduleBreathProtocol = async (
     const scheduledProtocol: ScheduledExercise = {
       exerciseId: protocolId,
       userId,
-      exerciseTitle: protocol.title,
+      exerciseTitle: protocol.title || 'Untitled Protocol',
       exerciseType: 'breathProtocol',
       scheduledDateTime,
       status: 'scheduled',

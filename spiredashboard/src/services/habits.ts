@@ -1,8 +1,12 @@
 import { 
   collection, 
+  addDoc, 
+  updateDoc, 
   getDocs,
-  getDoc,
-  doc
+  query,
+  where,
+  orderBy,
+  deleteDoc 
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
