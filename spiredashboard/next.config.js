@@ -12,8 +12,20 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  output: 'standalone',
+  output: 'export',
+  distDir: '.next',
+  trailingSlash: true,
   images: {
+    domains: [
+      'media.giphy.com',
+      'media0.giphy.com',
+      'media1.giphy.com',
+      'media2.giphy.com',
+      'media3.giphy.com',
+      'media4.giphy.com',
+      'i.giphy.com',
+      'firebasestorage.googleapis.com'
+    ],
     remotePatterns: [
       {
         protocol: 'https',
@@ -58,7 +70,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      bodySizeLimit: '2mb'
+    },
   },
 }
 
