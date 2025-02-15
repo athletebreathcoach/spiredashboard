@@ -12,9 +12,6 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  output: 'export',
-  distDir: '.next',
-  trailingSlash: true,
   images: {
     domains: [
       'media.giphy.com',
