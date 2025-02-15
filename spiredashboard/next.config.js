@@ -12,6 +12,7 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -55,6 +56,9 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
+  },
+  experimental: {
+    serverActions: true,
   },
 }
 
