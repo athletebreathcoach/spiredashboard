@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyBdM1ekAzFA8vcMcMn_vAj3BudNd_Cze4o",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "ruok-8c88d.firebaseapp.com",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "ruok-8c88d",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "ruok-8c88d.firebasestorage.app",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "851077051440",
+    "NEXT_PUBLIC_FIREBASE_APP_ID": "1:851077051440:web:00eaddb4a935ebbddb29f5",
+    "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-T7G705PB3H"
+  }
+} 
