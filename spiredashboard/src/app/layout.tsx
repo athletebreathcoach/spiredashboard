@@ -13,6 +13,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Spire Coaching Dashboard",
   description: "Elite Performance Coaching Platform",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default function RootLayout({
@@ -22,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} antialiased bg-dark text-foreground min-h-screen`}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+      </head>
+      <body className={`${inter.variable} antialiased bg-dark text-foreground min-h-screen text-base`}>
         <AuthProvider>
           <AuthGuard>
             <div className="flex min-h-screen bg-gradient-to-br from-dark-bg via-dark to-dark">

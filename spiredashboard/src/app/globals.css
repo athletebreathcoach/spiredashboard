@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reset CSS */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
 :root {
   --background: #1C1C1E;
   --foreground: #FFFFFF;
@@ -21,8 +33,12 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   background-image: linear-gradient(to bottom right, var(--dark-bg), var(--background));
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Athletic gradient animation for hover effects */
