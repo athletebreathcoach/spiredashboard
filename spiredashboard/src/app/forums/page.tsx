@@ -477,7 +477,7 @@ export default function Forums() {
           <UserCircleIcon className="w-10 h-10 text-gray-400" />
           <input
             type="text"
-            placeholder="Let's share what going on your mind..."
+            placeholder="Share what's going on"
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
             className="bg-transparent text-white placeholder-gray-400 focus:outline-none"
@@ -513,28 +513,6 @@ export default function Forums() {
                   {forum.name}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Categories */}
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <h2 className="text-white font-medium mb-4">Newest and Recent</h2>
-            <div className="text-sm text-gray-400">
-              See what's new in forums
-            </div>
-          </div>
-
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <h2 className="text-white font-medium mb-4">Popular of the day</h2>
-            <div className="text-sm text-gray-400">
-              Stay updated on trending topics
-            </div>
-          </div>
-
-          <div className="bg-gray-800/50 rounded-lg p-4">
-            <h2 className="text-white font-medium mb-4">Following</h2>
-            <div className="text-sm text-gray-400">
-              Explore from your favorite people
             </div>
           </div>
 
@@ -609,40 +587,43 @@ export default function Forums() {
               </div>
 
               {/* Post Content */}
-              {post.text && (
-                <p className="text-white mb-4 whitespace-pre-wrap">{post.text}</p>
-              )}
-              {post.image && (
-                <div className="mb-4">
-                  {post.image.toLowerCase().endsWith('.gif') ? (
-                    <div className="relative w-full max-h-[500px] overflow-hidden rounded-lg">
-                      <img
-                        src={post.image}
-                        alt="Post gif"
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="relative aspect-video">
-                      <Image
-                        src={post.image}
-                        alt="Post image"
-                        fill
-                        className="rounded-lg object-contain"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
+              <div className="flex items-start justify-between">
+                <div className="flex-1 mr-4">
+                  {post.text && (
+                    <p className="text-white mb-4 whitespace-pre-wrap">{post.text}</p>
+                  )}
+                  {post.image && !post.image.toLowerCase().endsWith('.gif') && (
+                    <div className="mb-4 w-full">
+                      <div className="relative aspect-video">
+                        <Image
+                          src={post.image}
+                          alt="Post image"
+                          fill
+                          className="rounded-lg object-contain"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+                {post.image && post.image.toLowerCase().endsWith('.gif') && (
+                  <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                    <img
+                      src={post.image}
+                      alt="Post gif"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Post Stats */}
               <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
