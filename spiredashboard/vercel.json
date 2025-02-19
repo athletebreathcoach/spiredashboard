@@ -8,5 +8,9 @@
     "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "851077051440",
     "NEXT_PUBLIC_FIREBASE_APP_ID": "1:851077051440:web:00eaddb4a935ebbddb29f5",
     "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-T7G705PB3H"
-  }
-} 
+  },
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install"
+}
