@@ -24,9 +24,11 @@ import {
   PaperAirplaneIcon,
   ChatBubbleLeftIcon,
   TrashIcon,
-  StarIcon
+  StarIcon,
+  GifIcon
 } from '@heroicons/react/24/solid';
 import Image from 'next/image';
+import { GiphyFetch } from '@giphy/js-fetch-api';
 
 interface ForumPost {
   id: string;
@@ -61,7 +63,23 @@ interface Forum {
   name: string;
 }
 
+interface GiphyResult {
+  id: string;
+  title: string;
+  images: {
+    fixed_height: {
+      url: string;
+    };
+    fixed_height_small: {
+      url: string;
+    };
+  };
+}
+
 const POSTS_PER_PAGE = 10;
+
+// Initialize Giphy API with proper error handling
+const gf = new GiphyFetch(process.env.NEXT_PUBLIC_GIPHY_API_KEY || '');
 
 export default function Forums() {
   const { user } = useAuth();
@@ -80,6 +98,10 @@ export default function Forums() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [forums, setForums] = useState<{id: string, name: string}[]>([]);
   const [selectedForum, setSelectedForum] = useState<Forum | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [giphyResults, setGiphyResults] = useState<GiphyResult[]>([]);
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     checkIfCoach();
@@ -339,8 +361,35 @@ export default function Forums() {
     }
   };
 
+  // Add Giphy search function with proper typing
+  const searchGiphy = async (query: string) => {
+    try {
+      if (!process.env.NEXT_PUBLIC_GIPHY_API_KEY) {
+        console.error('Giphy API key is not configured');
+        return;
+      }
+
+      console.log('Searching Giphy with query:', query);
+      if (!query) {
+        console.log('Fetching trending GIFs...');
+        const { data } = await gf.trending({ limit: 20 });
+        console.log('Trending GIFs response:', data);
+        setGiphyResults(data as unknown as GiphyResult[]);
+      } else {
+        console.log('Searching for GIFs...');
+        const { data } = await gf.search(query, { limit: 20 });
+        console.log('Search GIFs response:', data);
+        setGiphyResults(data as unknown as GiphyResult[]);
+      }
+    } catch (error) {
+      console.error('Error searching Giphy:', error);
+      setGiphyResults([]);
+    }
+  };
+
+  // Modify createPost to handle null user safely
   const createPost = async () => {
-    if (!user || !newPost.trim() || submitting || !selectedForum) return;
+    if (!user || (!newPost.trim() && !selectedGif) || submitting || !selectedForum) return;
 
     try {
       setSubmitting(true);
@@ -348,9 +397,10 @@ export default function Forums() {
       
       const postData = {
         text: newPost.trim(),
+        image: selectedGif,
         isCoachPost: isCoach,
         userId: user.uid,
-        userEmail: user.email,
+        userEmail: user.email || '',
         authorName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         authorId: user.uid,
         channel: postChannel,
@@ -358,10 +408,11 @@ export default function Forums() {
         likes: []
       };
       
-      console.log('Creating new post with data:', postData);
       await addDoc(collection(db, 'forums', selectedForum.id, 'posts'), postData);
 
       setNewPost('');
+      setSelectedGif(null);
+      setShowGifPicker(false);
       await loadInitialPosts();
     } catch (error) {
       console.error('Error creating post:', error);
@@ -453,6 +504,13 @@ export default function Forums() {
     }
   };
 
+  // Load trending GIFs when GIF picker opens
+  useEffect(() => {
+    if (showGifPicker) {
+      searchGiphy('');
+    }
+  }, [showGifPicker]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -472,24 +530,91 @@ export default function Forums() {
   return (
     <div className="h-full flex flex-col">
       {/* Top Navigation */}
-      <div className="flex items-center justify-between mb-6 bg-gray-800/50 p-4 rounded-lg">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col mb-6 bg-gray-800/50 p-4 rounded-lg">
+        <div className="flex items-center space-x-4 mb-4">
           <UserCircleIcon className="w-10 h-10 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Share what's going on"
-            value={newPost}
-            onChange={(e) => setNewPost(e.target.value)}
-            className="bg-transparent text-white placeholder-gray-400 focus:outline-none"
-          />
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Share what's going on"
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+              className="w-full bg-transparent text-white placeholder-gray-400 focus:outline-none"
+            />
+            {selectedGif && (
+              <div className="relative mt-2 w-32 h-32">
+                <img
+                  src={selectedGif}
+                  alt="Selected GIF"
+                  className="rounded-lg object-cover w-full h-full"
+                />
+                <button
+                  onClick={() => setSelectedGif(null)}
+                  className="absolute top-1 right-1 bg-gray-900/80 text-white p-1 rounded-full hover:bg-gray-800"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-        <button
-          onClick={createPost}
-          disabled={!newPost.trim() || submitting || !selectedForum}
-          className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Create Post
-        </button>
+        <div className="flex justify-between items-center relative">
+          <button
+            onClick={() => setShowGifPicker(!showGifPicker)}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <GifIcon className="w-6 h-6" />
+          </button>
+          <button
+            onClick={createPost}
+            disabled={(!newPost.trim() && !selectedGif) || submitting || !selectedForum}
+            className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Create Post
+          </button>
+          
+          {/* GIF Picker Modal */}
+          {showGifPicker && (
+            <div className="absolute left-0 top-full mt-2 p-4 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 w-[350px]">
+              <div className="flex justify-between items-center mb-4">
+                <input
+                  type="text"
+                  placeholder="Search GIFs..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    searchGiphy(e.target.value);
+                  }}
+                  className="flex-1 bg-gray-900 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+                <button
+                  onClick={() => setShowGifPicker(false)}
+                  className="ml-2 text-gray-400 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 max-h-[480px] overflow-y-auto">
+                {giphyResults.map((gif: any) => (
+                  <div
+                    key={gif.id}
+                    className="cursor-pointer hover:opacity-80 transition-opacity aspect-square"
+                    onClick={() => {
+                      setSelectedGif(gif.images.fixed_height.url);
+                      setShowGifPicker(false);
+                    }}
+                  >
+                    <img
+                      src={gif.images.fixed_height_small.url}
+                      alt={gif.title}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -587,31 +712,31 @@ export default function Forums() {
               </div>
 
               {/* Post Content */}
-              <div className="flex items-start justify-between">
-                <div className="flex-1 mr-4">
-                  {post.text && (
-                    <p className="text-white mb-4 whitespace-pre-wrap">{post.text}</p>
-                  )}
-                  {post.image && !post.image.toLowerCase().endsWith('.gif') && (
-                    <div className="mb-4 w-full">
-                      <div className="relative aspect-video">
-                        <Image
-                          src={post.image}
-                          alt="Post image"
-                          fill
-                          className="rounded-lg object-contain"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </div>
+              <div className="relative">
+                {post.text && (
+                  <div className={`text-white mb-4 whitespace-pre-wrap ${post.image?.toLowerCase().endsWith('.gif') ? 'pr-24' : ''}`}>
+                    {post.text}
+                  </div>
+                )}
+                {post.image && !post.image.toLowerCase().endsWith('.gif') && (
+                  <div className="mb-4 w-full">
+                    <div className="relative aspect-video">
+                      <Image
+                        src={post.image}
+                        alt="Post image"
+                        fill
+                        className="rounded-lg object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 {post.image && post.image.toLowerCase().endsWith('.gif') && (
-                  <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                  <div className="absolute top-0 right-0 w-14 h-14 rounded-lg overflow-hidden">
                     <img
                       src={post.image}
                       alt="Post gif"
