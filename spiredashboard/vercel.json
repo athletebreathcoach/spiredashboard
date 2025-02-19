@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install",
   "env": {
     "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyBdM1ekAzFA8vcMcMn_vAj3BudNd_Cze4o",
     "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "ruok-8c88d.firebaseapp.com",
@@ -8,9 +11,5 @@
     "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "851077051440",
     "NEXT_PUBLIC_FIREBASE_APP_ID": "1:851077051440:web:00eaddb4a935ebbddb29f5",
     "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-T7G705PB3H"
-  },
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install"
+  }
 }
