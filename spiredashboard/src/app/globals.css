@@ -23,13 +23,6 @@ html {
   --dark-bg: #000000;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1C1C1E;
-    --foreground: #FFFFFF;
-  }
-}
-
 body {
   color: var(--foreground);
   background: var(--background);
@@ -41,9 +34,29 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}
+
 /* Athletic gradient animation for hover effects */
 @keyframes energyPulse {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* Tailwind custom styles */
+@layer components {
+  .bg-dark {
+    @apply bg-[#1C1C1E];
+  }
+  
+  .text-foreground {
+    @apply text-white;
+  }
+  
+  .bg-gradient-dark {
+    @apply bg-gradient-to-br from-[#000000] via-[#1C1C1E] to-[#1C1C1E];
+  }
 }

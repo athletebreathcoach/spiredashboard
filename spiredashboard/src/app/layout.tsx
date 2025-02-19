@@ -26,14 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
-      </head>
-      <body className={`${inter.variable} antialiased bg-dark text-foreground min-h-screen text-base`}>
+    <html lang="en" className="dark h-full">
+      <body className={`${inter.variable} font-sans antialiased bg-[#1C1C1E] text-white min-h-screen`}>
         <AuthProvider>
           <AuthGuard>
-            <div className="flex min-h-screen bg-gradient-to-br from-dark-bg via-dark to-dark">
+            <div className="flex min-h-screen bg-gradient-to-br from-[#000000] via-[#1C1C1E] to-[#1C1C1E]">
               <Sidebar />
               <main className="flex-1 px-6 py-4 overflow-auto">
                 {children}
