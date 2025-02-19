@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "framework": "nextjs",
-  "buildCommand": "next build",
-  "devCommand": "next dev",
-  "installCommand": "npm install",
-  "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyBdM1ekAzFA8vcMcMn_vAj3BudNd_Cze4o",
     "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "ruok-8c88d.firebaseapp.com",

@@ -217,7 +217,7 @@ export default function ActivitySelectorModal({
     }
   }, [isOpen]);
 
-  const getFilteredActivities = (): Activity[] => {
+  const getFilteredActivities = () => {
     if (!searchQuery.trim()) {
       return step === 1 ? [] : activities;
     }
@@ -232,12 +232,12 @@ export default function ActivitySelectorModal({
             (item.title || item.name || '').toLowerCase().includes(query) ||
             (item.description || '').toLowerCase().includes(query)
           )
-          .map((item: ActivityItem) => ({
+          .map((item: ActivityItem): Activity => ({
             ...item,
             id: item.id || '',
             type: item.type || type.replace(/s$/, ''),
             activityType: type
-          } as Activity))
+          }))
       );
     } else {
       // Search within selected category
@@ -1387,7 +1387,7 @@ export default function ActivitySelectorModal({
                   // Activity selection list
                   <div className="overflow-y-auto max-h-[400px]">
                     {getFilteredActivities().map((activity: Activity) => (
-                      <button
+                      <motion.button
                         key={activity.id}
                         onClick={() => setSelectedActivity(activity)}
                         className={`w-full text-left p-3 rounded-lg transition-colors ${
@@ -1402,7 +1402,7 @@ export default function ActivitySelectorModal({
                             {activity.description}
                           </div>
                         )}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 )}

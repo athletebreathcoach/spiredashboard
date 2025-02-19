@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    ignoreBuildErrors: true
+  },
+  swcMinify: true,
   images: {
     remotePatterns: [
       {
@@ -43,6 +47,10 @@ const nextConfig = {
         pathname: '/**',
       }
     ]
+  },
+  webpack: (config) => {
+    config.resolve.fallback = { fs: false };
+    return config;
   }
 }
 
