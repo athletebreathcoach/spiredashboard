@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import SinglePatternForm from './protocols/SinglePatternForm';
+import RMTForm from './protocols/RMTForm';
+import ApneaTableForm from './protocols/ApneaTableForm';
 import { BreathProtocol } from '@/services/breathProtocols';
 
 const protocolTypes = [
@@ -14,22 +16,16 @@ const protocolTypes = [
     icon: '🫁'
   },
   {
-    id: 'multi-pattern',
-    name: 'Multi Pattern',
-    description: 'Complex breathing sequences with varying patterns',
-    icon: '🌊'
+    id: 'rmt',
+    name: 'RMT',
+    description: 'Respiratory Muscle Training for strengthening breathing muscles',
+    icon: '💪'
   },
   {
     id: 'apnea-table',
     name: 'Apnea Tables',
     description: 'For breath hold training (CO2 and O2 tables)',
     icon: '⏱️'
-  },
-  {
-    id: 'rmt',
-    name: 'RMT',
-    description: 'Respiratory Muscle Training for strengthening breathing muscles',
-    icon: '💪'
   }
 ];
 
@@ -70,12 +66,6 @@ export default function BreathProtocolForm({ isOpen, onClose, onSave, editProtoc
     onClose();
   };
 
-  const handleSave = async (protocol: any) => {
-    // TODO: Save protocol to database
-    console.log('Saving protocol:', protocol);
-    handleFormClose();
-  };
-
   // If editing or if type is selected and showTypeForm is true, show the specific form
   if ((editProtocol || (showTypeForm && selectedType))) {
     switch (selectedType) {
@@ -88,7 +78,24 @@ export default function BreathProtocolForm({ isOpen, onClose, onSave, editProtoc
             editProtocol={editProtocol}
           />
         );
-      // TODO: Add other form types
+      case 'rmt':
+        return (
+          <RMTForm
+            isOpen={true}
+            onClose={handleFormClose}
+            onSave={onSave}
+            editProtocol={editProtocol}
+          />
+        );
+      case 'apnea-table':
+        return (
+          <ApneaTableForm
+            isOpen={true}
+            onClose={handleFormClose}
+            onSave={onSave}
+            editProtocol={editProtocol}
+          />
+        );
       default:
         return null;
     }

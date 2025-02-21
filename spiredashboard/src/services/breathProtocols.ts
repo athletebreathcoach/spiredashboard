@@ -27,6 +27,7 @@ export interface BreathProtocol {
   }[];
   benefits: string[];
   contraindications?: string[];
+  // For regular breath protocols
   pattern?: {
     inhaleTime: number;
     inhaleHoldTime: number;
@@ -34,6 +35,36 @@ export interface BreathProtocol {
     exhaleHoldTime: number;
     rounds: number;
     restAfter: number;
+  };
+  // For RMT and Apnea Table protocols
+  protocol?: {
+    type: 'rmt' | 'apnea-table';
+    // RMT specific fields
+    totalSets?: number;
+    repsPerSet?: number;
+    restBetweenSets?: number;
+    inhaleTime?: number;
+    inhaleHoldTime?: number;
+    exhaleTime?: number;
+    exhaleHoldTime?: number;
+    setConfigs?: Array<{
+      setNumber: number;
+      breaths: string;
+      inhaleResistance: number;
+      exhaleResistance: number;
+      inhaleTime?: number;
+      inhaleHoldTime?: number;
+      exhaleTime?: number;
+      exhaleHoldTime?: number;
+      restTime?: number;
+    }>;
+    // Apnea Table specific fields
+    tableType?: 'co2' | 'o2';
+    rounds?: number;
+    apneaTime?: number;
+    restStartTime?: number;
+    restDecrement?: number;
+    cooldownTime?: number;
   };
   tags?: string[];
 }

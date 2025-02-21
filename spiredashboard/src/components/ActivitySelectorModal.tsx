@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/config/firebase';
 import { collection, query, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { scheduleExercise, scheduleNote } from '@/services/scheduledExercises';
+import { scheduleExercise, scheduleNote, scheduleGuidedSession, scheduleBreathProtocol } from '@/services/scheduledExercises';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -22,7 +22,7 @@ interface Activity {
   id: string;
   title?: string;
   name?: string;
-  type: string;
+  type: 'exercise' | 'breathProtocol' | 'breathTest' | 'guidedSession' | 'habit' | 'task' | 'education' | 'note';
   description?: string;
   videoId?: string;
   duration?: string;
@@ -76,6 +76,8 @@ interface BreathProtocolMetrics {
   totalTime: number;
 }
 
+type ActivityType = Activity['type'];
+
 export default function ActivitySelectorModal({
   isOpen,
   onClose,
@@ -87,7 +89,7 @@ export default function ActivitySelectorModal({
 }: ActivitySelectorModalProps) {
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [allActivities, setAllActivities] = useState<AllActivities>({
     exercises: [],
     breathProtocols: [],
@@ -217,7 +219,7 @@ export default function ActivitySelectorModal({
     }
   }, [isOpen]);
 
-  const getFilteredActivities = () => {
+  const getFilteredActivities = (): Activity[] => {
     if (!searchQuery.trim()) {
       return step === 1 ? [] : activities;
     }
@@ -232,12 +234,15 @@ export default function ActivitySelectorModal({
             (item.title || item.name || '').toLowerCase().includes(query) ||
             (item.description || '').toLowerCase().includes(query)
           )
-          .map((item: ActivityItem): Activity => ({
-            ...item,
-            id: item.id || '',
-            type: item.type || type.replace(/s$/, ''),
-            activityType: type
-          }))
+          .map((item: ActivityItem): Activity => {
+            const baseType = type.replace(/s$/, '') as Activity['type'];
+            return {
+              ...item,
+              id: item.id || '',
+              type: baseType,
+              activityType: type
+            };
+          })
       );
     } else {
       // Search within selected category
@@ -274,8 +279,11 @@ export default function ActivitySelectorModal({
           return {
             id: doc.id,
             title: data.title || data.name || 'Untitled',
-            type: typeId,
+            type: typeId as Activity['type'],
             description: data.description,
+            pattern: data.pattern,
+            rounds: data.rounds,
+            duration: data.duration,
             ...data
           } as Activity;
         })
@@ -340,36 +348,50 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
-            collectionPath = `exercises/${selectedActivity.id}`;
+            collectionPath = selectedActivity.id;
             break;
 
-          case 'breathProtocol':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'breathProtocol',
-              description: selectedActivity.description || '',
-              collectionId: 'breathProtocols',
-              protocolId: selectedActivity.id,
-              protocol: {
-                pattern: {
-                  inhale: protocolMetrics.inhaleTime,
-                  inHold: protocolMetrics.inhaleHoldTime,
-                  exhale: protocolMetrics.exhaleTime,
-                  exHold: protocolMetrics.exhaleHoldTime
+          case 'breathProtocol': {
+            if (!selectedActivity || !('id' in selectedActivity)) break;
+            const breathProtocol = selectedActivity as Activity;
+            await scheduleBreathProtocol(
+              selectedClientId,
+              breathProtocol.id,
+              scheduledDateTime,
+              {
+                metrics: {
+                  timeOfDay: timeOfDay.toLowerCase(),
+                  settings: {
+                    pattern: {
+                      inhale: protocolMetrics.inhaleTime,
+                      inHold: protocolMetrics.inhaleHoldTime,
+                      exhale: protocolMetrics.exhaleTime,
+                      exHold: protocolMetrics.exhaleHoldTime
+                    },
+                    rounds: protocolMetrics.rounds,
+                    duration: protocolMetrics.totalTime.toString()
+                  }
                 },
-                rounds: protocolMetrics.rounds,
-                duration: protocolMetrics.totalTime.toString(),
-                restAfter: protocolMetrics.restAfter
-              },
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = `breathProtocols/${selectedActivity.id}`;
+                protocol: {
+                  type: 'standard',
+                  pattern: {
+                    inhale: protocolMetrics.inhaleTime,
+                    inHold: protocolMetrics.inhaleHoldTime,
+                    exhale: protocolMetrics.exhaleTime,
+                    exHold: protocolMetrics.exhaleHoldTime
+                  },
+                  rounds: protocolMetrics.rounds,
+                  duration: protocolMetrics.totalTime.toString()
+                },
+                coachNotes: coachNotes
+              }
+            );
+            if (onActivityScheduled) {
+              onActivityScheduled();
+            }
+            onClose();
             break;
+          }
 
           case 'breathTest':
             scheduleData = {
@@ -384,7 +406,7 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
-            collectionPath = `breathTests/${selectedActivity.id}`;
+            collectionPath = selectedActivity.id;
             break;
 
           case 'guidedSession':
@@ -404,7 +426,7 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
-            collectionPath = `guidedSessions/${selectedActivity.id}`;
+            collectionPath = selectedActivity.id;
             break;
 
           case 'habit':
@@ -421,7 +443,7 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
-            collectionPath = `habitstasks/${selectedActivity.id}`;
+            collectionPath = selectedActivity.id;
             break;
 
           case 'task':
@@ -438,7 +460,7 @@ export default function ActivitySelectorModal({
               },
               coachNotes: coachNotes
             };
-            collectionPath = `habitstasks/${selectedActivity.id}`;
+            collectionPath = selectedActivity.id;
             break;
 
           case 'education':
@@ -479,11 +501,6 @@ export default function ActivitySelectorModal({
         );
       }
       
-      if (onActivityScheduled) {
-        onActivityScheduled();
-      }
-      
-      onClose();
       setStep(1);
       setSelectedType(null);
       setSelectedActivity(null);

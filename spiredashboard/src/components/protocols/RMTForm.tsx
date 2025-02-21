@@ -5,39 +5,49 @@ import { Dialog } from '@headlessui/react';
 import { XMarkIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { addBreathProtocol, BreathProtocol, updateBreathProtocol } from '@/services/breathProtocols';
 
-interface SinglePatternFormProps {
+interface RMTFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
   editProtocol?: BreathProtocol | null;
 }
 
-interface PatternSettings {
+interface RMTSettings {
   title: string;
   description: string;
+  totalSets: number;
+  repsPerSet: number;
+  restBetweenSets: number;
   inhaleTime: number;
   inhaleHoldTime: number;
   exhaleTime: number;
   exhaleHoldTime: number;
-  rounds: number;
-  restAfter: number;
-  tags: string[];
-  benefits: string[];
-  [key: string]: string | number | string[]; // Index signature for dynamic access
+  setConfigs: Array<{
+    setNumber: number;
+    breaths: string;
+    inhaleResistance: number;
+    exhaleResistance: number;
+    inhaleTime?: number;
+    inhaleHoldTime?: number;
+    exhaleTime?: number;
+    exhaleHoldTime?: number;
+    restTime?: number;
+  }>;
+  [key: string]: string | number | any[]; // Index signature for dynamic access
 }
 
-export default function SinglePatternForm({ isOpen, onClose, onSave, editProtocol }: SinglePatternFormProps) {
-  const [settings, setSettings] = useState<PatternSettings>({
+export default function RMTForm({ isOpen, onClose, onSave, editProtocol }: RMTFormProps) {
+  const [settings, setSettings] = useState<RMTSettings>({
     title: '',
     description: '',
+    totalSets: 3,
+    repsPerSet: 10,
+    restBetweenSets: 60,
     inhaleTime: 4,
     inhaleHoldTime: 0,
     exhaleTime: 4,
     exhaleHoldTime: 0,
-    rounds: 3,
-    restAfter: 0,
-    tags: [],
-    benefits: [],
+    setConfigs: []
   });
 
   useEffect(() => {
@@ -45,30 +55,46 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
       setSettings({
         title: editProtocol.title || '',
         description: editProtocol.description || '',
-        inhaleTime: editProtocol.pattern?.inhaleTime || 4,
-        inhaleHoldTime: editProtocol.pattern?.inhaleHoldTime || 0,
-        exhaleTime: editProtocol.pattern?.exhaleTime || 4,
-        exhaleHoldTime: editProtocol.pattern?.exhaleHoldTime || 0,
-        rounds: editProtocol.pattern?.rounds || 3,
-        restAfter: editProtocol.pattern?.restAfter || 0,
-        tags: editProtocol.tags || [],
-        benefits: editProtocol.benefits || [],
+        totalSets: editProtocol.protocol?.totalSets || 3,
+        repsPerSet: editProtocol.protocol?.repsPerSet || 10,
+        restBetweenSets: editProtocol.protocol?.restBetweenSets || 60,
+        inhaleTime: editProtocol.protocol?.inhaleTime || 4,
+        inhaleHoldTime: editProtocol.protocol?.inhaleHoldTime || 0,
+        exhaleTime: editProtocol.protocol?.exhaleTime || 4,
+        exhaleHoldTime: editProtocol.protocol?.exhaleHoldTime || 0,
+        setConfigs: editProtocol.protocol?.setConfigs || []
       });
     }
   }, [editProtocol]);
 
-  const increment = (key: keyof PatternSettings) => {
+  useEffect(() => {
+    // Update setConfigs when totalSets changes
+    const newSetConfigs = Array.from({ length: settings.totalSets }, (_, i) => ({
+      setNumber: i + 1,
+      breaths: settings.repsPerSet.toString(),
+      inhaleResistance: 0,
+      exhaleResistance: 0,
+      inhaleTime: settings.inhaleTime,
+      inhaleHoldTime: settings.inhaleHoldTime,
+      exhaleTime: settings.exhaleTime,
+      exhaleHoldTime: settings.exhaleHoldTime,
+      restTime: settings.restBetweenSets
+    }));
+    setSettings(prev => ({ ...prev, setConfigs: newSetConfigs }));
+  }, [settings.totalSets]);
+
+  const increment = (key: keyof RMTSettings) => {
     setSettings(prev => ({
       ...prev,
-      [key]: key === 'restAfter' ? (prev[key] as number) + 30 : (prev[key] as number) + 1
+      [key]: key === 'restBetweenSets' ? (prev[key] as number) + 15 : (prev[key] as number) + 1
     }));
   };
 
-  const decrement = (key: keyof PatternSettings) => {
+  const decrement = (key: keyof RMTSettings) => {
     setSettings(prev => ({
       ...prev,
-      [key]: key === 'restAfter' 
-        ? Math.max(0, (prev[key] as number) - 30)
+      [key]: key === 'restBetweenSets' 
+        ? Math.max(0, (prev[key] as number) - 15)
         : Math.max(key.toString().includes('Hold') ? 0 : 1, (prev[key] as number) - 1)
     }));
   };
@@ -79,41 +105,37 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const getTotalTime = () => {
-    const cycleTime = settings.inhaleTime + settings.inhaleHoldTime + 
-                     settings.exhaleTime + settings.exhaleHoldTime;
-    return (cycleTime * settings.rounds) + settings.restAfter;
-  };
-
   const handleSave = async () => {
     const protocol: Omit<BreathProtocol, 'id'> = {
       title: settings.title,
       description: settings.description,
       type: {
-        name: 'Single Pattern',
+        name: 'RMT',
         ref: null
       },
-      duration: formatTimeMMSS(getTotalTime()),
+      duration: formatTimeMMSS(settings.totalSets * (settings.repsPerSet * (settings.inhaleTime + settings.inhaleHoldTime + settings.exhaleTime + settings.exhaleHoldTime) + settings.restBetweenSets)),
       steps: [
         {
           order: 1,
-          instruction: `Inhale for ${settings.inhaleTime} seconds${settings.inhaleHoldTime > 0 ? `, hold for ${settings.inhaleHoldTime} seconds` : ''}, exhale for ${settings.exhaleTime} seconds${settings.exhaleHoldTime > 0 ? `, hold for ${settings.exhaleHoldTime} seconds` : ''}. Repeat for ${settings.rounds} rounds.`
+          instruction: `${settings.totalSets} sets of ${settings.repsPerSet} breaths with ${formatTimeMMSS(settings.restBetweenSets)} rest between sets.`
         }
       ],
       benefits: [
-        'Improves breath awareness',
-        'Reduces stress and anxiety',
-        'Enhances focus and concentration'
+        'Strengthens respiratory muscles',
+        'Improves breathing efficiency',
+        'Enhances exercise performance'
       ],
-      pattern: {
+      protocol: {
+        type: 'rmt' as const,
+        totalSets: settings.totalSets,
+        repsPerSet: settings.repsPerSet,
+        restBetweenSets: settings.restBetweenSets,
         inhaleTime: settings.inhaleTime,
         inhaleHoldTime: settings.inhaleHoldTime,
         exhaleTime: settings.exhaleTime,
         exhaleHoldTime: settings.exhaleHoldTime,
-        rounds: settings.rounds,
-        restAfter: settings.restAfter
-      },
-      tags: settings.tags
+        setConfigs: settings.setConfigs
+      }
     };
 
     try {
@@ -124,7 +146,7 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
       }
       onSave();
     } catch (error) {
-      console.error('Error saving protocol:', error);
+      console.error('Error saving RMT protocol:', error);
     }
   };
 
@@ -135,7 +157,7 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
   }: { 
     label: string; 
     value: number; 
-    settingKey: keyof PatternSettings;
+    settingKey: keyof RMTSettings;
   }) => (
     <div className="bg-gray-800/50 rounded-lg p-3">
       <div className="text-gray-400 text-xs mb-1">{label}</div>
@@ -147,7 +169,7 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
           <MinusIcon className="w-3.5 h-3.5" />
         </button>
         <span className="text-white text-lg font-medium mx-2">
-          {settingKey === 'restAfter' ? formatTimeMMSS(value) : value}
+          {settingKey === 'restBetweenSets' ? formatTimeMMSS(value) : value}
         </span>
         <button
           onClick={() => increment(settingKey)}
@@ -172,7 +194,7 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
           <div className="relative">
             <div className="flex items-center justify-between p-4 border-b border-gray-800">
               <Dialog.Title className="text-lg font-bold text-white">
-                Create Single Pattern Protocol
+                Create RMT Protocol
               </Dialog.Title>
               <button
                 onClick={onClose}
@@ -210,7 +232,21 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
                   />
                 </div>
 
-                {/* Timer Controls */}
+                {/* Set Configuration */}
+                <div className="grid grid-cols-2 gap-3">
+                  <TimerControl 
+                    label="TOTAL SETS" 
+                    value={settings.totalSets}
+                    settingKey="totalSets"
+                  />
+                  <TimerControl 
+                    label="REPS PER SET" 
+                    value={settings.repsPerSet}
+                    settingKey="repsPerSet"
+                  />
+                </div>
+
+                {/* Timing Configuration */}
                 <div className="grid grid-cols-2 gap-3">
                   <TimerControl 
                     label="INHALE TIME" 
@@ -234,38 +270,26 @@ export default function SinglePatternForm({ isOpen, onClose, onSave, editProtoco
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div>
                   <TimerControl 
-                    label="ROUNDS" 
-                    value={settings.rounds}
-                    settingKey="rounds"
+                    label="REST BETWEEN SETS" 
+                    value={settings.restBetweenSets}
+                    settingKey="restBetweenSets"
                   />
-                  <TimerControl 
-                    label="REST AFTER" 
-                    value={settings.restAfter}
-                    settingKey="restAfter"
-                  />
-                </div>
-
-                <div className="bg-gray-800/50 rounded-lg p-3">
-                  <div className="text-gray-400 text-xs">Total Time</div>
-                  <div className="text-xl font-medium text-white">
-                    {formatTimeMMSS(getTotalTime())}
-                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-800">
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-800">
               <button
                 onClick={onClose}
-                className="px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-yellow-500 to-yellow-600 text-gray-900 hover:from-yellow-400 hover:to-yellow-500 transition-all"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-yellow-500 to-yellow-600 text-gray-900 hover:from-yellow-400 hover:to-yellow-500 transition-all"
               >
                 Save Protocol
               </button>

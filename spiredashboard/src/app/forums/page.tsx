@@ -25,7 +25,8 @@ import {
   ChatBubbleLeftIcon,
   TrashIcon,
   StarIcon,
-  GifIcon
+  GifIcon,
+  HeartIcon
 } from '@heroicons/react/24/solid';
 import Image from 'next/image';
 import { GiphyFetch } from '@giphy/js-fetch-api';
@@ -568,7 +569,7 @@ export default function Forums() {
           <button
             onClick={createPost}
             disabled={(!newPost.trim() && !selectedGif) || submitting || !selectedForum}
-            className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#00B5E0] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#015B98] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create Post
           </button>
@@ -585,7 +586,7 @@ export default function Forums() {
                     setSearchQuery(e.target.value);
                     searchGiphy(e.target.value);
                   }}
-                  className="flex-1 bg-gray-900 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="flex-1 bg-gray-900 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00B5E0]"
                 />
                 <button
                   onClick={() => setShowGifPicker(false)}
@@ -631,8 +632,8 @@ export default function Forums() {
                   onClick={() => setSelectedForum(forum)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                     selectedForum?.id === forum.id
-                      ? 'bg-yellow-500 text-gray-900'
-                      : 'text-gray-400 hover:bg-gray-700/50'
+                      ? 'bg-[#00B5E0] text-white'
+                      : 'text-gray-400 hover:bg-[#0d2f4d]'
                   }`}
                 >
                   {forum.name}
@@ -651,8 +652,8 @@ export default function Forums() {
                   onClick={() => setSelectedChannel(channel)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                     selectedChannel === channel
-                      ? 'bg-yellow-500 text-gray-900'
-                      : 'text-gray-400 hover:bg-gray-700/50'
+                      ? 'bg-[#00B5E0] text-white'
+                      : 'text-gray-400 hover:bg-[#0d2f4d]'
                   }`}
                 >
                   {channel}
@@ -667,34 +668,46 @@ export default function Forums() {
           {posts.map((post) => (
             <div
               key={post.id}
-              className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50"
+              className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200 transform hover:-translate-y-0.5"
             >
               {/* Post Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <UserCircleIcon className="w-10 h-10 text-gray-400" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <UserCircleIcon className="w-12 h-12 text-gray-400" />
+                    {post.isCoachPost && (
+                      <div className="absolute -bottom-1 -right-1 bg-[#00B5E0] rounded-full p-1">
+                        <StarIcon className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <p className="font-medium text-white">
+                      <p className="font-semibold text-white text-lg">
                         {post.authorName}
                       </p>
-                      {post.isCoachPost && (
-                        <span className="text-sm text-yellow-500">(Coach)</span>
-                      )}
                       <span className="text-sm text-gray-400">•</span>
                       <span className="text-sm text-gray-400">
-                        {post.timestamp.toLocaleDateString()}
+                        {post.timestamp.toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-400">{post.forumName}</p>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <span className="text-gray-400">{post.forumName}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-[#00B5E0]">{post.channel}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   {isCoach && (
                     <button
                       onClick={() => togglePin(post.id)}
-                      className={`p-1 rounded hover:bg-gray-700 transition-colors ${
-                        post.isPinned ? 'text-yellow-500' : 'text-gray-400'
+                      className={`p-2 rounded-lg hover:bg-[#0d2f4d] transition-colors ${
+                        post.isPinned ? 'text-[#00B5E0]' : 'text-gray-400'
                       }`}
                     >
                       <StarIcon className="w-5 h-5" />
@@ -703,7 +716,7 @@ export default function Forums() {
                   {(isCoach || post.authorId === user?.uid) && (
                     <button
                       onClick={() => deletePost(post.id)}
-                      className="p-1 rounded text-red-500 hover:bg-gray-700 transition-colors"
+                      className="p-2 rounded-lg text-red-500 hover:bg-gray-700/50 transition-colors"
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>
@@ -712,20 +725,22 @@ export default function Forums() {
               </div>
 
               {/* Post Content */}
-              <div className="relative">
+              <div className="relative mb-6">
                 {post.text && (
-                  <div className={`text-white mb-4 whitespace-pre-wrap ${post.image?.toLowerCase().endsWith('.gif') ? 'pr-24' : ''}`}>
+                  <div className={`text-white text-lg mb-4 whitespace-pre-wrap leading-relaxed ${
+                    post.image?.toLowerCase().endsWith('.gif') ? 'pr-24' : ''
+                  }`}>
                     {post.text}
                   </div>
                 )}
                 {post.image && !post.image.toLowerCase().endsWith('.gif') && (
                   <div className="mb-4 w-full">
-                    <div className="relative aspect-video">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-900/50">
                       <Image
                         src={post.image}
                         alt="Post image"
                         fill
-                        className="rounded-lg object-contain"
+                        className="object-contain transition-opacity duration-200 hover:opacity-90"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -736,11 +751,11 @@ export default function Forums() {
                   </div>
                 )}
                 {post.image && post.image.toLowerCase().endsWith('.gif') && (
-                  <div className="absolute top-0 right-0 w-14 h-14 rounded-lg overflow-hidden">
+                  <div className="absolute top-4 right-4 w-12 h-12 rounded-lg overflow-hidden shadow-lg">
                     <img
                       src={post.image}
                       alt="Post gif"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-200 hover:scale-110"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
@@ -751,26 +766,37 @@ export default function Forums() {
               </div>
 
               {/* Post Stats */}
-              <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
-                <div className="flex items-center space-x-4">
-                  <span>{post.likes?.length || 0} likes</span>
-                  <span>{post.comments?.length || 0} comments</span>
+              <div className="flex items-center justify-between text-sm mb-6">
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-2">
+                    <HeartIcon className={`w-5 h-5 ${
+                      post.likes?.includes(user?.uid || '') ? 'text-red-500' : 'text-gray-400'
+                    }`} />
+                    <span className="text-gray-400">{post.likes?.length || 0} likes</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <ChatBubbleLeftIcon className="w-5 h-5 text-gray-400" />
+                    <span className="text-gray-400">{post.comments?.length || 0} comments</span>
+                  </div>
                 </div>
               </div>
 
               {/* Post Actions */}
-              <div className="flex items-center space-x-4 pt-3 border-t border-gray-700">
+              <div className="flex items-center space-x-4 pt-4 border-t border-gray-700">
                 <button
                   onClick={() => toggleLike(post.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-700/50 transition-colors ${
-                    post.likes?.includes(user?.uid || '') ? 'text-yellow-500' : 'text-gray-400'
+                  className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg transition-all duration-200 ${
+                    post.likes?.includes(user?.uid || '')
+                      ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                      : 'text-gray-400 hover:bg-gray-700/50'
                   }`}
                 >
+                  <HeartIcon className="w-5 h-5" />
                   <span>Like</span>
                 </button>
                 <button
                   onClick={() => toggleComments(post.id)}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-lg text-gray-400 hover:bg-gray-700/50 transition-colors"
+                  className="flex items-center space-x-2 px-6 py-2.5 rounded-lg text-gray-400 hover:bg-gray-700/50 transition-all duration-200"
                 >
                   <ChatBubbleLeftIcon className="w-5 h-5" />
                   <span>Comment</span>
@@ -779,42 +805,48 @@ export default function Forums() {
 
               {/* Comments Section */}
               {showComments[post.id] && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="mt-6 pt-6 border-t border-gray-700">
                   {/* Comment Input */}
-                  <div className="flex items-start space-x-3 mb-4">
-                    <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                  <div className="flex items-start space-x-4 mb-6">
+                    <UserCircleIcon className="w-10 h-10 text-gray-400" />
                     <div className="flex-1">
                       <input
                         type="text"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Write a comment..."
-                        className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-[#00B5E0] focus:ring-1 focus:ring-[#00B5E0] transition-all duration-200"
                       />
                     </div>
                     <button
                       onClick={() => addComment(post.id)}
                       disabled={!newComment.trim() || submittingComment}
-                      className="bg-yellow-500 text-gray-900 p-2 rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-[#00B5E0] text-white px-4 py-3 rounded-lg hover:bg-[#015B98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <PaperAirplaneIcon className="w-5 h-5" />
                     </button>
                   </div>
 
                   {/* Comments List */}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {post.comments?.map((comment) => (
-                      <div key={comment.id} className="flex items-start space-x-3">
-                        <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                      <div key={comment.id} className="flex items-start space-x-4 group">
+                        <UserCircleIcon className="w-10 h-10 text-gray-400" />
                         <div className="flex-1">
-                          <div className="bg-gray-900/50 rounded-lg p-3">
-                            <p className="font-medium text-white text-sm">
+                          <div className="bg-gray-900/50 rounded-lg p-4 group-hover:bg-gray-900/70 transition-colors duration-200">
+                            <p className="font-medium text-white text-sm mb-2">
                               {comment.authorName}
                             </p>
-                            <p className="text-white">{comment.text}</p>
+                            <p className="text-gray-200">{comment.text}</p>
                           </div>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {comment.timestamp.toLocaleDateString()}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {comment.timestamp.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </p>
                         </div>
                       </div>

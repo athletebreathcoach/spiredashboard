@@ -321,7 +321,7 @@ export default function TrainingPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col bg-[#111827]">
+    <div className="h-[calc(100vh-64px)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-gray-800">
         <div className="flex items-center space-x-4">
@@ -360,7 +360,7 @@ export default function TrainingPage() {
       {/* Calendar View */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Date Navigation */}
-        <div className="flex items-center px-4 py-2 border-b border-gray-800 bg-[#111827]">
+        <div className="flex items-center px-4 py-2 border-b border-gray-800">
           <button
             onClick={() => {
               const newDate = new Date(selectedDate);
@@ -382,7 +382,7 @@ export default function TrainingPage() {
                   key={index}
                   onClick={() => setSelectedDate(date)}
                   className={`flex flex-col items-center py-2 ${
-                    isSelected ? 'bg-blue-500/20' : ''
+                    isSelected ? '' : ''
                   }`}
                 >
                   <span className="text-xs text-gray-400 font-medium">{format(date, 'EEE')}</span>
@@ -430,9 +430,9 @@ export default function TrainingPage() {
                               ref={provided.innerRef}
                               {...provided.droppableProps}
                               className={`relative border-b border-gray-800 
-                                ${snapshot.isDraggingOver ? 'bg-blue-500/10' : ''}`}
+                                ${snapshot.isDraggingOver ? 'bg-[#111827]/10' : ''}`}
                             >
-                              <div className="sticky top-0 z-10 flex items-center justify-between p-2 bg-[#111827]/95 backdrop-blur-sm">
+                              <div className="sticky top-0 z-10 flex items-center justify-between p-2 backdrop-blur-sm">
                                 <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{slot}</h2>
                                 <button
                                   onClick={(e) => handleAddActivity(date, slot, e)}
@@ -493,7 +493,7 @@ export default function TrainingPage() {
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-blue-500/10 rounded-lg p-4' : ''}`}
+                          className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-[#111827]/10 rounded-lg p-4' : ''}`}
                         >
                           <div className="flex items-center justify-between">
                             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{slot}</h2>
