@@ -14,18 +14,17 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
-export interface ScheduledExercise {
+export interface BaseScheduledExercise {
   id?: string;
   exerciseId: string;
   userId: string;
   exerciseTitle: string;
-  type?: string;
-  exerciseType?: string;
+  type: 'habit' | 'task' | 'exercise' | 'breathProtocol' | 'education' | 'note' | 'guidedSession';
   scheduledDateTime: Date;
-  status: 'scheduled' | 'completed' | 'incomplete';
+  status: 'scheduled' | 'completed';
   metrics: {
     completed: boolean;
-    streak?: number;
+    streak: number;
     timeOfDay: string;
     [key: string]: any;
   };
@@ -35,6 +34,15 @@ export interface ScheduledExercise {
   updatedAt: Date;
   createdBy: string;
   [key: string]: any;
+}
+
+export interface ScheduledExercise extends Omit<BaseScheduledExercise, 'metrics'> {
+  metrics: {
+    completed: boolean;
+    streak?: number;
+    timeOfDay: string;
+    [key: string]: any;
+  };
 }
 
 // Schedule a new exercise
@@ -181,8 +189,14 @@ export const getScheduledExercises = async (
       id: doc.id,
       ...doc.data(),
       scheduledDateTime: doc.data().scheduledDateTime.toDate(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      metrics: {
+        completed: doc.data().metrics?.completed || false,
+        streak: doc.data().metrics?.streak || 0,
+        timeOfDay: doc.data().metrics?.timeOfDay || 'anytime',
+        ...(doc.data().metrics || {})
+      }
     })) as ScheduledExercise[];
   } catch (error) {
     console.error('Error getting scheduled exercises:', error);
@@ -236,7 +250,7 @@ export const scheduleHabit = async (
   } = {}
 ): Promise<ScheduledExercise> => {
   try {
-    const habitRef = doc(db, 'habits', habitId);
+    const habitRef = doc(db, 'habitstasks', habitId);
     const habitDoc = await getDoc(habitRef);
     
     if (!habitDoc.exists()) {
@@ -249,9 +263,8 @@ export const scheduleHabit = async (
     const scheduledHabit: Omit<ScheduledExercise, 'id'> = {
       exerciseId: habitId,
       userId,
-      exerciseTitle: habit.title,
+      exerciseTitle: habit.title || 'Untitled Habit',
       type: 'habit',
-      exerciseType: 'habit',
       scheduledDateTime,
       status: 'scheduled',
       metrics: {
@@ -264,8 +277,7 @@ export const scheduleHabit = async (
       coachNotes: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      createdBy: userId,
-      ...options
+      createdBy: userId
     };
 
     const docRef = await addDoc(scheduledExerciseRef, {
@@ -275,10 +287,12 @@ export const scheduleHabit = async (
       updatedAt: serverTimestamp(),
     });
 
-    return { 
-      id: docRef.id, 
-      ...scheduledHabit 
+    const result: ScheduledExercise = {
+      ...scheduledHabit,
+      id: docRef.id
     };
+
+    return result;
   } catch (error) {
     console.error('Error scheduling habit:', error);
     throw error;
@@ -297,7 +311,7 @@ export const scheduleTask = async (
   } = {}
 ): Promise<ScheduledExercise> => {
   try {
-    const taskRef = doc(db, 'tasks', taskId);
+    const taskRef = doc(db, 'habitstasks', taskId);
     const taskDoc = await getDoc(taskRef);
     
     if (!taskDoc.exists()) {
@@ -305,12 +319,18 @@ export const scheduleTask = async (
     }
 
     const task = taskDoc.data();
+    const taskTitle = typeof task.title === 'string' ? task.title : 
+                     typeof task.name === 'string' ? task.name : 
+                     'Untitled Task';
+                     
     const scheduledExerciseRef = collection(db, 'scheduledExercises');
     
-    const scheduledTask: ScheduledExercise = {
+    // Create base scheduled task object
+    const scheduledTask: Omit<ScheduledExercise, 'id'> = {
       exerciseId: taskId,
       userId,
-      exerciseTitle: task.title,
+      exerciseTitle: taskTitle,
+      type: 'task',
       exerciseType: 'task',
       scheduledDateTime,
       status: 'scheduled',
@@ -324,20 +344,29 @@ export const scheduleTask = async (
       coachNotes: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      createdBy: userId,
-      ...options
+      createdBy: userId
     };
 
-    const docRef = await addDoc(scheduledExerciseRef, {
+    // Filter out any undefined values from options
+    const cleanOptions = Object.fromEntries(
+      Object.entries(options).filter(([_, value]) => value !== undefined)
+    );
+
+    // Create the final object to save to Firestore
+    const firestoreDoc = {
       ...scheduledTask,
+      ...cleanOptions,
       scheduledDateTime: Timestamp.fromDate(scheduledDateTime),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
 
-    return { 
-      id: docRef.id, 
-      ...scheduledTask 
+    const docRef = await addDoc(scheduledExerciseRef, firestoreDoc);
+
+    return {
+      ...scheduledTask,
+      ...cleanOptions,
+      id: docRef.id
     };
   } catch (error) {
     console.error('Error scheduling task:', error);

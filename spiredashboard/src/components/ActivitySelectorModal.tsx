@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/config/firebase';
 import { collection, query, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { scheduleExercise, scheduleNote, scheduleGuidedSession, scheduleBreathProtocol } from '@/services/scheduledExercises';
+import { scheduleExercise, scheduleNote, scheduleGuidedSession, scheduleBreathProtocol, scheduleHabit, scheduleTask } from '@/services/scheduledExercises';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -74,6 +74,12 @@ interface BreathProtocolMetrics {
   rounds: number;
   restAfter: number;
   totalTime: number;
+}
+
+interface ActivityType {
+  id: string;
+  name: string;
+  icon?: string;
 }
 
 type ActivityType = Activity['type'];
@@ -308,228 +314,107 @@ export default function ActivitySelectorModal({
   };
 
   const handleScheduleActivity = async () => {
-    if (!selectedType || !selectedActivity || !selectedActivity.id) return;
+    if (!selectedActivity || !selectedType || !selectedClientId) {
+      return;
+    }
 
     try {
-      setLoading(true);
       const scheduledDateTime = new Date(date);
+      const scheduleData = {
+        timeOfDay,
+        ...selectedActivity
+      };
 
-      if (selectedType === 'note') {
-        if (!noteTitle.trim()) {
-          alert('Please enter a note title');
-          return;
-        }
-
-        await scheduleNote(selectedClientId, scheduledDateTime, {
-          title: noteTitle.trim(),
-          content: noteContent.trim(),
-          timeOfDay: timeOfDay.toLowerCase()
-        });
-      } else {
-        let scheduleData;
-        let collectionPath = '';
-        
-        const activityTitle = selectedActivity.title || selectedActivity.name || 'Untitled';
-        
-        switch (selectedType) {
-          case 'exercise':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'exercise',
-              description: selectedActivity.description || '',
-              videoId: selectedActivity.videoId,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false,
-                sets: exerciseMetrics.sets,
-                eachSide: exerciseMetrics.eachSide,
-                notes: ''
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id;
-            break;
-
-          case 'breathProtocol': {
-            if (!selectedActivity || !('id' in selectedActivity)) break;
-            const breathProtocol = selectedActivity as Activity;
-            await scheduleBreathProtocol(
-              selectedClientId,
-              breathProtocol.id,
-              scheduledDateTime,
-              {
-                metrics: {
-                  timeOfDay: timeOfDay.toLowerCase(),
-                  settings: {
-                    pattern: {
-                      inhale: protocolMetrics.inhaleTime,
-                      inHold: protocolMetrics.inhaleHoldTime,
-                      exhale: protocolMetrics.exhaleTime,
-                      exHold: protocolMetrics.exhaleHoldTime
-                    },
-                    rounds: protocolMetrics.rounds,
-                    duration: protocolMetrics.totalTime.toString()
-                  }
-                },
-                protocol: {
-                  type: 'standard',
-                  pattern: {
-                    inhale: protocolMetrics.inhaleTime,
-                    inHold: protocolMetrics.inhaleHoldTime,
-                    exhale: protocolMetrics.exhaleTime,
-                    exHold: protocolMetrics.exhaleHoldTime
-                  },
-                  rounds: protocolMetrics.rounds,
-                  duration: protocolMetrics.totalTime.toString()
-                },
-                coachNotes: coachNotes
-              }
-            );
-            if (onActivityScheduled) {
-              onActivityScheduled();
-            }
-            onClose();
-            break;
-          }
-
-          case 'breathTest':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'breathTest',
-              description: selectedActivity.description,
-              testId: selectedActivity.id,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id;
-            break;
-
-          case 'guidedSession':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'guidedSession',
-              description: selectedActivity.description,
-              sessionId: selectedActivity.id,
-              duration: selectedActivity.duration,
-              videoUrl: selectedActivity.videoUrl,
-              sessionType: selectedActivity.type,
-              intensity: selectedActivity.intensity,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id;
-            break;
-
-          case 'habit':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'habit',
-              description: selectedActivity.description,
-              habitId: selectedActivity.id,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false,
-                streak: 0
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id;
-            break;
-
-          case 'task':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'task',
-              description: selectedActivity.description,
-              taskId: selectedActivity.id,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false,
-                priority: selectedActivity.priority || 'medium'
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id;
-            break;
-
-          case 'education':
-            scheduleData = {
-              exerciseTitle: activityTitle,
-              type: 'education',
-              description: selectedActivity.description,
-              content: selectedActivity.content,
-              documentId: selectedActivity.id,
-              linkPreviews: selectedActivity.linkPreviews,
-              timeOfDay: timeOfDay.toLowerCase(),
-              metrics: {
-                timeOfDay: timeOfDay.toLowerCase(),
-                completed: false
-              },
-              coachNotes: coachNotes
-            };
-            collectionPath = selectedActivity.id; // Just use the ID directly since we'll construct the full path in scheduleExercise
-            break;
-        }
-
-        if (!collectionPath) {
-          throw new Error('Invalid activity type');
-        }
-
-        console.log('Scheduling activity:', {
-          clientId: selectedClientId,
-          activityId: selectedActivity.id,
-          date: scheduledDateTime,
-          data: scheduleData
-        });
-
-        await scheduleExercise(
-          selectedClientId,
-          collectionPath,
-          scheduledDateTime,
-          scheduleData
-        );
+      if (!selectedActivity.id || !selectedActivity.type) {
+        throw new Error('Invalid activity type');
       }
-      
-      setStep(1);
-      setSelectedType(null);
-      setSelectedActivity(null);
-      setNoteTitle('');
-      setNoteContent('');
-      setCoachNotes('');
-      setExerciseMetrics({
-        sets: [{
-          reps: '',
-          weight: '',
-          rest: '00:00'
-        }],
-        eachSide: false
+
+      const selectedTypeInfo = activityTypes.find(t => t.id === selectedActivity.type);
+      if (!selectedTypeInfo) {
+        throw new Error('Invalid activity type');
+      }
+
+      console.log('Scheduling activity:', {
+        clientId: selectedClientId,
+        activityId: selectedActivity.id,
+        date: scheduledDateTime,
+        data: scheduleData,
+        collection: selectedTypeInfo.collection
       });
-      setProtocolMetrics({
-        inhaleTime: 4,
-        inhaleHoldTime: 0,
-        exhaleTime: 4,
-        exhaleHoldTime: 0,
-        rounds: 3,
-        restAfter: 0,
-        totalTime: 24 // (4+0+4+0) * 3
-      });
+
+      switch (selectedActivity.type) {
+        case 'habit':
+          await scheduleHabit(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            scheduleData
+          );
+          break;
+        case 'task':
+          await scheduleTask(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            scheduleData
+          );
+          break;
+        case 'breathProtocol':
+          await scheduleBreathProtocol(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            scheduleData
+          );
+          break;
+        case 'guidedSession':
+          await scheduleGuidedSession(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            timeOfDay
+          );
+          break;
+        case 'education':
+          // For education, we'll use the default scheduleExercise since there's no dedicated function
+          await scheduleExercise(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            scheduleData
+          );
+          break;
+        case 'note':
+          await scheduleNote(
+            selectedClientId,
+            scheduledDateTime,
+            {
+              ...scheduleData,
+              title: selectedActivity.title || 'Note',
+              content: selectedActivity.content || ''
+            }
+          );
+          break;
+        default:
+          await scheduleExercise(
+            selectedClientId,
+            selectedActivity.id,
+            scheduledDateTime,
+            scheduleData
+          );
+      }
     } catch (error) {
       console.error('Error scheduling activity:', error);
-      alert('Failed to schedule activity. Please try again.');
-    } finally {
-      setLoading(false);
+      throw error;
     }
+      
+    setStep(1);
+    setSelectedType(null);
+    setSelectedActivity(null);
+    if (onActivityScheduled) {
+      onActivityScheduled();
+    }
+    onClose();
   };
 
   // Reset state when modal closes
