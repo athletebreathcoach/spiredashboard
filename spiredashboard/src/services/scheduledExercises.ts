@@ -18,29 +18,15 @@ export interface ScheduledExercise {
   id?: string;
   exerciseId: string;
   userId: string;
-  exerciseTitle?: string;
-  exerciseType: string;
-  videoId?: string;
+  exerciseTitle: string;
+  type?: string;
+  exerciseType?: string;
   scheduledDateTime: Date;
   status: 'scheduled' | 'completed' | 'incomplete';
   metrics: {
+    completed: boolean;
+    streak?: number;
     timeOfDay: string;
-    completed?: boolean;
-    logged?: boolean;
-    sets?: Array<{
-      reps?: number;
-      weight?: number;
-      rest?: string;
-    }>;
-    eachSide?: boolean;
-    notes?: string;
-    content?: string;
-    documentId?: string;
-    linkPreviews?: Array<{
-      title: string;
-      url: string;
-    }>;
-    title?: string;
     [key: string]: any;
   };
   clientComments: string;
@@ -48,14 +34,7 @@ export interface ScheduledExercise {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
-  content?: string;
-  documentId?: string;
-  linkPreviews?: Array<{
-    title: string;
-    url: string;
-  }>;
-  title?: string;
-  type?: string;
+  [key: string]: any;
 }
 
 // Schedule a new exercise
@@ -267,10 +246,11 @@ export const scheduleHabit = async (
     const habit = habitDoc.data();
     const scheduledExerciseRef = collection(db, 'scheduledExercises');
     
-    const scheduledHabit: ScheduledExercise = {
+    const scheduledHabit: Omit<ScheduledExercise, 'id'> = {
       exerciseId: habitId,
       userId,
       exerciseTitle: habit.title,
+      type: 'habit',
       exerciseType: 'habit',
       scheduledDateTime,
       status: 'scheduled',
